@@ -38,7 +38,7 @@
       els.confidence.textContent=total?pct(qcCandidate/total):'—';
       const metricLabel=els.confidence.closest('.quality-metric')?.querySelector('span');if(metricLabel)metricLabel.textContent='Ca đạt QC tối thiểu';
       els.dataState.textContent=total
-        ?`Kho hiện có ${total} ca. ${qcCandidate}/${total} ca đạt bộ lọc QC tối thiểu để xem xét cho dữ liệu huấn luyện. Dữ liệu ca được thu thập tự động; kiến thức chuyên môn chỉ tham gia suy luận sau khi admin duyệt.`
+        ?`Kho hiện có ${total} ca. ${qcCandidate}/${total} ca đạt bộ lọc QC tối thiểu để xem xét cho dữ liệu huấn luyện. Dữ liệu ca được thu thập tự động; kiến thức chuyên môn chỉ tham gia suy luận sau khi admin duyệt. Production hiện chưa có nhãn đồng thuận chuyên gia nên không dùng chỉ số này để khẳng định độ chính xác lâm sàng.`
         :'Kho chưa có ca. Chưa có dữ liệu để đánh giá khả năng máy học.';
       els.dataState.classList.toggle('warn',true);loaded=true;
     }catch{

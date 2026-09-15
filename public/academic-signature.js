@@ -1,6 +1,25 @@
 import {ATLAS_A} from './academic-atlas-a.js';
 import {ATLAS_B} from './academic-atlas-b.js';
-export const ATLAS=[...ATLAS_A,...ATLAS_B];
+import {ACADEMIC_PAGE_SECTIONS,ACADEMIC_PAGE_VECTOR_KEYS,ACADEMIC_PAGE_CORPUS} from './academic-page-meta.js';
+import {ACADEMIC_PAGE_ATLAS_1} from './academic-page-atlas-1.js';
+import {ACADEMIC_PAGE_ATLAS_2} from './academic-page-atlas-2.js';
+import {ACADEMIC_PAGE_ATLAS_3} from './academic-page-atlas-3.js';
+import {ACADEMIC_PAGE_ATLAS_4} from './academic-page-atlas-4.js';
+import {ACADEMIC_PAGE_ATLAS_5} from './academic-page-atlas-5.js';
+
+const PAGE_ROWS=[...ACADEMIC_PAGE_ATLAS_1,...ACADEMIC_PAGE_ATLAS_2,...ACADEMIC_PAGE_ATLAS_3,...ACADEMIC_PAGE_ATLAS_4,...ACADEMIC_PAGE_ATLAS_5];
+function pageRecord(row){
+  const [page,sectionIndex,pageSha256Prefix,globalFeatures,values]=row;
+  const common={id:`HD1-page-${String(page).padStart(3,'0')}`,page,section:ACADEMIC_PAGE_SECTIONS[sectionIndex]||'Nguồn toàn văn',context:'Vector thị giác toàn trang từ tài liệu người dùng; chỉ dùng so hình thái, không chuyển bệnh danh.',cropSha256:pageSha256Prefix,pageSha256Prefix,globalFeatures,usage:'full-page-derived'};
+  if(!values)return {...common,d:null};
+  const d=Object.fromEntries(ACADEMIC_PAGE_VECTOR_KEYS.map((key,i)=>[key,values[i]]));
+  return {...common,d};
+}
+export const PAGE_CORPUS=PAGE_ROWS.map(pageRecord);
+export const PAGE_ATLAS=PAGE_CORPUS.filter(r=>r.d);
+export const ATLAS=[...ATLAS_A,...ATLAS_B,...PAGE_ATLAS];
+export {ACADEMIC_PAGE_CORPUS};
+
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});}
 function rgbToHsv(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0;if(d){if(max===r)h=60*((g-b)/d%6);else if(max===g)h=60*((b-r)/d+2);else h=60*((r-g)/d+4);}if(h<0)h+=360;return {h,s:max?d/max:0,v:max};}
 function largestComponent(mask,w,h){const seen=new Uint8Array(mask.length),queue=new Int32Array(mask.length);let best=[];for(let seed=0;seed<mask.length;seed++){if(!mask[seed]||seen[seed])continue;let head=0,tail=0;queue[tail++]=seed;seen[seed]=1;const cells=[];while(head<tail){const p=queue[head++];cells.push(p);const x=p%w,y=(p/w)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const np=ny*w+nx;if(mask[np]&&!seen[np]){seen[np]=1;queue[tail++]=np;}}}if(cells.length>best.length)best=cells;}const out=new Uint8Array(mask.length);for(const p of best)out[p]=1;return {mask:out,area:best.length};}
@@ -8,4 +27,4 @@ export async function signatureFromImage(dataUrl){const img=await loadImage(data
 export function clamp(v,a=0,b=1){return Math.max(a,Math.min(b,Number(v)||0));}
 export function coarse(d){const tongue=d.purple>.13?'tím':d.r>d.g*1.24&&d.s>.34?'đỏ':d.s<.22&&d.v>.60?'nhợt':'đỏ nhạt';const coat=d.yellow>.075&&d.yellow>d.white*.55?'vàng':d.white>.10?'trắng':'ít rêu';const thick=Math.max(d.white,d.yellow)>.34?'dày':Math.max(d.white,d.yellow)>.15?'mỏng':'rất mỏng';return {tongue,coat,thick,fissure:d.dark>.025,spots:d.spot>.055};}
 function similarity(a,b){const dims=[['r',.06,1],['g',.05,1],['b',.05,1],['s',.07,1],['v',.06,1],['purple',.13,.35],['white',.13,.55],['yellow',.12,.40],['dark',.08,.12],['spot',.08,.55],['aspect',.08,1.4],['coverage',.09,.75]];let dist=0,total=0;for(const [k,w,scale] of dims){dist+=w*Math.min(1,Math.abs((a?.[k]||0)-(b?.[k]||0))/scale);total+=w;}const ca=coarse(a),cb=coarse(b);let cat=0;cat+=(ca.tongue===cb.tongue?.3:0);cat+=(ca.coat===cb.coat?.3:0);cat+=(ca.thick===cb.thick?.2:0);cat+=(ca.fissure===cb.fissure?.1:0);cat+=(ca.spots===cb.spots?.1:0);return clamp((1-dist/Math.max(.001,total))*.82+cat*.18);}
-export function matchAtlas(sig){if(!sig)return[];return ATLAS.map(r=>({...r,similarity:Number(similarity(sig,r.d).toFixed(3))})).sort((a,b)=>b.similarity-a.similarity).slice(0,3);}
+export function matchAtlas(sig){if(!sig)return[];return ATLAS.filter(r=>r.d).map(r=>({...r,similarity:Number(similarity(sig,r.d).toFixed(3))})).sort((a,b)=>b.similarity-a.similarity).slice(0,3);}

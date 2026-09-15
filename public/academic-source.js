@@ -1,6 +1,6 @@
-export const FUSION_VERSION='academic-fusion-v1';
-export const KNOWLEDGE_VERSION='thiet-chan-kb-2026-09-15.6doc-atlas';
-export const SOURCE={id:'HD1',title:'Thiệt chẩn hiện đại - Nguyên lý & lâm sàng Đông Dược',translator:'Sách Y Phú',publication:'07/2022',pdfPages:150,sha256:'d05dedaeffcfcde847765739e744e987ebeaa8802d67990141af3688df6d282a'};
+export const FUSION_VERSION='academic-fusion-v1.1-full-document';
+export const KNOWLEDGE_VERSION='thiet-chan-kb-2026-09-15.6doc-atlas-350p';
+export const SOURCE={id:'HD1',title:'Thiệt chẩn hiện đại - Nguyên lý & lâm sàng Đông Dược',translator:'Sách Y Phú',publication:'07/2022',pdfPages:350,indexedPages:350,visualSignaturePages:263,sha256:'d05dedaeffcfcde847765739e744e987ebeaa8802d67990141af3688df6d282a'};
 export const WEIGHTS=Object.freeze({directImage:.45,atlasSimilarity:.35,geminiAcademic:.20});
 export const MODERN_EVIDENCE=[
 {page:13,topics:['trung tuyến','hình thái'],text:'Đường trung tuyến và tính cân xứng của thân lưỡi là đặc điểm hình thái cần quan sát có hệ thống; sai lệch phải được phân biệt với đường nứt hoặc góc chụp.'},
@@ -24,6 +24,7 @@ TRỌNG SỐ CỐ ĐỊNH: ảnh trực tiếp 45%, atlas 35%, học thuật Gem
 QUY TẮC:
 - Chỉ giữ một thể bệnh/tín hiệu khi ít nhất 2/3 lớp bằng chứng đồng thuận.
 - Bệnh danh của ca atlas KHÔNG được chuyển sang người dùng; ca atlas chỉ dùng so hình thái.
+- Toàn bộ 350 trang nguồn phải được giữ trong chỉ mục thị giác theo hash/vector; các trang không có vùng lưỡi tin cậy không được ép vào so khớp lưỡi.
 - Nếu ảnh QC kém, ánh sáng sai hoặc atlas tương đồng thấp, phải hạ độ tin cậy.
 - Không bịa triệu chứng, mạch, tiền sử, bệnh danh hiện đại, điều trị hay phương thuốc.
 - Phân biệt rõ: quan sát trực tiếp / tương đồng atlas / diễn giải học thuật / dữ kiện còn thiếu.

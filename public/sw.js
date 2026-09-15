@@ -1,6 +1,8 @@
-const CACHE='ai-thiet-chan-v2.9.6-new-case';
-const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/capture-metadata.js','/consultation.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
+const CACHE='ai-thiet-chan-v2.9.7-academic-350p';
+const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/capture-metadata.js','/consultation.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-fusion-core.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
+
+try{importScripts('/academic-vision.js');}catch{}
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
@@ -17,6 +19,21 @@ async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){
   finally{clearTimeout(timer);}
 }
 
+async function enrichAnalyzeRequest(request){
+  try{
+    const body=await request.clone().json();
+    const image=body?.topImage||body?.image;
+    const vision=self.AITCAcademicVision;
+    if(!image||!vision?.signatureFromDataUrl)return request;
+    const signature=await vision.signatureFromDataUrl(image);
+    if(!signature)return request;
+    body.academicSignature=signature;
+    body.academicSource=vision.source;
+    const headers=new Headers(request.headers);headers.set('content-type','application/json');
+    return new Request(request,{headers,body:JSON.stringify(body)});
+  }catch{return request;}
+}
+
 self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
@@ -24,7 +41,8 @@ self.addEventListener('fetch',event=>{
 
   if(request.method==='POST'&&url.pathname==='/api/analyze'){
     event.respondWith((async()=>{
-      const response=await fetch(request);
+      const forwarded=await enrichAnalyzeRequest(request);
+      const response=await fetch(forwarded);
       if(response.status!==429) return response;
       const body=await response.clone().text();
       const headers=new Headers(response.headers);

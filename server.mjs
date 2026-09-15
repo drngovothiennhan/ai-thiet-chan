@@ -4,12 +4,13 @@ import { createHash } from 'node:crypto';
 import { installAccessControl } from './access-control.mjs';
 import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
+import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const VERSION = '2.9.0';
+const VERSION = '2.9.1';
 const BUILD = process.env.RENDER_GIT_COMMIT || 'local';
 const AI_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.AI_RATE_LIMIT_WINDOW_MS || 600_000));
 const AI_RATE_LIMIT_MAX = Math.max(1, Number(process.env.AI_RATE_LIMIT_MAX || 30));
@@ -243,6 +244,7 @@ app.get('/api/health',(req,res)=>res.json({
   providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
+  academicVision:ACADEMIC_HEALTH,
   caseCollection:{mode:'automatic',history:true,deduplicate:'sha256-composite',storeReady:caseStoreReady},
   aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX},access:{guestAnalysesPerDay:5,studentUnlimited:true},time:new Date().toISOString()
 }));
@@ -264,11 +266,48 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
     const topBase64=validateImage(topImage,'TOP_IMAGE');
     const bottomBase64=mode==='general'?validateImage(bottomImage,'BOTTOM_IMAGE'):null;
     const accessQuota=await consumeCaseAccess(req);
-    const prompt=`Bạn là bộ phân tích thiệt tượng YHCT của A.I Thiệt Chẩn. Chỉ dùng HỆ TRI THỨC được cung cấp và những gì nhìn thấy trực tiếp trong ảnh. Không tự bịa triệu chứng, mạch chẩn, bệnh danh, nguyên nhân, điều trị hay phương thuốc. Công cụ chỉ hỗ trợ học tập/tham khảo, không phải chẩn đoán xác định. Trong JSON phân tích tuyệt đối không xuất tên tài liệu, mã nguồn, số trang, mục Nguồn đối chiếu hoặc mục Tham khảo.\n\nCHẾ ĐỘ: ${mode==='general'?'TỔNG QUÁT - 2 ảnh mặt trên và mặt dưới lưỡi':'BÌNH THƯỜNG - 1 ảnh mặt trên lưỡi'}\nQC MẶT TRÊN: ${JSON.stringify(topQc)}\nQC MẶT DƯỚI: ${JSON.stringify(bottomQc)}\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${TONGUE_KNOWLEDGE}\n\nYÊU CẦU MẶT TRÊN:\n- Xác nhận có đúng mặt trên lưỡi, có thấy toàn bộ lưỡi hay không; ở chế độ tổng quát đánh giá thêm phần sau/gốc lưỡi có được bộc lộ rõ hay không.\n- Mô tả hình dạng, màu chất lưỡi, rêu lưỡi, độ ẩm, nứt, hằn răng, gai/điểm, ban/điểm ứ và đặc điểm nhìn thấy khác.\n- Không chẩn đoán bệnh vùng họng; phần vùng họng chỉ dùng để đánh giá mức bộc lộ phần sau/gốc lưỡi.\n\nYÊU CẦU MẶT DƯỚI (chỉ khi chế độ tổng quát):\n- Xác nhận có đúng mặt dưới lưỡi và mạch máu/tĩnh mạch dưới lưỡi có nhìn thấy rõ hay không.\n- Mô tả màu mặt dưới; tình trạng mạch máu/tĩnh mạch: màu, mức nổi, giãn, uốn lượn/ngoằn ngoèo, dấu ứ nhìn thấy nếu có.\n- Theo tài liệu, chỉ dùng tiêu chí đường kính/chiều dài khi ảnh có chuẩn kích thước đáng tin cậy; ảnh thông thường chỉ mô tả định tính.\n- Không biến thay đổi mạch dưới lưỡi thành chẩn đoán bệnh xác định.\n\nTỔNG HỢP:\n- Tách rõ quan sát mặt trên, quan sát mặt dưới và nhận định kết hợp.\n- Mỗi diễn giải YHCT phải nêu bằng chứng nhìn thấy và giới hạn/dữ kiện còn thiếu.\n- Nếu QC poor chỉ mô tả thô; QC fair chỉ gợi ý yếu/trung bình.\n\nTrả về DUY NHẤT JSON hợp lệ theo schema:\n{\n  \"mode\":\"normal|general\",\n  \"top\":{\n    \"quality\":\"good|fair|poor\",\n    \"visualValidity\":{\"tongueVisible\":true,\"wholeTongueVisible\":true,\"rootVisible\":true,\"framing\":\"good|fair|poor\",\"occlusion\":\"none|partial|major\",\"colorReliability\":\"good|fair|poor\"},\n    \"tongueColor\":\"...\",\"shape\":\"...\",\"coatingColor\":\"...\",\"coatingThickness\":\"...\",\"coatingTexture\":\"...\",\"moisture\":\"...\",\"fissures\":\"...\",\"toothmarks\":\"...\",\"pricklesSpots\":\"...\",\"stasisMarks\":\"...\",\"otherVisibleFeatures\":[\"...\"],\n    \"theoryAssessment\":{\"generalSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"rule\":\"...\",\"confidence\":0.0}],\"stomachPatternSignals\":[{\"label\":\"Hàn tà khách Vị|Ẩm thực thương Vị|Can khí phạm Vị|Ứ huyết đình trệ|Thấp nhiệt trung trở|Vị âm khuy hư|Tỳ Vị hư hàn\",\"evidence\":\"...\",\"missingForConclusion\":\"...\",\"confidence\":0.0}],\"cannotConclude\":[\"...\"]},\n    \"confidence\":0.0,\"summary\":\"...\",\"limitations\":[\"...\"]\n  },\n  \"bottom\":${mode==='general'?'{\"quality\":\"good|fair|poor\",\"visualValidity\":{\"undersideVisible\":true,\"vesselsVisible\":true,\"framing\":\"good|fair|poor\",\"occlusion\":\"none|partial|major\",\"colorReliability\":\"good|fair|poor\"},\"undersideColor\":\"...\",\"vessels\":{\"visible\":true,\"color\":\"...\",\"prominence\":\"...\",\"dilation\":\"...\",\"tortuosity\":\"...\",\"stasisSigns\":\"...\",\"measurement\":\"định tính/không đủ chuẩn kích thước\"},\"otherVisibleFeatures\":[\"...\"],\"confidence\":0.0,\"summary\":\"...\",\"limitations\":[\"...\"]}':'null'},\n  \"combined\":{\"confidence\":0.0,\"summary\":\"...\",\"generalSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"rule\":\"...\",\"confidence\":0.0}],\"stomachPatternSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"missingForConclusion\":\"...\",\"confidence\":0.0}],\"cannotConclude\":[\"...\"]}\n}`;
+    const prompt=`Bạn là bộ phân tích thiệt tượng YHCT của A.I Thiệt Chẩn. Chỉ dùng HỆ TRI THỨC được cung cấp và những gì nhìn thấy trực tiếp trong ảnh. Không tự bịa triệu chứng, mạch chẩn, bệnh danh, nguyên nhân, điều trị hay phương thuốc. Công cụ chỉ hỗ trợ học tập/tham khảo, không phải chẩn đoán xác định. Trong JSON phân tích tuyệt đối không xuất tên tài liệu, mã nguồn, số trang, mục Nguồn đối chiếu hoặc mục Tham khảo.
+
+CHẾ ĐỘ: ${mode==='general'?'TỔNG QUÁT - 2 ảnh mặt trên và mặt dưới lưỡi':'BÌNH THƯỜNG - 1 ảnh mặt trên lưỡi'}
+QC MẶT TRÊN: ${JSON.stringify(topQc)}
+QC MẶT DƯỚI: ${JSON.stringify(bottomQc)}
+HỆ TRI THỨC ${KNOWLEDGE_VERSION}:
+${TONGUE_KNOWLEDGE}
+
+YÊU CẦU MẶT TRÊN:
+- Xác nhận có đúng mặt trên lưỡi, có thấy toàn bộ lưỡi hay không; ở chế độ tổng quát đánh giá thêm phần sau/gốc lưỡi có được bộc lộ rõ hay không.
+- Mô tả hình dạng, màu chất lưỡi, rêu lưỡi, độ ẩm, nứt, hằn răng, gai/điểm, ban/điểm ứ và đặc điểm nhìn thấy khác.
+- Không chẩn đoán bệnh vùng họng; phần vùng họng chỉ dùng để đánh giá mức bộc lộ phần sau/gốc lưỡi.
+
+YÊU CẦU MẶT DƯỚI (chỉ khi chế độ tổng quát):
+- Xác nhận có đúng mặt dưới lưỡi và mạch máu/tĩnh mạch dưới lưỡi có nhìn thấy rõ hay không.
+- Mô tả màu mặt dưới; tình trạng mạch máu/tĩnh mạch: màu, mức nổi, giãn, uốn lượn/ngoằn ngoèo, dấu ứ nhìn thấy nếu có.
+- Theo tài liệu, chỉ dùng tiêu chí đường kính/chiều dài khi ảnh có chuẩn kích thước đáng tin cậy; ảnh thông thường chỉ mô tả định tính.
+- Không biến thay đổi mạch dưới lưỡi thành chẩn đoán bệnh xác định.
+
+TỔNG HỢP:
+- Tách rõ quan sát mặt trên, quan sát mặt dưới và nhận định kết hợp.
+- Mỗi diễn giải YHCT phải nêu bằng chứng nhìn thấy và giới hạn/dữ kiện còn thiếu.
+- Nếu QC poor chỉ mô tả thô; QC fair chỉ gợi ý yếu/trung bình.
+
+Trả về DUY NHẤT JSON hợp lệ theo schema:
+{
+  "mode":"normal|general",
+  "top":{
+    "quality":"good|fair|poor",
+    "visualValidity":{"tongueVisible":true,"wholeTongueVisible":true,"rootVisible":true,"framing":"good|fair|poor","occlusion":"none|partial|major","colorReliability":"good|fair|poor"},
+    "tongueColor":"...","shape":"...","coatingColor":"...","coatingThickness":"...","coatingTexture":"...","moisture":"...","fissures":"...","toothmarks":"...","pricklesSpots":"...","stasisMarks":"...","otherVisibleFeatures":["..."],
+    "theoryAssessment":{"generalSignals":[{"label":"...","evidence":"...","rule":"...","confidence":0.0}],"stomachPatternSignals":[{"label":"Hàn tà khách Vị|Ẩm thực thương Vị|Can khí phạm Vị|Ứ huyết đình trệ|Thấp nhiệt trung trở|Vị âm khuy hư|Tỳ Vị hư hàn","evidence":"...","missingForConclusion":"...","confidence":0.0}],"cannotConclude":["..."]},
+    "confidence":0.0,"summary":"...","limitations":["..."]
+  },
+  "bottom":${mode==='general'?'{"quality":"good|fair|poor","visualValidity":{"undersideVisible":true,"vesselsVisible":true,"framing":"good|fair|poor","occlusion":"none|partial|major","colorReliability":"good|fair|poor"},"undersideColor":"...","vessels":{"visible":true,"color":"...","prominence":"...","dilation":"...","tortuosity":"...","stasisSigns":"...","measurement":"định tính/không đủ chuẩn kích thước"},"otherVisibleFeatures":["..."],"confidence":0.0,"summary":"...","limitations":["..."]}':'null'},
+  "combined":{"confidence":0.0,"summary":"...","generalSignals":[{"label":"...","evidence":"...","rule":"...","confidence":0.0}],"stomachPatternSignals":[{"label":"...","evidence":"...","missingForConclusion":"...","confidence":0.0}],"cannotConclude":["..."]}
+}`;
     const parts=[{text:prompt},{text:'ẢNH 1 - MẶT TRÊN LƯỠI:'},{inline_data:{mime_type:topMimeType,data:topBase64}}];
     if(mode==='general') parts.push({text:'ẢNH 2 - MẶT DƯỚI LƯỠI:'},{inline_data:{mime_type:bottomMimeType,data:bottomBase64}});
     const text=await geminiGenerate(key,[{role:'user',parts}],{responseMimeType:'application/json',temperature:0.05});
-    const assessment=normalizeAssessment(parseJsonText(text),{mode,topQc,bottomQc});
+    let assessment=normalizeAssessment(parseJsonText(text),{mode,topQc,bottomQc});
+    try{assessment=applyAcademicFusion(assessment,body);}catch(err){console.error('academic_fusion_error',err?.message||err);}
     let collection={ok:false,stored:false,duplicate:false};
     try{
       const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment});
@@ -285,7 +324,14 @@ app.post('/api/chat',aiRateLimit,async(req,res)=>{
     const context=assessment||analysis;const contextText=context?JSON.stringify(context):'Chưa có kết quả phân tích hình lưỡi.';
     const hasAssessment=Boolean(context);
     const retrievedKnowledge=hasAssessment?knowledgeForQuery(`${contextText}\n${message}`,{limit:18}):TONGUE_KNOWLEDGE;
-    const prompt=`Bạn là chatbot tư vấn nhanh của A.I Thiệt Chẩn. Chỉ dùng kết quả quan sát hiện tại và hệ tri thức được cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời ngắn gọn bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối câu trả lời thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng các tài liệu/trang thực sự đã dùng trong lập luận. Nếu chưa có kết quả thiệt chẩn, không hiển thị mục nguồn.`;
+    const prompt=`Bạn là chatbot tư vấn nhanh của A.I Thiệt Chẩn. Chỉ dùng kết quả quan sát hiện tại và hệ tri thức được cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.
+
+HỆ TRI THỨC ${KNOWLEDGE_VERSION}:
+${retrievedKnowledge}
+
+Bối cảnh phân tích: ${contextText}
+Câu hỏi người dùng: ${message}
+Trả lời ngắn gọn bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối câu trả lời thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng các tài liệu/trang thực sự đã dùng trong lập luận. Nếu chưa có kết quả thiệt chẩn, không hiển thị mục nguồn.`;
     const reply=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
     return res.json({ok:true,reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
   }catch(err){console.error('chat_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
@@ -295,7 +341,12 @@ app.post('/api/report',aiRateLimit,async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const {mode='normal',assessment,analysis,topQc,bottomQc,qc}=req.body||{};const data=assessment||analysis;if(!data) return res.status(400).json({error:'ANALYSIS_REQUIRED'});
-    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu dưới đây. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích: ${JSON.stringify(data)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
+    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu dưới đây. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang.
+Mode: ${mode}
+QC mặt trên: ${JSON.stringify(topQc||qc||{})}
+QC mặt dưới: ${JSON.stringify(bottomQc||null)}
+Phân tích: ${JSON.stringify(data)}
+Knowledge: ${KNOWLEDGE_VERSION}`;
     const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
     return res.json({ok:true,report,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
   }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}
@@ -305,4 +356,4 @@ app.use(express.static(path.join(__dirname,'public'),{maxAge:0,etag:true,setHead
 app.use((req,res)=>{res.setHeader('Cache-Control','no-cache');res.sendFile(path.join(__dirname,'public','index.html'));});
 
 await ensureCaseStoreSecret();
-app.listen(PORT,'0.0.0.0',()=>console.log(`A.I Thiệt Chẩn web v${VERSION} listening on ${PORT} · sharedGemini=${Boolean(apiKey())} · autoTrainingStore=${caseStoreReady} · dualView=true`));
+app.listen(PORT,'0.0.0.0',()=>console.log(`A.I Thiệt Chẩn web v${VERSION} listening on ${PORT} · sharedGemini=${Boolean(apiKey())} · autoTrainingStore=${caseStoreReady} · dualView=true · academic350=${ACADEMIC_HEALTH.enabled}`));

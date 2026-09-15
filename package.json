@@ -1,13 +1,13 @@
 {
   "name": "ai-thiet-chan-web",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "private": true,
   "type": "module",
   "engines": {"node": "24.x"},
   "scripts": {
     "start": "node --import ./runtime-guard.mjs server.mjs",
-    "test": "node tests/smoke.mjs && node tests/torch-smoke.mjs && node tests/clinical-learning-smoke.mjs && node tests/admin-center-smoke.mjs && node tests/knowledge-evidence-smoke.mjs",
-    "check": "node --check server.mjs && node --check runtime-guard.mjs && node --check knowledge.mjs && node --check knowledge-evidence.mjs && node --check public/app.js && node --check public/capture-metadata.js && node --check public/consultation.js && node --check public/clinical-learning.js && node --check public/feedback-lifecycle.js && node --check public/torch.js && node --check public/settings.js && node --check public/quality-dashboard.js && node --check public/ui-controls.js && node --check public/admin-center.js && node --check public/admin-credentials.js && node --check public/sw.js && node tests/smoke.mjs && node tests/torch-smoke.mjs && node tests/clinical-learning-smoke.mjs && node tests/admin-center-smoke.mjs && node tests/knowledge-evidence-smoke.mjs"
+    "test": "node tests/smoke.mjs && node tests/torch-smoke.mjs && node tests/clinical-learning-smoke.mjs && node tests/admin-center-smoke.mjs && node tests/knowledge-evidence-smoke.mjs && node tests/gemini-resilience-smoke.mjs",
+    "check": "node --check server.mjs && node --check runtime-guard.mjs && node --check knowledge.mjs && node --check knowledge-evidence.mjs && node --check public/app.js && node --check public/capture-metadata.js && node --check public/consultation.js && node --check public/clinical-learning.js && node --check public/feedback-lifecycle.js && node --check public/torch.js && node --check public/settings.js && node --check public/quality-dashboard.js && node --check public/ui-controls.js && node --check public/admin-center.js && node --check public/admin-credentials.js && node --check public/sw.js && node tests/smoke.mjs && node tests/torch-smoke.mjs && node tests/clinical-learning-smoke.mjs && node tests/admin-center-smoke.mjs && node tests/knowledge-evidence-smoke.mjs && node tests/gemini-resilience-smoke.mjs"
   },
   "dependencies": {"express": "^5.1.0"}
 }

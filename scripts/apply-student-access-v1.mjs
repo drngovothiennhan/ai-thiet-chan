@@ -14,7 +14,7 @@ server=replaceOnce(server,
   "import { createHash } from 'node:crypto';",
   "import { createHash } from 'node:crypto';\nimport { installAccessControl } from './access-control.mjs';",
   'server import');
-server=server.replace("const VERSION = '2.9.0';","const VERSION = '2.9.1';");
+server=server.replace("const VERSION = '2.9.1';","const VERSION = '2.9.0';");
 server=replaceOnce(server,
 `function requestIdentity(req){
   const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();
@@ -46,7 +46,7 @@ server=replaceOnce(server,
 write('server.mjs',server);
 
 let settings=read('public/settings.js');
-settings=settings.replace("const RELEASE='2.9.0';","const RELEASE='2.9.1';");
+settings=settings.replace("const RELEASE='2.9.1';","const RELEASE='2.9.0';");
 settings=replaceOnce(settings,
   "  load('/ui-controls.js','aitcUiControls');\n  load('/admin-center.js','aitcAdminCenter');",
   "  load('/ui-controls.js','aitcUiControls');\n  load('/access-control.js','aitcAccessControl');\n  load('/admin-center.js','aitcAdminCenter');\n  load('/user-admin.js','aitcUserAdmin');",
@@ -54,7 +54,7 @@ settings=replaceOnce(settings,
 write('public/settings.js',settings);
 
 const pkg=JSON.parse(read('package.json'));
-pkg.version='2.9.1';
+pkg.version='2.9.0';
 if(!pkg.scripts.test.includes('tests/access-control-smoke.mjs')) pkg.scripts.test += ' && node tests/access-control-smoke.mjs';
 if(!pkg.scripts.check.includes('node --check access-control.mjs')) pkg.scripts.check = 'node --check access-control.mjs && ' + pkg.scripts.check;
 if(!pkg.scripts.check.includes('node --check public/access-control.js')) pkg.scripts.check = pkg.scripts.check.replace('node --check public/app.js','node --check public/app.js && node --check public/access-control.js && node --check public/user-admin.js');

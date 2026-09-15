@@ -57,9 +57,12 @@
 })();
 
 (()=>{
-  if(!document.querySelector('script[data-rear-torch]')){const script=document.createElement('script');script.src='/torch.js';script.async=false;script.dataset.rearTorch='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-ui-controls]')){const script=document.createElement('script');script.src='/ui-controls.js?v=2.7.2';script.async=false;script.dataset.aitcUiControls='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-admin-center]')){const script=document.createElement('script');script.src='/admin-center.js?v=2.7.2';script.async=false;script.dataset.aitcAdminCenter='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-admin-credentials]')){const script=document.createElement('script');script.src='/admin-credentials.js?v=2.7.2';script.async=false;script.dataset.aitcAdminCredentials='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-feedback-lifecycle]')){const script=document.createElement('script');script.src='/feedback-lifecycle.js?v=2.7.2';script.async=false;script.dataset.aitcFeedbackLifecycle='true';document.head.appendChild(script);}
+  const RELEASE='2.8.2';
+  function load(src,key){if(document.querySelector(`script[data-${key}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
+  load('/torch.js','rearTorch');
+  load('/ui-controls.js','aitcUiControls');
+  load('/admin-center.js','aitcAdminCenter');
+  load('/admin-credentials.js','aitcAdminCredentials');
+  load('/feedback-lifecycle.js','aitcFeedbackLifecycle');
+  load('/upload-controls.js','aitcUploadControls');
 })();

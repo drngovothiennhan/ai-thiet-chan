@@ -1,33 +1,44 @@
-export const FUSION_VERSION='academic-fusion-v1.1-full-document';
-export const KNOWLEDGE_VERSION='thiet-chan-kb-2026-09-15.6doc-atlas-350p';
-export const SOURCE={id:'HD1',title:'Thiệt chẩn hiện đại - Nguyên lý & lâm sàng Đông Dược',translator:'Sách Y Phú',publication:'07/2022',pdfPages:350,indexedPages:350,visualSignaturePages:263,sha256:'d05dedaeffcfcde847765739e744e987ebeaa8802d67990141af3688df6d282a'};
+export const FUSION_VERSION='academic-fusion-v1.2-knowledge-5doc-complete';
+export const KNOWLEDGE_VERSION='thiet-chan-kb-2026-09-15.5doc';
+export const SOURCE=Object.freeze({
+  id:'KNOWLEDGE-5DOC',
+  title:'A.I Thiệt Chẩn/Knowledge',
+  folderDriveId:'1SXEo1EPZDw3KTdlFgf1NV1ibM-p4baUT',
+  registryDocId:'1QzoIeB3LWwiJ8roQtcU_KmE72rGkboMcX8pdg5rsje0',
+  sourceCount:5,
+  indexedPages:1157,
+  indexedImageOccurrences:1027,
+  pageVisualSignatures:298,
+  imageVisualSignatures:298,
+  noSilentOmission:true
+});
 export const WEIGHTS=Object.freeze({directImage:.45,atlasSimilarity:.35,geminiAcademic:.20});
 export const MODERN_EVIDENCE=[
-{page:13,topics:['trung tuyến','hình thái'],text:'Đường trung tuyến và tính cân xứng của thân lưỡi là đặc điểm hình thái cần quan sát có hệ thống; sai lệch phải được phân biệt với đường nứt hoặc góc chụp.'},
-{page:47,topics:['âm dương','nhợt','đỏ','rêu'],text:'Biện âm dương phải phối hợp chất lưỡi, rêu và trạng thái nhuận khô; một dấu riêng lẻ không đủ để kết luận.'},
-{page:49,topics:['biểu lý','rêu trắng','rêu dày'],text:'Rêu trắng mỏng và chất lưỡi gần bình thường thiên về biểu/nhẹ hơn; rêu dày bẩn thiên về tà vào lý hoặc thấp trọc, cần đối chiếu triệu chứng.'},
-{page:50,topics:['hư thực','chất lưỡi','rêu'],text:'Hư thực phải xét phối hợp độ mềm/non hay cứng/già của chất lưỡi, màu sắc và tình trạng rêu; không nên xếp thể từ một dấu đơn độc.'},
-{page:52,topics:['hàn nhiệt','rêu trắng','rêu vàng','khô','nhuận'],text:'Hàn nhiệt được đối chiếu bằng màu chất lưỡi, màu rêu và độ nhuận: trắng/nhợt/nhuận thiên hàn hoặc hư; đỏ và rêu vàng/khô thiên nhiệt, nhưng phải xét toàn cảnh.'},
-{page:54,topics:['tổng hợp','toàn tức','giới hạn'],text:'Thiệt tượng cần được quan sát toàn diện về màu, hình, rêu, nứt và phân bố; tài liệu nhấn mạnh phải kiểm tra chéo với biểu hiện lâm sàng thay vì suy diễn từ vị trí đơn lẻ.'},
-{page:93,topics:['lệch lưỡi','trúng phong','giới hạn'],text:'Các ca atlas có lưỡi lệch minh họa giá trị của hình thái vận động, nhưng bệnh danh của ca nguồn không được dùng để suy bệnh hiện tại nếu không có dữ kiện thần kinh và tứ chẩn.'},
-{page:118,topics:['amydal','điểm đỏ','vùng lưỡi'],text:'Ca vùng Amydal cho thấy thay đổi khu trú trên lưỡi cần được mô tả như dấu quan sát và đối chiếu triệu chứng; không quy trực tiếp thành chẩn đoán cơ quan.'},
-{page:139,topics:['phế','ho','nứt','rêu'],text:'Các ca Phế/khái thấu trong atlas cho thấy cùng một triệu chứng có thể xuất hiện với nhiều hình lưỡi khác nhau; vì vậy ảnh tương đồng chỉ là bằng chứng hỗ trợ, không phải quan hệ nhân quả.'},
-{page:150,topics:['nhũ tuyến','khối','giới hạn'],text:'Các ca có bệnh danh hiện đại trong atlas chỉ cung cấp bối cảnh ca bệnh; vùng màu/khối trên lưỡi phải được xem là quan sát hình thái, không dùng để chẩn đoán ung thư hay bệnh cơ quan.'}
+  {source:'TC1',page:5,topics:['qc','ánh sáng','tư thế','nhiễm màu'],text:'Khám lưỡi cần ánh sáng phù hợp, tư thế tự nhiên và kiểm soát yếu tố làm sai lệch màu/rêu; ảnh không đạt điều kiện phải hạ độ tin cậy.'},
+  {source:'TC1',page:20,topics:['hàn','nhiệt','rêu trắng','rêu vàng','nhợt','đỏ'],text:'Hàn thường đi với chất lưỡi nhạt, rêu trắng và ẩm; nhiệt thường đi với chất lưỡi đỏ/đỏ sẫm và khô, thực nhiệt thường có rêu vàng còn hư nhiệt có thể ít hoặc không rêu.'},
+  {source:'TC1',page:22,topics:['khí hư','dương hư','bệu','dấu răng'],text:'Khí hư có thể biểu hiện lưỡi bệu; Tỳ khí hư thường có dấu răng; dương hư thường làm chất lưỡi nhợt và ẩm, nhưng phải phối hợp triệu chứng và mạch.'},
+  {source:'TC1',page:23,topics:['huyết hư','âm hư','tróc rêu','khô'],text:'Huyết hư thường làm chất lưỡi nhạt; âm hư có thể làm lưỡi đỏ/đỏ sẫm, khô và tróc hoặc mất rêu; không kết luận từ một dấu đơn độc.'},
+  {source:'TC1',page:25,topics:['huyết ứ','tím','đốm tím'],text:'Huyết ứ thường được hỗ trợ bởi chất lưỡi tím hoặc đốm đỏ sẫm/tím; vị trí đốm chỉ là dấu quy chiếu, không đủ chẩn đoán bệnh.'},
+  {source:'TC1',page:47,topics:['mặt dưới','tĩnh mạch dưới lưỡi','tư thế'],text:'Mặt dưới lưỡi và tĩnh mạch dưới lưỡi cần được quan sát bổ sung; không đưa lưỡi quá mạnh vì có thể làm tĩnh mạch căng giả.'},
+  {source:'TC1',page:48,topics:['tĩnh mạch dưới lưỡi','khí trệ','huyết ứ','giãn'],text:'Tĩnh mạch dưới lưỡi căng hoặc sắc tối chỉ là tín hiệu YHCT cần phối hợp dữ kiện khác, không được dùng đơn độc để chẩn đoán bệnh.'},
+  {source:'DY1',page:14,topics:['chất lưỡi','rêu','kết hợp','hàn nhiệt','hư thực'],text:'Chất lưỡi và rêu phải được kết hợp khi biện hư thực, hàn nhiệt và nông sâu của bệnh; không tách một dấu riêng lẻ khỏi toàn cảnh.'},
+  {source:'DY1',page:18,topics:['nhợt','đỏ','đỏ sẫm','xanh tím'],text:'Màu thân lưỡi gồm nhợt, đỏ nhạt, đỏ, đỏ sẫm và xanh/tím; ý nghĩa phải được xét theo rêu, độ ẩm, hình thể và bối cảnh.'},
+  {source:'DY1',page:20,topics:['dấu răng','gai','chấm đỏ','ứ huyết'],text:'Dấu răng, gai/chấm đỏ và ban sẫm là các đặc điểm hình thái cần mô tả trước khi diễn giải, đồng thời phải xét vị trí và dấu kèm theo.'},
+  {source:'DY1',page:24,topics:['rêu dày','rêu mỏng','nhuận','khô','nhầy'],text:'Rêu mỏng/dày, khô/nhuận và nhầy/dính hỗ trợ đánh giá tà khí, tân dịch và thấp trọc nhưng không tự tạo thành chẩn đoán xác định.'},
+  {source:'MC1',page:77,topics:['tứ chẩn','thiệt chẩn','phối hợp'],text:'Thiệt chẩn là một phần của vọng chẩn trong hệ tứ chẩn; quan sát lưỡi không phải nguồn dữ kiện duy nhất.'},
+  {source:'MC1',page:80,topics:['nhú lưỡi','niêm mạc','mạch máu','mặt dưới'],text:'Quan sát hình ảnh cần phân biệt nhú sinh lý, niêm mạc và mạch máu trước khi gán ý nghĩa bệnh lý.'},
+  {source:'MC1',page:83,topics:['loét lưỡi','u lưỡi','viêm lưỡi','cờ đỏ'],text:'Tổn thương khu trú bất thường không nên bị quy thành thể YHCT từ ảnh; khi phù hợp cần nêu cờ đỏ và khuyến nghị khám trực tiếp.'},
+  {source:'AT1',page:1,topics:['bình thường','đỏ nhạt','rêu trắng mỏng','nhuận'],text:'Atlas minh họa lưỡi bình thường với chất lưỡi hồng/đỏ nhạt, mềm mại và rêu trắng mỏng tương đối đều.'},
+  {source:'AT1',page:3,topics:['nhợt','bệu','dấu răng','rêu trắng','nhuận'],text:'Mẫu nhợt, bệu, dấu răng, rêu trắng nhuận cho thấy phải đọc tổ hợp hình–màu–rêu thay vì một dấu riêng lẻ.'},
+  {source:'AT1',page:5,topics:['đỏ','gai','rêu vàng','rêu dày','nhiệt'],text:'Mẫu lưỡi đỏ, gai đỏ và rêu dày vàng thiên về tín hiệu nhiệt; ứng dụng phải mô tả dấu nhìn thấy trước rồi mới diễn giải.'},
+  {source:'AT1',page:8,topics:['tím','dấu răng','rêu trắng','hàn','ứ'],text:'Màu tím cần được đối chiếu đồng thời độ ẩm, rêu và hình thể để phân biệt bối cảnh hàn hoặc ứ.'},
+  {source:'AT1',page:16,topics:['đỏ','nứt','ít rêu','khô','tân dịch'],text:'Mẫu đỏ, nứt, ít rêu cho thấy tín hiệu tổn thương tân dịch trong bối cảnh phù hợp, nhưng ảnh đơn độc không đủ xác định bệnh danh.'},
+  {source:'AT1',page:22,topics:['mặt dưới','tĩnh mạch dưới lưỡi','tím','giãn','huyết ứ'],text:'Mạch dưới lưỡi xanh tím và giãn là ví dụ hỗ trợ mô tả ứ trệ trong YHCT, không phải chẩn đoán bệnh hiện đại.'}
 ];
-export const SUPER_PROMPT=`[ACADEMIC_FUSION_V1]
-Bạn là tầng tổng hợp học thuật của A.I Thiệt Chẩn.
-MỤC TIÊU: tổng hợp đúng 3 lớp bằng chứng, không để bất kỳ lớp nào tự quyết định:
-1) ẢNH THỰC TẾ người dùng và các đặc điểm đã quan sát trực tiếp;
-2) MỨC TƯƠNG ĐỒNG với atlas hình ảnh từ tài liệu người dùng cung cấp;
-3) KIẾN THỨC HỌC THUẬT do Gemini đối chiếu với các quy tắc nguồn.
-TRỌNG SỐ CỐ ĐỊNH: ảnh trực tiếp 45%, atlas 35%, học thuật Gemini 20%.
-QUY TẮC:
-- Chỉ giữ một thể bệnh/tín hiệu khi ít nhất 2/3 lớp bằng chứng đồng thuận.
-- Bệnh danh của ca atlas KHÔNG được chuyển sang người dùng; ca atlas chỉ dùng so hình thái.
-- Toàn bộ 350 trang nguồn phải được giữ trong chỉ mục thị giác theo hash/vector; các trang không có vùng lưỡi tin cậy không được ép vào so khớp lưỡi.
-- Nếu ảnh QC kém, ánh sáng sai hoặc atlas tương đồng thấp, phải hạ độ tin cậy.
-- Không bịa triệu chứng, mạch, tiền sử, bệnh danh hiện đại, điều trị hay phương thuốc.
-- Phân biệt rõ: quan sát trực tiếp / tương đồng atlas / diễn giải học thuật / dữ kiện còn thiếu.
-- Nếu bằng chứng xung đột, ưu tiên ảnh trực tiếp; ghi “chưa đủ căn cứ” thay vì ép kết luận.
-- Trả JSON duy nhất:
-{"academicSummary":"...","patternCandidates":[{"label":"...","directEvidence":"...","atlasEvidence":"...","academicEvidence":"...","missing":"...","score":0.0}],"cannotConclude":["..."]}`;
+export const SUPER_PROMPT=`[ACADEMIC_FUSION_KNOWLEDGE_5DOC]
+Tổng hợp đúng 3 lớp bằng chứng: ảnh thực tế 45%, atlas hình ảnh 35%, học thuật Gemini 20%.
+Chỉ giữ tín hiệu khi ít nhất 2/3 lớp đồng thuận.
+Toàn bộ dữ liệu trong A.I Thiệt Chẩn/Knowledge được giữ trong corpus: mọi trang và mọi ảnh nhúng đều phải có bản ghi chỉ mục. Hình không đủ đặc trưng lưỡi vẫn được giữ làm dữ liệu nền/ngữ cảnh và không được ép thành mẫu dương tính.
+PSY1 (Tâm bệnh học) chỉ là bối cảnh tâm lý sau khi người dùng chủ động cung cấp dữ kiện; tuyệt đối không dùng ảnh lưỡi để suy stress, lo âu, trầm cảm, bệnh tâm thần hay nguy cơ tự hại.
+Bệnh danh của ca atlas không được chuyển sang người dùng. Nếu QC kém, atlas yếu hoặc bằng chứng xung đột thì hạ confidence và ghi chưa đủ căn cứ.
+Không bịa triệu chứng, mạch, tiền sử, bệnh danh hiện đại, điều trị hay phương thuốc.`;

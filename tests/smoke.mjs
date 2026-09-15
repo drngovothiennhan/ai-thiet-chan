@@ -27,7 +27,7 @@ try{
   if(appJs.includes('aiThietChanGeminiKey')||appJs.includes('x-gemini-key'))throw new Error('client Gemini key path must stay absent');
 
   const consultation=await text('/consultation.js');
-  requireMarkers(consultation,['questions=[','Hàn – nhiệt','Đại – tiểu tiện','[THAP_VAN_CONTEXT]',"import('/clinical-learning.js?v=2.8.2')"],'consultation');
+  requireMarkers(consultation,['questions=[','Hàn – nhiệt','Đại – tiểu tiện','[THAP_VAN_CONTEXT]',"import('/clinical-learning.js?v=2.9.0')"],'consultation');
 
   const learning=await text('/clinical-learning.js');
   requireMarkers(learning,['Góp ý ca lâm sàng','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1','Bác sĩ','Y sĩ'],'clinical learning');
@@ -36,7 +36,7 @@ try{
   requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');
 
   const settings=await text('/settings.js');
-  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2.8.2'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
+  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2.9.0'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
 
   const uploads=await text('/upload-controls.js');
   requireMarkers(uploads,['topUploadBtn','bottomUploadBtn','Tải ảnh mặt trên','Tải ảnh mặt dưới','input.click()'],'upload controls');
@@ -56,7 +56,7 @@ try{
   if(credentials.includes('localStorage.setItem(TOKEN_KEY'))throw new Error('admin password must not persist in localStorage');
 
   const sw=await text('/sw.js');
-  requireMarkers(sw,['ai-thiet-chan-v2.8.2',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js','/upload-controls.js'],'service worker');
+  requireMarkers(sw,['ai-thiet-chan-v2.9.0',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js','/upload-controls.js'],'service worker');
 
   const noKey=await fetch(`http://127.0.0.1:${port}/api/analyze`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode:'normal',topImage:'data:image/jpeg;base64,'+'a'.repeat(200)})});
   if(noKey.status!==428)throw new Error(`expected analyze 428 without shared key, got ${noKey.status}`);

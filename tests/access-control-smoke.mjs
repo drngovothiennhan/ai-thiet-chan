@@ -6,7 +6,9 @@ const module=fs.readFileSync('access-control.mjs','utf8');
 const client=fs.readFileSync('public/access-control.js','utf8');
 const admin=fs.readFileSync('public/user-admin.js','utf8');
 const settings=fs.readFileSync('public/settings.js','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
+assert.equal(pkg.version,'2.9.1');
 assert.match(server,/installAccessControl/);
 assert.match(server,/consumeCaseAccess\(req\)/);
 assert.match(server,/studentAccess\?\.role==='student'/);

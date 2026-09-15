@@ -51,7 +51,7 @@ async function startCamera(target,facingMode=state.facingMode){
   state.stream=stream;state.facingMode=facingMode;state.activeTarget=target;els.video.srcObject=stream;els.video.classList.toggle('mirror',facingMode==='user');els.cameraPanel.hidden=false;els.cameraTargetLabel.textContent=`Đang chụp ${viewLabel(target)}`;await refreshVideoInputs();els.cameraPanel.scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function openCamera(target){
-  try{await startCamera(target,state.facingMode);}catch(err){appendBubble(err?.name==='NotAllowedError'?'Thiết bị đang chặn quyền camera. Bạn vẫn có thể chọn ảnh từ máy.':`Không mở được camera để chụp ${viewLabel(target)}. Hãy thử chọn ảnh từ thiết bị.`);}
+  try{await startCamera(target,state.facingMode);}catch(err){appendBubble(err?.name==='NotAllowedError'?'Thiết bị đang chặn quyền camera. Bạn vẫn có thể tải ảnh có sẵn từ máy.':`Không mở được camera để chụp ${viewLabel(target)}. Hãy thử tải ảnh từ thiết bị.`);}
 }
 async function switchCamera(){
   if(!state.stream||!state.activeTarget)return;const target=state.activeTarget,previous=state.facingMode,next=previous==='environment'?'user':'environment';els.switchCamera.disabled=true;
@@ -107,7 +107,7 @@ async function analyze(){
     const d=await apiFetch('/api/analyze',{mode:state.mode,topImage:top.data,topMimeType:top.mimeType,topQc:top.qc,bottomImage:state.mode==='general'?bottom.data:null,bottomMimeType:bottom.mimeType,bottomQc:state.mode==='general'?bottom.qc:null});
     state.assessment=d.assessment||d.analysis;state.knowledgeVersion=d.knowledgeVersion||state.knowledgeVersion;state.model=d.model||state.model;renderResult();
     setHealth(d.collection?.ok?'A.I + dữ liệu học máy hoạt động':'A.I hoạt động · chưa lưu được dữ liệu',d.collection?.ok?'good':'warn');
-    if(d.collection?.ok)await loadHistory();else appendBubble('Ca đã phân tích nhưng chưa đồng bộ vào kho dữ liệu học máy.');
+    if(!d.collection?.ok)appendBubble('Ca đã phân tích nhưng chưa đồng bộ vào kho dữ liệu học máy.');
   }catch(err){appendBubble(`Không thể phân tích: ${err.message}`);}finally{updateAnalyzeState();els.analyze.textContent=old;}
 }
 
@@ -160,5 +160,6 @@ els.normalMode.addEventListener('click',()=>setMode('normal'));els.generalMode.a
 els.topCamera.addEventListener('click',()=>openCamera('top'));els.bottomCamera.addEventListener('click',()=>openCamera('bottom'));els.switchCamera.addEventListener('click',switchCamera);els.capture.addEventListener('click',captureFrame);els.closeCamera.addEventListener('click',stopCamera);
 els.topReset.addEventListener('click',()=>clearImage('top'));els.bottomReset.addEventListener('click',()=>clearImage('bottom'));els.topFile.addEventListener('change',()=>handleFile('top',els.topFile));els.bottomFile.addEventListener('change',()=>handleFile('bottom',els.bottomFile));
 els.analyze.addEventListener('click',analyze);els.report.addEventListener('click',makeReport);els.chatForm.addEventListener('submit',sendChat);els.refreshHistory.addEventListener('click',loadHistory);
+window.addEventListener('aitc:history-open',loadHistory);
 window.addEventListener('beforeunload',stopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.stream)stopCamera();});
-setMode('normal');checkHealth();loadHistory();
+setMode('normal');checkHealth();

@@ -32,8 +32,11 @@ try{
   const learning=await text('/clinical-learning.js');
   requireMarkers(learning,['Góp ý ca lâm sàng','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1','Bác sĩ','Y sĩ'],'clinical learning');
 
+  const lifecycle=await text('/feedback-lifecycle.js');
+  requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');
+
   const settings=await text('/settings.js');
-  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn','/ui-controls.js?v=2.7.1','/admin-center.js?v=2.7.1','/admin-credentials.js?v=2.7.1'],'settings');
+  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn','/ui-controls.js?v=2.7.2','/admin-center.js?v=2.7.2','/admin-credentials.js?v=2.7.2','/feedback-lifecycle.js?v=2.7.2'],'settings');
 
   const ui=await text('/ui-controls.js');
   requireMarkers(ui,['qualityToggleBtn','clinicalFeedbackToggleBtn','aitc:quality-open','body.hidden=true'],'collapsed UI');
@@ -50,7 +53,7 @@ try{
   if(credentials.includes('localStorage.setItem(TOKEN_KEY'))throw new Error('admin password must not persist in localStorage');
 
   const sw=await text('/sw.js');
-  requireMarkers(sw,['ai-thiet-chan-v2.7.1',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js'],'service worker');
+  requireMarkers(sw,['ai-thiet-chan-v2.7.2',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js'],'service worker');
 
   const noKey=await fetch(`http://127.0.0.1:${port}/api/analyze`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode:'normal',topImage:'data:image/jpeg;base64,'+'a'.repeat(200)})});
   if(noKey.status!==428)throw new Error(`expected analyze 428 without shared key, got ${noKey.status}`);
@@ -59,5 +62,5 @@ try{
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||!manifest.icons.length)throw new Error('PWA manifest gate failed');
 
   await scanPublic(path.join(root,'public'));
-  console.log('SMOKE PASS: A.I Thiet Chan production shell, dual-view AI, approved learning, collapsed diagnostics, PWA and forced first-login admin credential rotation are wired');
+  console.log('SMOKE PASS: A.I Thiet Chan production shell, dual-view AI, approved learning, submitted-feedback lifecycle, PWA and forced first-login admin credential rotation are wired');
 } finally { child.kill('SIGTERM'); }

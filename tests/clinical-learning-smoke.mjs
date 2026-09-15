@@ -1,4 +1,4 @@
-// Repo-native regression gate for A.I Thiet Chan clinical learning v2.6.2.
+// Repo-native regression gate for A.I Thiet Chan clinical learning v2.7.0.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -25,6 +25,6 @@ for(const marker of [
 ]) assert.ok(learning.includes(marker),`missing clinical learning marker: ${marker}`);
 
 assert.ok(source.includes('Sản phẩm được phát triển bởi Câu Lạc Bộ Y Học Cổ Truyền Trường Đại Học Quốc Tế Hồng Bàng, phục vụ việc học và tham vấn chuyên môn'),'missing attribution');
-assert.ok(sw.includes("ai-thiet-chan-v2.6.2"),'service worker cache not bumped');
+assert.ok(sw.includes("ai-thiet-chan-v2.7.0"),'service worker cache not bumped');
 assert.ok(sw.includes("'/clinical-learning.js'"),'clinical learning missing from app shell');
 console.log('clinical-learning-smoke: ok');

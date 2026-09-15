@@ -1,5 +1,5 @@
-const CACHE='ai-thiet-chan-v2.7.2';
-const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/app.js','/capture-metadata.js','/consultation.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
+const CACHE='ai-thiet-chan-v2.8.2';
+const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/app.js','/capture-metadata.js','/consultation.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
 
 self.addEventListener('install',event=>{

@@ -1,3 +1,4 @@
+// Repo-native regression gate for A.I Thiet Chan clinical learning v2.6.0.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 

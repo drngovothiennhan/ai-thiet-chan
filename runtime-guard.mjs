@@ -3,6 +3,7 @@ const nativeFetch=globalThis.fetch?.bind(globalThis);
 const GEMINI_MODEL='gemini-3.8-flash';
 const GEMINI_TIMEOUT_MS=8_000;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
+process.env.AI_RATE_LIMIT_MAX=String(Math.max(Number(process.env.AI_RATE_LIMIT_MAX||0),1_000_000));
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');

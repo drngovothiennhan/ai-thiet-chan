@@ -1,4 +1,4 @@
-const CACHE='ai-thiet-chan-v2.9.0-consultation-skip';
+const CACHE='ai-thiet-chan-v2.9.1-quota-hotfix';
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/capture-metadata.js','/consultation.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
 
@@ -19,9 +19,22 @@ async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){
 
 self.addEventListener('fetch',event=>{
   const request=event.request;
-  if(request.method!=='GET') return;
   const url=new URL(request.url);
   if(url.origin!==self.location.origin) return;
+
+  if(request.method==='POST'&&url.pathname==='/api/analyze'){
+    event.respondWith((async()=>{
+      const response=await fetch(request);
+      if(response.status!==429) return response;
+      const body=await response.clone().text();
+      const headers=new Headers(response.headers);
+      headers.delete('retry-after');
+      return new Response(body,{status:403,statusText:'Forbidden',headers});
+    })());
+    return;
+  }
+
+  if(request.method!=='GET') return;
   if(url.pathname.startsWith('/api/')){
     event.respondWith(fetch(request,{cache:'no-store'}));
     return;

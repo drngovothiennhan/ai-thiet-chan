@@ -56,6 +56,11 @@ function extractAssessment(prompt){
   if(!text||text==='Chưa có kết quả phân tích hình lưỡi.') return null;
   try{return JSON.parse(text);}catch{return null;}
 }
+function extractGroundedKnowledge(prompt){
+  const match=prompt.match(/HỆ TRI THỨC[^:]*:\s*([\s\S]*?)(?:\nCâu hỏi người dùng:|\nBối cảnh phân tích:|$)/i);
+  if(!match)return[];
+  return String(match[1]||'').split('\n').map(x=>x.trim()).filter(x=>x.startsWith('- ')).slice(0,5);
+}
 function cleanText(v){return String(v||'').trim();}
 function compactUnique(items,limit=5){
   return [...new Set(items.map(cleanText).filter(Boolean))].slice(0,limit);
@@ -69,8 +74,12 @@ function signalText(item){
 function localClinicalFallback(prompt){
   const assessment=extractAssessment(prompt);
   const question=extractedQuestion(prompt);
+  const groundedKnowledge=extractGroundedKnowledge(prompt);
   if(!assessment){
-    return 'Tôi chưa có đủ kết quả quan sát của ca hiện tại để đưa ra nhận định. Hãy hoàn tất phân tích ảnh trước, sau đó tôi sẽ đối chiếu các dấu hiệu và trả lời theo dữ kiện đã có.';
+    const out=['Suy luận nội bộ từ kho dữ liệu đã nạp:'];
+    if(groundedKnowledge.length) out.push(...groundedKnowledge);
+    out.push('Chưa có đủ kết quả quan sát của ca hiện tại để gắn các quy tắc trên vào hình lưỡi cụ thể. Hãy hoàn tất phân tích ảnh; hệ thống sẽ đối chiếu tiếp mà không tự tạo đặc điểm hình ảnh.');
+    return out.join('\n');
   }
 
   const top=assessment?.top||{};

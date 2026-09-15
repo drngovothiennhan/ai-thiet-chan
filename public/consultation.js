@@ -5,6 +5,7 @@ import('/clinical-learning.js?v=2.9.0').catch(()=>{});
   const $=id=>document.getElementById(id);
   const form=$('chatForm'),input=$('chatInput'),log=$('chatLog'),startBtn=$('startInquiryBtn'),progress=$('inquiryProgress'),resultCard=$('resultCard');
   const historyToggle=$('toggleHistoryBtn'),historyPanel=$('historyPanel');
+  const inquiryNote=document.querySelector('.inquiry-note');
 
   if(historyToggle&&historyPanel){
     historyPanel.hidden=true;
@@ -20,6 +21,11 @@ import('/clinical-learning.js?v=2.9.0').catch(()=>{});
 
   if(!form||!input||!log||!startBtn||!progress) return;
 
+  if(inquiryNote) inquiryNote.textContent='Thập vấn gồm 10 nhóm hỏi tuần tự. Bạn có thể bỏ qua để xem nhận định hiện tại, hoặc trả lời Thập vấn để bổ sung dữ kiện đối chiếu.';
+  progress.setAttribute('role','button');
+  progress.setAttribute('tabindex','0');
+  progress.style.cursor='pointer';
+
   const questions=[
     {label:'Hàn – nhiệt',text:'1/10 · Hàn – nhiệt: Bạn có sợ lạnh, lạnh tay chân, sốt/nóng trong, hay lúc nóng lúc lạnh không? Khi nào rõ nhất?'},
     {label:'Mồ hôi',text:'2/10 · Mồ hôi: Bạn có tự ra mồ hôi, mồ hôi trộm ban đêm, ra nhiều, ít hoặc không ra mồ hôi không?'},
@@ -33,50 +39,133 @@ import('/clinical-learning.js?v=2.9.0').catch(()=>{});
     {label:'Khởi phát – diễn tiến',text:'10/10 · Khởi phát – diễn tiến: Triệu chứng bắt đầu khi nào, sau yếu tố gì nếu nhận thấy, và hiện tăng/giảm hoặc thay đổi ra sao?'}
   ];
 
-  const inquiry={active:false,index:0,answers:[],completed:false,transcript:''};
+  const inquiry={active:false,index:0,answers:[],completed:false,transcript:'',skipped:false,detailAfter:false};
+  let skipAwaitingConfirm=false;
   let pendingFinalPrompt='';
+  let pendingPromptKind='';
+  let showDetailsAfterNextBot=false;
   const nativeFetch=window.fetch.bind(window);
 
   function bubble(text,who='bot'){
     const div=document.createElement('div');div.className=`bubble ${who}`;div.textContent=text;log.appendChild(div);log.scrollTop=log.scrollHeight;
   }
+  function setSkipControlEnabled(enabled){
+    progress.setAttribute('aria-disabled',String(!enabled));
+    progress.style.cursor=enabled?'pointer':'default';
+  }
   function setProgress(){
-    if(inquiry.completed) progress.textContent='Đã đủ 10/10 mục';
-    else if(inquiry.active) progress.textContent=`Đang hỏi ${Math.min(inquiry.index+1,10)}/10`;
-    else progress.textContent='Chưa bắt đầu';
+    if(inquiry.completed){progress.textContent='Đã hoàn thành';setSkipControlEnabled(false);}
+    else if(inquiry.active){progress.textContent=`Đang hỏi ${Math.min(inquiry.index+1,10)}/10`;setSkipControlEnabled(false);}
+    else if(inquiry.skipped){progress.textContent='Đã bỏ qua';setSkipControlEnabled(false);}
+    else{progress.textContent='Bỏ qua Thập vấn';setSkipControlEnabled(true);}
   }
   function resetInquiry(clearLog=false){
-    inquiry.active=false;inquiry.index=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';pendingFinalPrompt='';
+    inquiry.active=false;inquiry.index=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';inquiry.skipped=false;inquiry.detailAfter=false;
+    skipAwaitingConfirm=false;pendingFinalPrompt='';pendingPromptKind='';showDetailsAfterNextBot=false;
     startBtn.textContent='Bắt đầu Thập vấn';setProgress();
-    if(clearLog){log.innerHTML='';bubble('Sau khi phân tích ảnh lưỡi, nhấn “Bắt đầu Thập vấn”. Tôi sẽ hỏi lần lượt 10 nhóm triệu chứng rồi mới đưa ra nhận định biện chứng có tính chất tham khảo.');}
+    if(clearLog){
+      log.innerHTML='';
+      bubble('Bạn có thể bắt đầu Thập vấn để bổ sung thông tin, hoặc chọn “Bỏ qua Thập vấn” để xem ngay nhận định hiện tại.');
+    }
   }
   function askCurrent(){const q=questions[inquiry.index];if(q)bubble(q.text);setProgress();}
   function transcriptText(){return questions.map((q,i)=>`${i+1}. ${q.label}: ${inquiry.answers[i]||'Không trả lời'}`).join('\n');}
+  function normalizeText(value){
+    return String(value||'').trim().toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function isAffirmative(value){
+    const n=normalizeText(value);
+    if(!n||/(^|\s)(khong|chua|thoi|huy)(\s|$)/.test(n)) return false;
+    return /(^|\s)(dong y|ok|okay|oke|dung vay|dung|co|yes|duoc|xem ngay|uh|u)(\s|$)/.test(n);
+  }
   function finalPrompt(){
-    return `[THAP_VAN_CONTEXT]\nĐây là dữ liệu Vấn chẩn theo Thập vấn do chính người dùng trả lời. Chỉ dùng kết quả thiệt chẩn hiện tại do hệ thống gửi kèm, hệ tri thức hiện có và các câu trả lời dưới đây; tuyệt đối không tự thêm triệu chứng hoặc dữ kiện.\n\n${inquiry.transcript}\n\nNHIỆM VỤ: Đưa ra “Nhận định biện chứng tham khảo” ngắn gọn, gồm: (1) dữ kiện thiệt chẩn nhìn thấy; (2) dữ kiện Thập vấn có giá trị đối chiếu; (3) thể/tính chất YHCT phù hợp nhất CHỈ khi hệ tri thức hiện có hỗ trợ; nếu chưa đủ thì ghi rõ chưa đủ căn cứ; (4) dữ kiện còn thiếu hoặc mâu thuẫn. Không chẩn đoán xác định, không kê đơn, không tự thêm mạch chẩn và không thay thế khám/tứ chẩn trực tiếp.`;
+    const detailTask=inquiry.detailAfter
+      ?'Trình bày chi tiết nhưng dễ hiểu: (1) dữ kiện thiệt chẩn nhìn thấy; (2) dữ kiện Thập vấn có giá trị đối chiếu; (3) các tín hiệu/khả năng biện chứng YHCT phù hợp nhất và lý do; (4) điểm chưa đủ căn cứ hoặc mâu thuẫn; (5) thông tin người dùng nên theo dõi thêm. Không tự thêm triệu chứng, không chẩn đoán xác định và không kê đơn.'
+      :'Đưa ra nhận định biện chứng tham khảo ngắn gọn, gồm: (1) dữ kiện thiệt chẩn nhìn thấy; (2) dữ kiện Thập vấn có giá trị đối chiếu; (3) thể/tính chất YHCT phù hợp nhất chỉ khi có căn cứ; (4) dữ kiện còn thiếu hoặc mâu thuẫn. Không tự thêm triệu chứng, không chẩn đoán xác định và không kê đơn.';
+    return `[THAP_VAN_CONTEXT]\nĐây là dữ liệu Vấn chẩn theo Thập vấn do chính người dùng trả lời. Chỉ dùng kết quả thiệt chẩn hiện tại gửi kèm, hệ tri thức hiện có và các câu trả lời dưới đây; tuyệt đối không tự thêm triệu chứng hoặc dữ kiện.\n\n${inquiry.transcript}\n\nNHIỆM VỤ: ${detailTask}\nKhông mô tả quy trình nội bộ, model, nhà cung cấp hay cách hệ thống vận hành trong câu trả lời.`;
+  }
+  function skipSummaryPrompt(){
+    return `[SKIP_THAP_VAN]\nNgười dùng xác nhận muốn xem ngay nhận định hiện tại mà không bổ sung Thập vấn. Dựa chỉ trên kết quả thiệt chẩn hiện tại gửi kèm và hệ tri thức hiện có. Trình bày ngắn gọn, dễ hiểu: các đặc điểm quan sát được, ý nghĩa đối chiếu YHCT có căn cứ, mức độ phù hợp và những điều chưa thể kết luận khi thiếu Vấn chẩn. Không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn. Không mô tả quy trình nội bộ, model, nhà cung cấp hay cách hệ thống vận hành.`;
+  }
+  function detailWithoutInquiryPrompt(){
+    return `[DETAIL_WITHOUT_THAP_VAN]\nNgười dùng muốn biết chi tiết mà không bổ sung Thập vấn. Dựa chỉ trên kết quả thiệt chẩn hiện tại gửi kèm và hệ tri thức hiện có. Giải thích chi tiết nhưng dễ hiểu: (1) đặc điểm quan sát; (2) ý nghĩa từng dấu hiệu theo YHCT; (3) các tín hiệu/khả năng biện chứng phù hợp nhất và lý do; (4) điểm chưa đủ căn cứ vì chưa có Thập vấn; (5) thông tin nên theo dõi thêm. Không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn. Không mô tả quy trình nội bộ, model, nhà cung cấp hay cách hệ thống vận hành.`;
+  }
+  function beginInquiry({preserveLog=false,detailAfter=false}={}){
+    if(resultCard?.hidden){bubble('Hãy phân tích ảnh lưỡi trước để có kết quả đối chiếu.');return;}
+    inquiry.active=true;inquiry.index=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';inquiry.skipped=false;inquiry.detailAfter=Boolean(detailAfter);
+    skipAwaitingConfirm=false;pendingFinalPrompt='';pendingPromptKind='';showDetailsAfterNextBot=false;
+    if(!preserveLog)log.innerHTML='';
+    bubble(detailAfter?'Được. Tôi sẽ hỏi lần lượt 10 nhóm triệu chứng rồi tổng hợp chi tiết hơn.':'Bắt đầu Thập vấn. Mỗi lần trả lời một mục; nếu không có triệu chứng, bạn có thể trả lời “không”.');
+    startBtn.textContent='Bắt đầu lại';askCurrent();input.focus();
+  }
+  function requestSkip(){
+    if(inquiry.active||inquiry.completed||inquiry.skipped)return;
+    if(resultCard?.hidden){bubble('Hãy phân tích ảnh lưỡi trước để xem nhận định hiện tại.');return;}
+    skipAwaitingConfirm=true;
+    bubble('Bạn muốn xem ngay kết quả mà không cần thêm Thập vấn?');
+    input.focus();
+  }
+  function submitChoice(label,promptText,kind){
+    pendingFinalPrompt=promptText;pendingPromptKind=kind;
+    input.value=label;
+    if(typeof form.requestSubmit==='function')form.requestSubmit();
+    else form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  }
+  function showDetailChoices(){
+    const div=document.createElement('div');div.className='bubble bot';
+    const text=document.createElement('div');text.textContent='Bạn có cần biết thêm thông tin không?';div.appendChild(text);
+    const actions=document.createElement('div');actions.style.display='grid';actions.style.gap='8px';actions.style.marginTop='10px';
+    const direct=document.createElement('button');direct.type='button';direct.className='btn ghost compact';direct.textContent='Biết chi tiết mà không cần Thập vấn';
+    const after=document.createElement('button');after.type='button';after.className='btn primary compact';after.textContent='Biết chi tiết sau khi Thập vấn';
+    actions.append(direct,after);div.appendChild(actions);log.appendChild(div);log.scrollTop=log.scrollHeight;
+    const disable=()=>{direct.disabled=true;after.disabled=true;};
+    direct.addEventListener('click',()=>{disable();submitChoice('Biết chi tiết mà không cần Thập vấn',detailWithoutInquiryPrompt(),'detail-without-thap');});
+    after.addEventListener('click',()=>{disable();bubble('Biết chi tiết sau khi Thập vấn','user');beginInquiry({preserveLog:true,detailAfter:true});});
   }
 
-  startBtn.addEventListener('click',()=>{
-    if(resultCard?.hidden){bubble('Hãy phân tích ảnh lưỡi trước để Thập vấn có thể được đối chiếu với thiệt chẩn hiện tại.');return;}
-    inquiry.active=true;inquiry.index=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';pendingFinalPrompt='';
-    log.innerHTML='';bubble('Bắt đầu Vấn chẩn theo Thập vấn. Mỗi lần trả lời một mục; nếu không có triệu chứng, bạn có thể trả lời “không”.');
-    startBtn.textContent='Bắt đầu lại';askCurrent();input.focus();
+  const observer=new MutationObserver(records=>{
+    if(!showDetailsAfterNextBot)return;
+    for(const record of records){
+      for(const node of record.addedNodes){
+        if(node?.nodeType===1&&node.classList?.contains('bubble')&&node.classList.contains('bot')){
+          showDetailsAfterNextBot=false;
+          queueMicrotask(showDetailChoices);
+          return;
+        }
+      }
+    }
   });
+  observer.observe(log,{childList:true});
+
+  startBtn.addEventListener('click',()=>beginInquiry());
+  progress.addEventListener('click',requestSkip);
+  progress.addEventListener('keydown',ev=>{if((ev.key==='Enter'||ev.key===' ')&&progress.getAttribute('aria-disabled')!=='true'){ev.preventDefault();requestSkip();}});
 
   form.addEventListener('submit',ev=>{
-    if(!inquiry.active&&!inquiry.completed){
+    const answer=input.value.trim();
+    if(skipAwaitingConfirm){
+      if(!answer){ev.preventDefault();ev.stopImmediatePropagation();return;}
+      if(isAffirmative(answer)){
+        skipAwaitingConfirm=false;inquiry.skipped=true;inquiry.active=false;inquiry.completed=false;inquiry.transcript='';inquiry.detailAfter=false;
+        pendingFinalPrompt=skipSummaryPrompt();pendingPromptKind='skip-summary';setProgress();startBtn.textContent='Bắt đầu Thập vấn';
+        return;
+      }
+      ev.preventDefault();ev.stopImmediatePropagation();input.value='';bubble(answer,'user');skipAwaitingConfirm=false;
+      bubble('Được. Bạn có thể bắt đầu Thập vấn để bổ sung thông tin, hoặc chọn “Bỏ qua Thập vấn” khi muốn xem ngay nhận định hiện tại.');setProgress();return;
+    }
+    if(!inquiry.active&&!inquiry.completed&&!inquiry.skipped){
       ev.preventDefault();ev.stopImmediatePropagation();
-      input.value='';bubble('Chatbot này cần hoàn thành Vấn chẩn Thập vấn trước khi đưa ra nhận định. Hãy nhấn “Bắt đầu Thập vấn”.');return;
+      if(answer){input.value='';bubble(answer,'user');}
+      bubble('Bạn có thể bắt đầu Thập vấn hoặc chọn “Bỏ qua Thập vấn” để xem ngay nhận định hiện tại.');return;
     }
     if(!inquiry.active)return;
-    const answer=input.value.trim();
     if(!answer){ev.preventDefault();ev.stopImmediatePropagation();return;}
     inquiry.answers[inquiry.index]=answer;
     if(inquiry.index<questions.length-1){
       ev.preventDefault();ev.stopImmediatePropagation();
       input.value='';bubble(answer,'user');inquiry.index+=1;askCurrent();input.focus();return;
     }
-    inquiry.transcript=transcriptText();inquiry.active=false;inquiry.completed=true;pendingFinalPrompt=finalPrompt();startBtn.textContent='Vấn chẩn lại';setProgress();
+    inquiry.transcript=transcriptText();inquiry.active=false;inquiry.completed=true;inquiry.skipped=false;pendingFinalPrompt=finalPrompt();pendingPromptKind='thap-final';startBtn.textContent='Vấn chẩn lại';setProgress();
   },true);
 
   window.fetch=async(inputArg,init={})=>{
@@ -85,11 +174,17 @@ import('/clinical-learning.js?v=2.9.0').catch(()=>{});
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
       try{
         const body=JSON.parse(init.body);
-        if(pendingFinalPrompt){body.message=pendingFinalPrompt;pendingFinalPrompt='';}
-        else if(inquiry.completed&&inquiry.transcript&&typeof body.message==='string'){
-          body.message=`[THAP_VAN_CONTEXT]\nDữ liệu Thập vấn đã hoàn thành:\n${inquiry.transcript}\n\nCâu hỏi tiếp theo của người dùng: ${body.message}\nHãy tiếp tục trả lời dựa trên kết quả thiệt chẩn hiện tại + đúng dữ liệu Thập vấn này; không tự thêm triệu chứng, không chẩn đoán xác định và không kê đơn.`;
+        let requestKind='';
+        if(pendingFinalPrompt){
+          body.message=pendingFinalPrompt;requestKind=pendingPromptKind;pendingFinalPrompt='';pendingPromptKind='';
+        }else if(inquiry.completed&&inquiry.transcript&&typeof body.message==='string'){
+          body.message=`[THAP_VAN_CONTEXT]\nDữ liệu Thập vấn đã hoàn thành:\n${inquiry.transcript}\n\nCâu hỏi tiếp theo của người dùng: ${body.message}\nHãy tiếp tục trả lời dựa trên kết quả thiệt chẩn hiện tại và đúng dữ liệu Thập vấn này; không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn và không mô tả quy trình nội bộ.`;
+        }else if(inquiry.skipped&&typeof body.message==='string'){
+          body.message=`[NO_THAP_VAN_CONTEXT]\nNgười dùng đã chọn bỏ qua Thập vấn. Câu hỏi: ${body.message}\nTrả lời dựa trên kết quả thiệt chẩn hiện tại và hệ tri thức hiện có; không tự thêm triệu chứng chưa được cung cấp, không chẩn đoán xác định, không kê đơn và không mô tả quy trình nội bộ.`;
         }
-        return nativeFetch(inputArg,{...init,body:JSON.stringify(body)});
+        const response=await nativeFetch(inputArg,{...init,body:JSON.stringify(body)});
+        if(requestKind==='skip-summary'&&response.ok)showDetailsAfterNextBot=true;
+        return response;
       }catch{return nativeFetch(inputArg,init);}
     }
     if(url.includes('/api/analyze')&&method==='POST'){
@@ -100,5 +195,5 @@ import('/clinical-learning.js?v=2.9.0').catch(()=>{});
     return nativeFetch(inputArg,init);
   };
 
-  resetInquiry(false);
+  resetInquiry(true);
 })();

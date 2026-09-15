@@ -22,7 +22,7 @@ try{
   if(Number(health.knowledgeSources)!==2||Number(health.openSourceReferences)!==5) throw new Error('knowledge/source gate failed');
 
   const home=await fetch(`http://127.0.0.1:${port}/`);const html=await home.text();
-  if(!home.ok||!html.includes('A.I THIỆT CHẨN')) throw new Error('home gate failed');
+  if(!home.ok||!html.includes('A.I THIỆT CHẨN')||!html.includes('HIU CLB YHCT')) throw new Error('home gate failed');
   for(const marker of ['normalModeBtn','generalModeBtn','topCameraBtn','bottomCameraBtn','topFileInput','bottomFileInput','switchCameraBtn','bottomResultSection','Lịch sử ca']) if(!html.includes(marker)) throw new Error(`dual-view UI missing: ${marker}`);
   for(const marker of ['settingsBtn','settingsDialog','settingsNormalMode','settingsGeneralMode','Cài đặt']) if(!html.includes(marker)) throw new Error(`settings UI missing: ${marker}`);
   for(const marker of ['capture-frame-guide','qualityTitle','qualityTotal','qualityGeneral','qualityQc','qualityConfidence','qualityDevice','Giới hạn sử dụng y tế']) if(!html.includes(marker)) throw new Error(`quality UI missing: ${marker}`);
@@ -49,10 +49,10 @@ try{
   const consultationJs=await fetch(`http://127.0.0.1:${port}/consultation.js`).then(r=>r.text());
   for(const marker of ['questions=[','Hàn – nhiệt','Mồ hôi','Đại – tiểu tiện','Bệnh cũ – thuốc','Khởi phát – diễn tiến','[THAP_VAN_CONTEXT]','Nhận định biện chứng tham khảo','toggleHistoryBtn']) if(!consultationJs.includes(marker)) throw new Error(`Thap van workflow missing: ${marker}`);
   if(!consultationJs.includes('questions.map')||!consultationJs.includes("url.includes('/api/chat')")) throw new Error('Thap van synthesis path missing');
-  if(!consultationJs.includes("import('/clinical-learning.js')")) throw new Error('clinical learning bootstrap missing');
+  if(!consultationJs.includes("import('/clinical-learning.js?v=2.6.1')")) throw new Error('clinical learning bootstrap missing');
 
   const clinicalLearning=await fetch(`http://127.0.0.1:${port}/clinical-learning.js`).then(r=>r.text());
-  for(const marker of ['HIU CLB YHCT','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_list_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1']) if(!clinicalLearning.includes(marker)) throw new Error(`clinical learning behavior missing: ${marker}`);
+  for(const marker of ['HIU CLB YHCT','Góp ý ca lâm sàng','Phân tích ca trước','clinical-feedback-card{display:block}','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_list_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1']) if(!clinicalLearning.includes(marker)) throw new Error(`clinical learning behavior missing: ${marker}`);
 
   const settingsJs=await fetch(`http://127.0.0.1:${port}/settings.js`).then(r=>r.text());
   if(!settingsJs.includes('aiThietChanDefaultMode')||!settingsJs.includes("applyMode('general')")||!settingsJs.includes("applyMode('normal')")) throw new Error('settings behavior gate failed');
@@ -75,8 +75,8 @@ try{
   const manifest=await fetch(`http://127.0.0.1:${port}/manifest.webmanifest`).then(r=>r.json());
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||manifest.icons.length===0) throw new Error('PWA manifest gate failed');
   const sw=await fetch(`http://127.0.0.1:${port}/sw.js`).then(r=>r.text());
-  if(!sw.includes("url.pathname.startsWith('/api/')")||!sw.includes('ai-thiet-chan-v2.6.0')||!sw.includes('/dual-view.css')||!sw.includes('/settings.css')||!sw.includes('/settings.js')||!sw.includes('/quality-dashboard.css')||!sw.includes('/quality-dashboard.js')||!sw.includes('/capture-metadata.js')||!sw.includes('/consultation.js')||!sw.includes('/clinical-learning.js')) throw new Error('service worker gate failed');
+  if(!sw.includes("url.pathname.startsWith('/api/')")||!sw.includes('ai-thiet-chan-v2.6.1')||!sw.includes('/dual-view.css')||!sw.includes('/settings.css')||!sw.includes('/settings.js')||!sw.includes('/quality-dashboard.css')||!sw.includes('/quality-dashboard.js')||!sw.includes('/capture-metadata.js')||!sw.includes('/consultation.js')||!sw.includes('/clinical-learning.js')) throw new Error('service worker gate failed');
 
   await scanPublic(path.join(root,'public'));
-  console.log('SMOKE PASS: independent A.I Thiet Chan web app with dual-view assessment, Thap van, and approved clinical learning');
+  console.log('SMOKE PASS: independent A.I Thiet Chan web app with dual-view assessment, Thap van, and visible approved clinical learning workflow');
 } finally { child.kill('SIGTERM'); }

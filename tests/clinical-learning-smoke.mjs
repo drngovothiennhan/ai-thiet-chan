@@ -27,6 +27,6 @@ for(const marker of [
 for(const marker of ['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted']) assert.ok(lifecycle.includes(marker),`missing feedback lifecycle marker: ${marker}`);
 
 assert.ok(source.includes('Sản phẩm được phát triển bởi Câu Lạc Bộ Y Học Cổ Truyền Trường Đại Học Quốc Tế Hồng Bàng, phục vụ việc học và tham vấn chuyên môn'),'missing attribution');
-assert.ok(sw.includes("ai-thiet-chan-v2.9.0"),'service worker cache not bumped');
+assert.ok(sw.includes("ai-thiet-chan-v2.9.8-knowledge-5doc-complete"),'service worker cache not bumped');
 assert.ok(sw.includes("'/clinical-learning.js'")&&sw.includes("'/feedback-lifecycle.js'"),'clinical learning lifecycle missing from app shell');
 console.log('clinical-learning-smoke: ok');

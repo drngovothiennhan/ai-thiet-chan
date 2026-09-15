@@ -3,6 +3,7 @@ import {directPatterns,evidenceFor,fuse} from './public/academic-fusion-core.js'
 import {FUSION_VERSION,SOURCE,WEIGHTS} from './public/academic-source.js';
 
 const LEARNING_POLICY_VERSION='novelty-priority-v1';
+const EVIDENCE_PROFILE_VERSION='evidence-readiness-v1';
 const NOVEL_SIMILARITY_THRESHOLD=0.55;
 const REVIEW_SIMILARITY_THRESHOLD=0.72;
 
@@ -29,18 +30,52 @@ export function learningPriorityFromSimilarity(similarity,{quality='good',signat
   if(sim<REVIEW_SIMILARITY_THRESHOLD) return {policyVersion:LEARNING_POLICY_VERSION,status:'uncommon',priority:'medium',learningCandidate:true,reason:'partial-match-requires-review',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
   return {policyVersion:LEARNING_POLICY_VERSION,status:'covered',priority:'low',learningCandidate:false,reason:'well-covered-by-existing-visual-corpus',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
 }
-function attachLearningPolicy(assessment,profile){
+
+export function evidenceReadiness(assessment,{direct=[],matches=[]}={}){
+  const directCount=Array.isArray(direct)?direct.length:0;
+  const atlasCount=Array.isArray(matches)?matches.length:0;
+  const geminiCount=collectSignals(assessment).length;
+  const layers={directImage:directCount>0,atlasSimilarity:atlasCount>0,geminiAcademic:geminiCount>0};
+  const activeLayers=Object.values(layers).filter(Boolean).length;
+  return {
+    profileVersion:EVIDENCE_PROFILE_VERSION,
+    layers,
+    activeLayers,
+    totalLayers:3,
+    minimumRequired:2,
+    minimumMet:activeLayers>=2,
+    directPatternCount:directCount,
+    atlasMatchCount:atlasCount,
+    geminiSignalCount:geminiCount,
+    topAtlasSimilarity:atlasCount?Number((Number(matches[0]?.similarity)||0).toFixed(3)):null,
+    imageQuality:String(assessment?.top?.quality||'poor').toLowerCase()
+  };
+}
+function refineLearningProfile(profile,evidenceProfile,quality){
+  const q=String(quality||'poor').toLowerCase();
+  let out={...profile,evidenceReadiness:{profileVersion:evidenceProfile.profileVersion,activeLayers:evidenceProfile.activeLayers,minimumRequired:evidenceProfile.minimumRequired,minimumMet:evidenceProfile.minimumMet}};
+  if(out.learningCandidate&&!evidenceProfile.minimumMet){
+    out={...out,status:'review-insufficient-evidence',priority:'review',learningCandidate:false,reason:'minimum-evidence-layers-not-met'};
+  }else if(out.status==='novel'&&q==='fair'){
+    out={...out,priority:'medium',reason:'novel-but-fair-image-quality'};
+  }
+  return out;
+}
+function attachLearningPolicy(assessment,profile,evidenceProfile=null){
   assessment.ml=assessment.ml||{};
   assessment.ml.featureVector=assessment.ml.featureVector||{};
   assessment.ml.learning=profile;
   assessment.ml.featureVector.learning=profile;
+  if(evidenceProfile){assessment.ml.evidence=evidenceProfile;assessment.ml.featureVector.evidence=evidenceProfile;}
   return assessment;
 }
 
 export function applyAcademicFusion(assessment,body={}){
   const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
   if(!signature){
-    return attachLearningPolicy(assessment,learningPriorityFromSimilarity(0,{quality:assessment?.top?.quality||'poor',signaturePresent:false}));
+    const evidenceProfile=evidenceReadiness(assessment,{direct:[],matches:[]});
+    const learningProfile=refineLearningProfile(learningPriorityFromSimilarity(0,{quality:assessment?.top?.quality||'poor',signaturePresent:false}),evidenceProfile,assessment?.top?.quality||'poor');
+    return attachLearningPolicy(assessment,learningProfile,evidenceProfile);
   }
   const matches=matchAtlas(signature);
   const direct=directPatterns(assessment);
@@ -49,9 +84,11 @@ export function applyAcademicFusion(assessment,body={}){
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
   const fused=fuse(assessment,signature,matches,geminiLayer(assessment),evidence);
+  const evidenceProfile=evidenceReadiness(fused,{direct,matches});
   const maxAtlasSimilarity=Number(matches?.[0]?.similarity||0);
-  const learningProfile=learningPriorityFromSimilarity(maxAtlasSimilarity,{quality:fused?.top?.quality||assessment?.top?.quality||'poor',signaturePresent:true});
-  attachLearningPolicy(fused,learningProfile);
+  const baseLearningProfile=learningPriorityFromSimilarity(maxAtlasSimilarity,{quality:fused?.top?.quality||assessment?.top?.quality||'poor',signaturePresent:true});
+  const learningProfile=refineLearningProfile(baseLearningProfile,evidenceProfile,fused?.top?.quality||assessment?.top?.quality||'poor');
+  attachLearningPolicy(fused,learningProfile,evidenceProfile);
   fused.ml.featureVector.academic=fused.ml.featureVector.academic||{};
   fused.ml.featureVector.academic.corpus={
     id:ACADEMIC_PAGE_CORPUS.id,
@@ -67,11 +104,13 @@ export function applyAcademicFusion(assessment,body={}){
     matchedAtlas:matches.map(m=>({sourceId:m.sourceId,page:m.page,kind:m.kind,hash:m.hash,similarity:m.similarity})),
     visualContext,
     textMatches,
+    evidenceReadiness:evidenceProfile,
     learningPriority:learningProfile
   };
   if(fused.combined?.academicFusion){
     fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));
     fused.combined.academicFusion.visualContext=visualContext;
+    fused.combined.academicFusion.evidenceReadiness=evidenceProfile;
     fused.combined.academicFusion.learningPriority=learningProfile;
   }
   return fused;
@@ -92,12 +131,15 @@ export const ACADEMIC_HEALTH=Object.freeze({
   weights:WEIGHTS,
   minimumLayers:2,
   totalLayers:3,
+  evidenceProfileVersion:EVIDENCE_PROFILE_VERSION,
   learningCollection:{
     policyVersion:LEARNING_POLICY_VERSION,
     focus:'novel-cases-first',
     novelBelowSimilarity:NOVEL_SIMILARITY_THRESHOLD,
     reviewBelowSimilarity:REVIEW_SIMILARITY_THRESHOLD,
     poorQcExcludedFromLearning:true,
+    fairNovelPriority:'medium',
+    minimumEvidenceLayersForLearning:2,
     autoPromoteToKnowledge:false
   }
 });

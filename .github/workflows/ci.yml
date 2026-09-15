@@ -12,6 +12,7 @@ on:
       - 'server.mjs'
       - 'public/**'
       - 'tests/**'
+      - 'vercel.json'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]

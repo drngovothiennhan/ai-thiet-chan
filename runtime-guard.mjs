@@ -1,7 +1,9 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
-const GEMINI_TIMEOUT_MS=8_000;
+const GEMINI_VISION_TIMEOUT_MS=20_000;
+const GEMINI_TEXT_TIMEOUT_MS=12_000;
+const GEMINI_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 
 function requestUrl(input){
@@ -35,6 +37,14 @@ function promptFromPayload(payload={}){
   }
   return out.join('\n');
 }
+function hasInlineMedia(payload={}){
+  for(const content of Array.isArray(payload.contents)?payload.contents:[]){
+    for(const part of Array.isArray(content?.parts)?content.parts:[]){
+      if(part?.inline_data?.data||part?.inlineData?.data) return true;
+    }
+  }
+  return false;
+}
 function extractedEvidence(prompt){
   const cited=prompt.match(/^- \[[^\n]+\][^\n]*/gm)||[];
   if(cited.length) return cited.slice(0,5);
@@ -60,25 +70,10 @@ function localPlainFallback(prompt){
 }
 function localJsonFallback(prompt){
   const evidence=extractedEvidence(prompt).slice(0,3);
-  const evidenceText=evidence.length?evidence.join(' | '):'Đối chiếu nguyên tắc thiệt chẩn trong kho dữ liệu nội bộ đã nạp.';
-  const top={
-    quality:'poor',
-    visualValidity:{tongueVisible:null,wholeTongueVisible:null,rootVisible:null,framing:'unknown',occlusion:'unknown',colorReliability:'unknown'},
-    tongueColor:'Không tự gán khi chưa có xác nhận thị giác',shape:'Không tự gán khi chưa có xác nhận thị giác',coatingColor:'Không tự gán khi chưa có xác nhận thị giác',coatingThickness:'Không tự gán khi chưa có xác nhận thị giác',coatingTexture:'Không tự gán khi chưa có xác nhận thị giác',moisture:'Không tự gán khi chưa có xác nhận thị giác',fissures:'Không tự gán khi chưa có xác nhận thị giác',toothmarks:'Không tự gán khi chưa có xác nhận thị giác',pricklesSpots:'Không tự gán khi chưa có xác nhận thị giác',stasisMarks:'Không tự gán khi chưa có xác nhận thị giác',
-    theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:[]},
-    otherVisibleFeatures:[],confidence:0.2,
-    summary:`Chế độ suy luận nội bộ đang duy trì phiên. ${evidenceText}`,
-    limitations:['Không tự tạo đặc điểm hình ảnh khi phản hồi thị giác từ Gemini vượt ngưỡng thời gian.']
-  };
+  const evidenceText=evidence.length?evidence.join(' | '):'Đối chiếu nguyên tắc thiệt chẩn trong kho dữ liệu nội bộ đã được nạp.';
   return JSON.stringify({
-    top,
-    bottom:null,
-    combined:{
-      confidence:0.2,
-      summary:`Tiếp tục biện luận từ kho dữ liệu nội bộ: ${evidenceText}`,
-      generalSignals:[],stomachPatternSignals:[],
-      cannotConclude:['Kết quả dự phòng chỉ dùng dữ liệu đã nạp và dữ kiện có sẵn; không tự gán dấu hiệu hình ảnh chưa được xác nhận.']
-    }
+    localKnowledgeOnly:true,
+    combined:{confidence:0,summary:`Tiếp tục biện luận từ kho dữ liệu nội bộ: ${evidenceText}`}
   });
 }
 function localKnowledgeResponse(init,reason){
@@ -92,8 +87,13 @@ function localKnowledgeResponse(init,reason){
     localFallback:{active:true,reason,model:GEMINI_MODEL}
   }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge'}});
 }
-async function timedFetch(input,init,url){
-  const timeoutMs=url.includes('generativelanguage.googleapis.com')?GEMINI_TIMEOUT_MS:url.includes('.supabase.co')?15_000:0;
+function unavailableVisionResponse(reason,status=503){
+  console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status}));
+  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason}),{
+    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable'}
+  });
+}
+async function timedFetch(input,init,url,timeoutMs){
   if(!timeoutMs||init?.signal) return nativeFetch(input,init);
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -107,24 +107,39 @@ async function timedFetch(input,init,url){
     throw err;
   }finally{clearTimeout(timer);}
 }
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function geminiResilientFetch(input,init,url){
   const candidate=replaceGeminiModel(url,GEMINI_MODEL);
-  try{
-    const response=await timedFetch(candidate,init,candidate);
-    if(response.ok) return response;
-    if(!(await isTransientGeminiFailure(response))) return response;
-    console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL}));
-    return localKnowledgeResponse(init,`HTTP_${response.status}`);
-  }catch(err){
-    console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err)}));
-    return localKnowledgeResponse(init,err?.message||'TRANSPORT_ERROR');
+  const payload=requestPayload(init);
+  const vision=hasInlineMedia(payload);
+  const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
+  let lastResponse=null;
+  let lastError=null;
+  for(let attempt=1;attempt<=GEMINI_MAX_ATTEMPTS;attempt++){
+    try{
+      const response=await timedFetch(candidate,init,candidate,timeoutMs);
+      if(response.ok) return response;
+      if(!(await isTransientGeminiFailure(response))) return response;
+      lastResponse=response;
+      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision}));
+    }catch(err){
+      lastError=err;
+      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision}));
+    }
+    if(attempt<GEMINI_MAX_ATTEMPTS) await sleep(450*attempt);
   }
+  if(vision){
+    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status);
+    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503);
+  }
+  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'));
 }
 
 if(nativeFetch){
   globalThis.fetch=async(input,init={})=>{
     const url=requestUrl(input);
     if(isGeminiGenerate(url)) return geminiResilientFetch(input,init,url);
-    return timedFetch(input,init,url);
+    const timeoutMs=url.includes('.supabase.co')?15_000:0;
+    return timedFetch(input,init,url,timeoutMs);
   };
 }

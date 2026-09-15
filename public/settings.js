@@ -58,6 +58,7 @@
 
 (()=>{
   if(!document.querySelector('script[data-rear-torch]')){const script=document.createElement('script');script.src='/torch.js';script.async=false;script.dataset.rearTorch='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-ui-controls]')){const script=document.createElement('script');script.src='/ui-controls.js?v=2.7.0';script.async=false;script.dataset.aitcUiControls='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-aitc-admin-center]')){const script=document.createElement('script');script.src='/admin-center.js?v=2.7.0';script.async=false;script.dataset.aitcAdminCenter='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-aitc-ui-controls]')){const script=document.createElement('script');script.src='/ui-controls.js?v=2.7.1';script.async=false;script.dataset.aitcUiControls='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-aitc-admin-center]')){const script=document.createElement('script');script.src='/admin-center.js?v=2.7.1';script.async=false;script.dataset.aitcAdminCenter='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-aitc-admin-credentials]')){const script=document.createElement('script');script.src='/admin-credentials.js?v=2.7.1';script.async=false;script.dataset.aitcAdminCredentials='true';document.head.appendChild(script);}
 })();

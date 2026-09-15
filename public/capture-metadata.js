@@ -1,5 +1,7 @@
 (()=>{
   const nativeFetch=window.fetch.bind(window);
+  const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
+  const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
 
   // Zero-dependency browser fallback. Architecture follows public tongue-vision
   // pipelines (localize -> segment -> extract features -> reason), including
@@ -137,10 +139,51 @@
     return {mode,top:ta,bottom:ba,combined,ml:{pipeline:['browser-localization','color-segmentation','connected-component-roi','visual-feature-extraction','knowledge-mapping'],featureVector,storage:'not-stored-until-server-vision-verified'}};
   }
 
+  function localLearningTokens(){
+    let studentToken='',adminToken='';
+    try{studentToken=localStorage.getItem('aitcStudentSessionV1')||'';}catch{}
+    try{adminToken=sessionStorage.getItem('aitcClinicalAdminToken')||'';}catch{}
+    return {studentToken,adminToken};
+  }
+
+  async function syncLocalLearning(body,assessment){
+    const {studentToken,adminToken}=localLearningTokens();
+    if(!studentToken&&!adminToken)return null;
+    const mode=body.mode==='general'?'general':'normal';
+    if(assessment?.top?.visualValidity?.tongueVisible!==true||Number(assessment?.top?.confidence||0)<0.30)return null;
+    if(mode==='general'&&(assessment?.bottom?.visualValidity?.undersideVisible!==true||Number(assessment?.bottom?.confidence||0)<0.30))return null;
+    const response=await nativeFetch(`${SUPABASE_URL}/rest/v1/rpc/ai_thiet_chan_store_local_case_v1`,{
+      method:'POST',
+      headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':`Bearer ${SUPABASE_KEY}`},
+      body:JSON.stringify({
+        p_student_token:studentToken,
+        p_admin_token:adminToken,
+        p_assessment_mode:mode,
+        p_top_image_data_url:body.topImage||body.image||'',
+        p_top_mime_type:body.topMimeType||body.mimeType||'image/jpeg',
+        p_bottom_image_data_url:mode==='general'?(body.bottomImage||''):null,
+        p_bottom_mime_type:mode==='general'?(body.bottomMimeType||'image/jpeg'):null,
+        p_qc:{top:body.topQc||body.qc||{},bottom:mode==='general'?(body.bottomQc||{}):null},
+        p_analysis:assessment,
+        p_feature_vector:assessment?.ml?.featureVector||{},
+        p_knowledge_version:'local-open-source-vision-v1'
+      })
+    });
+    const data=await response.json().catch(()=>null);
+    if(!response.ok||!data?.ok)throw new Error(data?.message||data?.hint||data?.error||`HTTP ${response.status}`);
+    return data;
+  }
+
+  function removeLearningSyncNotices(){
+    const log=document.getElementById('chatLog');
+    if(!log)return;
+    for(const node of [...log.children])if(/chưa đồng bộ vào kho dữ liệu học máy/i.test(node.textContent||''))node.remove();
+  }
+
   function sanitizeLocalUi(mode){
     const label=document.getElementById('modelLabel');if(label)label.textContent=mode==='general'?'Tổng quát · 2 ảnh':'Bình thường · 1 ảnh';
     const health=document.getElementById('healthBadge');if(health){health.textContent='Phân tích hoàn tất';health.className='status-pill good';}
-    const log=document.getElementById('chatLog');if(log){for(const node of [...log.children])if(/chưa đồng bộ vào kho dữ liệu học máy/i.test(node.textContent||''))node.remove();}
+    removeLearningSyncNotices();
   }
 
   async function localVisionResponse(body,serverResponse){
@@ -149,7 +192,15 @@
       const bottom=body.mode==='general'?await inspectView(body.bottomImage,body.bottomQc||{},'bottom'):null;
       const assessment=buildAssessment(body.mode==='general'?'general':'normal',top,bottom,body.topQc||body.qc||{},body.bottomQc||{});
       if(assessment.top.visualValidity.tongueVisible!==true){return serverResponse;}
-      const payload={ok:true,assessment,analysis:assessment,model:null,knowledgeVersion:'',collection:{ok:false,stored:false,localOnly:true},localVision:true,visionStatus:'local-image-analysis'};
+      let collection={ok:false,stored:false,localOnly:true};
+      try{
+        const saved=await syncLocalLearning(body,assessment);
+        if(saved?.ok){
+          assessment.ml.storage='automatic-local-training-store';
+          collection={ok:true,stored:Boolean(saved.stored),duplicate:Boolean(saved.duplicate),caseId:saved.id||null,localVision:true};
+        }
+      }catch{}
+      const payload={ok:true,assessment,analysis:assessment,model:null,knowledgeVersion:'local-open-source-vision-v1',collection,localVision:true,visionStatus:'local-image-analysis'};
       setTimeout(()=>sanitizeLocalUi(body.mode==='general'?'general':'normal'),0);
       return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-aitc-vision':'local-image-analysis'}});
     }catch{return serverResponse;}
@@ -172,4 +223,10 @@
     }catch{}
     return nativeFetch(input,init);
   };
+
+  const chatLog=document.getElementById('chatLog');
+  if(chatLog){
+    removeLearningSyncNotices();
+    new MutationObserver(removeLearningSyncNotices).observe(chatLog,{childList:true});
+  }
 })();

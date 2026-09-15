@@ -9,6 +9,7 @@ const settings=fs.readFileSync('public/settings.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 assert.equal(pkg.version,'2.9.0');
+assert.match(settings,/const RELEASE='2\.9\.0'/);
 assert.match(server,/installAccessControl/);
 assert.match(server,/consumeCaseAccess\(req\)/);
 assert.match(server,/studentAccess\?\.role==='student'/);

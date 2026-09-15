@@ -1,3 +1,4 @@
+import './runtime-guard.mjs';
 import { CORE_TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
 
 export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-15.2doc';

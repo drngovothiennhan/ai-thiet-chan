@@ -10,7 +10,6 @@ function mustReplace(source,oldText,newText,label){
   return source.replace(oldText,newText);
 }
 
-// Keep every browser/runtime release token aligned to one PWA release.
 for(const dir of ['public','tests']){
   for(const entry of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){
     if(!entry.isFile()||!/(?:\.m?js|\.html|\.css|\.json|\.webmanifest)$/i.test(entry.name))continue;
@@ -62,15 +61,9 @@ if(!sw.includes("'/release-ui.css'"))sw=mustReplace(sw,"'/quality-dashboard.css'
 if(!sw.includes("'/release-ui.js'"))sw=mustReplace(sw,"'/upload-controls.js'","'/upload-controls.js','/release-ui.js'",'SW release JS');
 write('public/sw.js',sw);
 
-let ci=read('.github/workflows/ci.yml');
-if(!ci.includes("- 'knowledge-evidence.mjs'"))ci=ci.replace("      - 'knowledge.mjs'","      - 'knowledge.mjs'\n      - 'knowledge-evidence.mjs'\n      - 'knowledge-extended.mjs'");
-write('.github/workflows/ci.yml',ci);
-
 const pkgPath=path.join(root,'package.json');const pkg=JSON.parse(fs.readFileSync(pkgPath,'utf8'));
 pkg.version='2.9.0';
-for(const key of ['test','check']){
-  pkg.scripts[key]=String(pkg.scripts[key]||'').replaceAll('2.8.2','2.9.0');
-}
+for(const key of ['test','check'])pkg.scripts[key]=String(pkg.scripts[key]||'').replaceAll('2.8.2','2.9.0');
 if(!pkg.scripts.check.includes('node --check knowledge-extended.mjs'))pkg.scripts.check=pkg.scripts.check.replace('node --check knowledge-evidence.mjs','node --check knowledge-evidence.mjs && node --check knowledge-extended.mjs');
 if(!pkg.scripts.check.includes('node --check public/release-ui.js'))pkg.scripts.check=pkg.scripts.check.replace('node --check public/upload-controls.js','node --check public/upload-controls.js && node --check public/release-ui.js');
 for(const key of ['test','check'])if(!pkg.scripts[key].includes('tests/release-2.9-smoke.mjs'))pkg.scripts[key]+=' && node tests/release-2.9-smoke.mjs';

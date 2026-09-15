@@ -5,6 +5,7 @@
     dataState:$('qualityDataState'),device:$('qualityDevice'),camera:$('qualityCamera'),pwa:$('qualityPwa'),refresh:$('qualityRefreshBtn')
   };
   if(!els.total) return;
+  let loaded=false;
   const pct=n=>`${Math.round(Math.max(0,Math.min(1,Number(n)||0))*100)}%`;
   function deviceClass(){
     const ua=navigator.userAgent||'';
@@ -37,9 +38,9 @@
       els.confidence.textContent=total?pct(qcCandidate/total):'—';
       const metricLabel=els.confidence.closest('.quality-metric')?.querySelector('span');if(metricLabel)metricLabel.textContent='Ca đạt QC tối thiểu';
       els.dataState.textContent=total
-        ?`Kho hiện có ${total} ca. ${qcCandidate}/${total} ca đạt bộ lọc QC tối thiểu để xem xét cho dữ liệu huấn luyện. Production hiện chưa có nhãn đồng thuận chuyên gia nên chưa dùng các chỉ số này để khẳng định độ chính xác lâm sàng.`
+        ?`Kho hiện có ${total} ca. ${qcCandidate}/${total} ca đạt bộ lọc QC tối thiểu để xem xét cho dữ liệu huấn luyện. Dữ liệu ca được thu thập tự động; kiến thức chuyên môn chỉ tham gia suy luận sau khi admin duyệt.`
         :'Kho chưa có ca. Chưa có dữ liệu để đánh giá khả năng máy học.';
-      els.dataState.classList.toggle('warn',true);
+      els.dataState.classList.toggle('warn',true);loaded=true;
     }catch{
       els.total.textContent=els.general.textContent=els.qc.textContent=els.confidence.textContent='—';
       els.dataState.textContent='Không tải được thống kê dữ liệu lúc này. Chức năng phân tích chính không bị ảnh hưởng.';
@@ -47,8 +48,7 @@
     }finally{if(els.refresh)els.refresh.disabled=false;}
   }
   renderDevice();
-  els.dataState.textContent='Thống kê sẽ tải sau khi giao diện chính sẵn sàng…';
-  if('requestIdleCallback' in window) requestIdleCallback(()=>load(),{timeout:1800});
-  else setTimeout(load,900);
+  els.dataState.textContent='Nhấn “Xem” để tải thống kê hệ thống và dữ liệu.';
+  window.addEventListener('aitc:quality-open',()=>{if(!loaded)load();});
   els.refresh?.addEventListener('click',load);
 })();

@@ -58,7 +58,8 @@
 
 (()=>{
   const RELEASE='2.8.2';
-  function load(src,key){if(document.querySelector(`script[data-${key}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
+  const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
+  function load(src,key){const attr=attrName(key);if(document.querySelector(`script[${attr}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
   load('/torch.js','rearTorch');
   load('/ui-controls.js','aitcUiControls');
   load('/admin-center.js','aitcAdminCenter');

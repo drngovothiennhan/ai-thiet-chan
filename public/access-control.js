@@ -1,3 +1,4 @@
+// Production access policy: guest 5 analyses/day; approved students unlimited.
 (()=>{
   const TOKEN_KEY='aitcStudentSessionV1';
   const $=id=>document.getElementById(id);

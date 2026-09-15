@@ -6,12 +6,14 @@ const [server,runtime,academic,corpus,sw,index,capture]=await Promise.all([
   read('server.mjs'),read('runtime-guard.mjs'),read('academic-server.mjs'),read('knowledge-corpus.mjs'),read('public/sw.js'),read('public/index.html'),read('public/capture-metadata.js')
 ]);
 
-// AI runtime: primary/fallback chain + measurable latency + no fabricated vision fallback.
+// AI runtime: primary/fallback chain + deterministic provider agent + measurable latency + no fabricated vision fallback.
 assert.match(runtime,/GEMINI_MODEL='gemini-3\.8-flash'/);
 assert.match(runtime,/GEMINI_FALLBACK_MODEL='gemini-3\.6-flash'/);
+assert.match(runtime,/RUNTIME_AGENT_VERSION='aitc-provider-agent-v1'/);
 assert.match(runtime,/gemini_request_benchmark/);
 assert.match(runtime,/VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE/);
-assert.match(runtime,/modelsTried:GEMINI_MODEL_CHAIN/);
+assert.match(runtime,/modelsTried:agent\.attempts\.map\(x=>x\.model\)/);
+assert.match(runtime,/MODEL_FAILURE_OPEN_THRESHOLD=3/);
 
 // Request semantics: do not rewrite 429 into a misleading 403 at the service-worker layer.
 assert.match(sw,/return fetch\(forwarded\)/);
@@ -31,10 +33,12 @@ const storeAt=server.indexOf('storeTrainingCase(',fusionAt);
 assert.ok(analyzeAt>=0&&normalizeAt>analyzeAt&&fusionAt>normalizeAt&&storeAt>fusionAt,'analysis pipeline order must remain normalize -> fusion -> store');
 assert.match(server,/p_feature_vector:assessment\?\.ml\?\.featureVector\|\|\{\}/);
 
-// Learning collection: prioritize truly novel usable cases, exclude poor QC, never auto-promote to Knowledge.
+// Learning collection: prioritize truly novel usable cases, exclude poor QC, require evidence readiness and never auto-promote to Knowledge.
 assert.match(academic,/NOVEL_SIMILARITY_THRESHOLD=0\.55/);
 assert.match(academic,/REVIEW_SIMILARITY_THRESHOLD=0\.72/);
+assert.match(academic,/EVIDENCE_PROFILE_VERSION='evidence-readiness-v1'/);
 assert.match(academic,/poorQcExcludedFromLearning:true/);
+assert.match(academic,/minimumEvidenceLayersForLearning:2/);
 assert.match(academic,/autoPromoteToKnowledge:false/);
 assert.match(academic,/status:'novel',priority:'high',learningCandidate:true/);
 assert.match(academic,/status:'covered',priority:'low',learningCandidate:false/);
@@ -47,4 +51,4 @@ assert.match(corpus,/psychologySourceRole:'PSY1 context-only; never infer psychi
 assert.match(index,/Điểm tin cậy hiển thị là độ tự tin nội bộ của A\.I sau QC ảnh/);
 assert.match(index,/không phải sensitivity\/specificity/);
 
-console.log('PRE-RELEASE PIPELINE SMOKE PASS: model failover, 429 semantics, single diagnostic pipeline, fusion/storage order, novelty learning gate, PSY1 boundary and UI clinical-limit wording are consistent.');
+console.log('PRE-RELEASE PIPELINE SMOKE PASS: provider-agent failover, 429 semantics, single diagnostic pipeline, evidence readiness, fusion/storage order, novelty learning gate, PSY1 boundary and UI clinical-limit wording are consistent.');

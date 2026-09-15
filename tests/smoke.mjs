@@ -55,7 +55,7 @@ try{
   for(const marker of ['HIU CLB YHCT','Góp ý ca lâm sàng','Phân tích ca trước','clinical-feedback-card{display:block}','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_list_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1']) if(!clinicalLearning.includes(marker)) throw new Error(`clinical learning behavior missing: ${marker}`);
 
   const settingsJs=await fetch(`http://127.0.0.1:${port}/settings.js`).then(r=>r.text());
-  if(!settingsJs.includes('aiThietChanDefaultMode')||!settingsJs.includes("applyMode('general')")||!settingsJs.includes("applyMode('normal')")) throw new Error('settings behavior gate failed');
+  for(const marker of ['aiThietChanDefaultMode',"applyMode('general')","applyMode('normal')",'beforeinstallprompt','pwaInstallBtn','Cài đặt A.I Thiệt Chẩn','appinstalled','Thêm vào Màn hình chính']) if(!settingsJs.includes(marker)) throw new Error(`settings/PWA install behavior missing: ${marker}`);
 
   const qualityJs=await fetch(`http://127.0.0.1:${port}/quality-dashboard.js`).then(r=>r.text());
   for(const marker of ["'/api/cases?limit=100'",'navigator.mediaDevices?.getUserMedia','qualityConfidence','Ca đạt QC tối thiểu','chưa có nhãn đồng thuận chuyên gia']) if(!qualityJs.includes(marker)) throw new Error(`quality dashboard behavior missing: ${marker}`);
@@ -75,8 +75,8 @@ try{
   const manifest=await fetch(`http://127.0.0.1:${port}/manifest.webmanifest`).then(r=>r.json());
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||manifest.icons.length===0) throw new Error('PWA manifest gate failed');
   const sw=await fetch(`http://127.0.0.1:${port}/sw.js`).then(r=>r.text());
-  if(!sw.includes("url.pathname.startsWith('/api/')")||!sw.includes('ai-thiet-chan-v2.6.1')||!sw.includes('/dual-view.css')||!sw.includes('/settings.css')||!sw.includes('/settings.js')||!sw.includes('/quality-dashboard.css')||!sw.includes('/quality-dashboard.js')||!sw.includes('/capture-metadata.js')||!sw.includes('/consultation.js')||!sw.includes('/clinical-learning.js')) throw new Error('service worker gate failed');
+  if(!sw.includes("url.pathname.startsWith('/api/')")||!sw.includes('ai-thiet-chan-v2.6.2')||!sw.includes('/dual-view.css')||!sw.includes('/settings.css')||!sw.includes('/settings.js')||!sw.includes('/quality-dashboard.css')||!sw.includes('/quality-dashboard.js')||!sw.includes('/capture-metadata.js')||!sw.includes('/consultation.js')||!sw.includes('/clinical-learning.js')) throw new Error('service worker gate failed');
 
   await scanPublic(path.join(root,'public'));
-  console.log('SMOKE PASS: independent A.I Thiet Chan web app with dual-view assessment, Thap van, and visible approved clinical learning workflow');
+  console.log('SMOKE PASS: independent A.I Thiet Chan web app with dual-view assessment, Thap van, PWA install settings, and visible approved clinical learning workflow');
 } finally { child.kill('SIGTERM'); }

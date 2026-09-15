@@ -1,5 +1,5 @@
 window.__aitcRawFetch=window.__aitcRawFetch||window.fetch.bind(window);
-import('/clinical-learning.js').catch(()=>{});
+import('/clinical-learning.js?v=2.6.1').catch(()=>{});
 
 (()=>{
   const $=id=>document.getElementById(id);

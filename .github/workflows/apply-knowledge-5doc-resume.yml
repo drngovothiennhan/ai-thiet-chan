@@ -1,0 +1,60 @@
+name: Apply Knowledge 5doc Resume
+
+on:
+  push:
+    branches:
+      - ops/knowledge-5doc-resume-20260915
+    paths:
+      - '.github/workflows/apply-knowledge-5doc-resume.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Guard exact checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "1a145f1c7079bbef513db2188b5bdaa2a3569d15"
+
+      - name: Download verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 1 \
+            'https://sdmntprwestus2.oaiusercontent.com/files/00000000-e258-81f8-b00b-1f85e2cb8c5a/raw?se=2026-09-15T10%3A40%3A36Z&sp=r&sv=2026-02-06&sr=b&scid=7e5329c5-46de-5e55-996d-f3d313d89830&skoid=bb372dd6-3b2a-4af2-b355-c26497ba23cd&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-15T01%3A11%3A47Z&ske=2026-09-16T01%3A11%3A47Z&sks=b&skv=2026-02-06&sig=hwLB9BOUMvoLlYZRXfu164jwPRBuYO8JVX0dOdAVyEs%3D' \
+            -o /tmp/aitc-knowledge-5doc-patch.tar.gz
+          echo '9db01ee88a65c374cb324b2e2625a8e5a4a69a40d8fef97604ee0871c0481df9  /tmp/aitc-knowledge-5doc-patch.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/aitc-knowledge-5doc-patch.tar.gz -C .
+
+      - name: Verify corpus and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check knowledge-corpus.mjs
+          node --check academic-server.mjs
+          node --check public/academic-vision.js
+          node --check public/academic-source.js
+          node --check public/academic-fusion-core.js
+          node --check public/sw.js
+          node tests/knowledge-corpus-smoke.mjs
+
+      - name: Commit production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add academic-server.mjs knowledge-corpus.mjs knowledge-corpus-chunks package.json public/academic-vision.js public/academic-source.js public/academic-fusion-core.js public/sw.js tests/knowledge-corpus-smoke.mjs
+          git diff --cached --check
+          git commit -m "feat: index complete five-document Knowledge corpus"
+          git push origin HEAD:main

@@ -4,6 +4,9 @@ function bearerToken(req){
   const value=String(req.headers?.authorization||'').trim();
   return value.toLowerCase().startsWith('bearer ')?value.slice(7).trim():'';
 }
+function adminToken(req){
+  return String(req.headers?.['x-aitc-admin-token']||'').trim().slice(0,256);
+}
 
 export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentity}){
   if(!app||!supabaseUrl||!supabaseKey||typeof requestIdentity!=='function') throw new Error('ACCESS_CONTROL_CONFIG_INVALID');
@@ -30,7 +33,23 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     return createHash('sha256').update(`aitc-guest-v1|${ip}|${ua}|${accept}`).digest('hex');
   }
 
+  async function resolveAdmin(req){
+    const token=adminToken(req);
+    if(!token){req.adminAccess=null;return null;}
+    try{
+      await rpc('ai_thiet_chan_admin_verify_v1',{p_admin_token:token});
+      req.adminAccess={role:'admin',unlimited:true};
+      // Compatibility bridge for the existing AI rate-limit middleware in server.mjs.
+      req.studentAccess={role:'student',unlimited:true,adminBridge:true};
+      return req.adminAccess;
+    }catch{
+      req.adminAccess=null;
+      return null;
+    }
+  }
+
   async function resolveStudent(req){
+    if(req.adminAccess){return null;}
     const token=bearerToken(req);
     if(!token){req.studentAccess=null;return null;}
     try{
@@ -45,12 +64,16 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
 
   app.use(async(req,res,next)=>{
     if(!req.path.startsWith('/api/')) return next();
-    try{await resolveStudent(req);next();}
-    catch(err){console.error('access_context_error',err?.message||err);next();}
+    try{
+      await resolveAdmin(req);
+      if(!req.adminAccess) await resolveStudent(req);
+      next();
+    }catch(err){console.error('access_context_error',err?.message||err);next();}
   });
 
   app.get('/api/access/status',async(req,res)=>{
     try{
+      if(req.adminAccess?.role==='admin') return res.json({role:'admin',unlimited:true});
       if(req.studentAccess?.role==='student') return res.json(req.studentAccess);
       const quota=await rpc('ai_thiet_chan_guest_status_v1',{p_guest_key:guestKey(req)});
       return res.json(quota);
@@ -96,6 +119,7 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
   });
 
   async function consumeCaseAccess(req){
+    if(req.adminAccess?.role==='admin') return {ok:true,role:'admin',unlimited:true};
     if(req.studentAccess?.role==='student') return {ok:true,role:'student',unlimited:true};
     const quota=await rpc('ai_thiet_chan_guest_consume_v1',{p_guest_key:guestKey(req)});
     if(!quota?.ok){
@@ -108,5 +132,5 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     return quota;
   }
 
-  return {consumeCaseAccess,resolveStudent};
+  return {consumeCaseAccess,resolveStudent,resolveAdmin};
 }

@@ -1,12 +1,14 @@
-// Production access policy: guest 5 analyses/day; approved students unlimited.
+// Production access policy: guest 5 analyses/day; approved students and authenticated admin unlimited.
 (()=>{
   const TOKEN_KEY='aitcStudentSessionV1';
+  const ADMIN_TOKEN_KEY='aitcClinicalAdminToken';
   const $=id=>document.getElementById(id);
   const nativeFetch=window.fetch.bind(window);
   const state={access:null};
 
   function token(){try{return localStorage.getItem(TOKEN_KEY)||'';}catch{return '';}}
   function setToken(value){try{if(value)localStorage.setItem(TOKEN_KEY,value);else localStorage.removeItem(TOKEN_KEY);}catch{}}
+  function adminToken(){try{return sessionStorage.getItem(ADMIN_TOKEN_KEY)||'';}catch{return '';}}
   function apiPath(input){
     try{
       const raw=typeof input==='string'?input:input?.url||'';
@@ -14,11 +16,16 @@
       return url.origin===location.origin&&url.pathname.startsWith('/api/')?url.pathname:'';
     }catch{return '';}
   }
-  window.fetch=(input,init={})=>{
-    const path=apiPath(input),t=token();
-    if(!path)return nativeFetch(input,init);
-    const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));
+  function accessHeaders(baseHeaders){
+    const headers=new Headers(baseHeaders||{}),t=token(),a=adminToken();
     if(t&&!headers.has('authorization'))headers.set('authorization',`Bearer ${t}`);
+    if(a&&!headers.has('x-aitc-admin-token'))headers.set('x-aitc-admin-token',a);
+    return headers;
+  }
+  window.fetch=(input,init={})=>{
+    const path=apiPath(input);
+    if(!path)return nativeFetch(input,init);
+    const headers=accessHeaders(init.headers||(input instanceof Request?input.headers:undefined));
     return nativeFetch(input,{...init,headers}).then(response=>{
       if(path==='/api/analyze')setTimeout(()=>refresh(),0);
       return response;
@@ -28,13 +35,13 @@
   function ensureUi(){
     const actions=document.querySelector('.topbar-actions');
     if(actions&&!$('accessBtn')){
-      const btn=document.createElement('button');btn.id='accessBtn';btn.className='icon-btn';btn.type='button';btn.textContent='Khách · còn 5/5';btn.setAttribute('aria-label','Tài khoản sinh viên');
+      const btn=document.createElement('button');btn.id='accessBtn';btn.className='icon-btn';btn.type='button';btn.textContent='Khách · còn 5/5';btn.setAttribute('aria-label','Tài khoản sử dụng');
       actions.insertBefore(btn,actions.firstChild);btn.addEventListener('click',openDialog);
     }
     if(!$('accessDialog')){
       const dialog=document.createElement('dialog');dialog.id='accessDialog';dialog.className='settings-dialog';
       dialog.innerHTML=`<div class="settings-panel access-panel">
-        <div class="settings-head"><div><h2>Tài khoản sử dụng</h2><p>Khách có 5 lượt thiệt chẩn/ngày. Sinh viên đã được admin duyệt sử dụng không giới hạn.</p></div><button id="accessCloseBtn" class="settings-close" type="button">×</button></div>
+        <div class="settings-head"><div><h2>Tài khoản sử dụng</h2><p>Khách có 5 lượt thiệt chẩn/ngày. Sinh viên đã được duyệt và Admin sử dụng không giới hạn.</p></div><button id="accessCloseBtn" class="settings-close" type="button">×</button></div>
         <div id="accessGuestView">
           <div class="access-quota"><strong id="accessQuotaText">Đang kiểm tra…</strong><span>Lượt thiệt chẩn còn lại hôm nay</span></div>
           <form id="studentLoginForm" class="access-form">
@@ -54,6 +61,9 @@
           </form>
           <button id="studentLogoutBtn" class="btn ghost full" type="button">Đăng xuất</button>
         </div>
+        <div id="accessAdminView" hidden>
+          <div class="access-student-card"><strong>Admin</strong><span>Hệ thống đã nhận phiên đăng nhập Admin Center.</span><b>Không giới hạn tính năng</b></div>
+        </div>
         <div id="accessMessage" class="admin-center-status" hidden></div>
       </div>`;
       document.body.appendChild(dialog);
@@ -72,13 +82,16 @@
   }
   function paint(data){
     state.access=data||{role:'guest',limit:5};
-    const student=data?.role==='student',btn=$('accessBtn');
+    const admin=data?.role==='admin',student=data?.role==='student',btn=$('accessBtn');
     const limit=Number.isFinite(Number(data?.limit))?Number(data.limit):5;
     const remaining=Number.isFinite(Number(data?.remaining))?Number(data.remaining):null;
-    if(btn)btn.textContent=student?`SV · ${data.student?.mssv||''}`:(remaining===null?'Khách':`Khách · còn ${remaining}/${limit}`);
-    if($('accessGuestView'))$('accessGuestView').hidden=student;
+    if(btn)btn.textContent=admin?'Admin':student?`SV · ${data.student?.mssv||''}`:(remaining===null?'Khách':`Khách · còn ${remaining}/${limit}`);
+    if($('accessGuestView'))$('accessGuestView').hidden=admin||student;
     if($('accessStudentView'))$('accessStudentView').hidden=!student;
-    if(student){
+    if($('accessAdminView'))$('accessAdminView').hidden=!admin;
+    if(admin){
+      message('', '');
+    }else if(student){
       $('accessStudentName').textContent=data.student?.fullName||data.student?.mssv||'Sinh viên';
       $('accessStudentMeta').textContent=[data.student?.mssv,data.student?.faculty,data.student?.className].filter(Boolean).join(' · ');
       if(data.student?.mustChangePassword)message('Đây là mật khẩu lần đầu. Bạn nên đổi mật khẩu sau khi đăng nhập.','warn');
@@ -92,10 +105,10 @@
   async function refresh(){
     ensureUi();
     try{
-      const response=await nativeFetch('/api/access/status',{cache:'no-store',headers:token()?{'authorization':`Bearer ${token()}`}:{}});
+      const response=await nativeFetch('/api/access/status',{cache:'no-store',headers:accessHeaders()});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data?.message||data?.error||`HTTP ${response.status}`);
-      if(data?.role!=='student'&&token())setToken('');
+      if(data?.role==='guest'&&token())setToken('');
       paint(data);
     }catch{
       if(!state.access)paint({role:'guest',limit:5});

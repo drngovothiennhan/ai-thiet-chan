@@ -13,6 +13,7 @@
     if(!r.ok) throw new Error(d?.message||d?.hint||d?.error||`HTTP ${r.status}`);
     return d;
   }
+  function refreshAccess(){window.dispatchEvent(new CustomEvent('aitc:access-refresh'));}
   function setStatus(text,kind=''){
     const n=$('adminCenterStatus');if(!n)return;
     n.hidden=false;n.textContent=text;n.className=`admin-center-status ${kind}`.trim();
@@ -30,7 +31,7 @@
     if($('adminCredentialChange'))$('adminCredentialChange').hidden=true;
     if($('adminLoginView'))$('adminLoginView').hidden=true;
     if($('adminDashboard'))$('adminDashboard').hidden=false;
-    queueMicrotask(()=>$('adminRefreshBtn')?.click());
+    queueMicrotask(()=>{$('adminRefreshBtn')?.click();refreshAccess();});
   }
   async function login(){
     const username=$('adminCenterUsername')?.value.trim()||'';
@@ -52,7 +53,7 @@
         showDashboard(String(info.username||username),password);
       }
     }catch(err){
-      sessionStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);sessionStorage.removeItem(USER_KEY);refreshAccess();
       setStatus(String(err.message).includes('unauthorized')?'Tài khoản hoặc mật khẩu không đúng.':'Không đăng nhập được: '+err.message,'warn');
     }finally{if(btn)btn.disabled=false;}
   }
@@ -94,7 +95,7 @@
     $('adminCenterPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
     $('adminChangeCredentialsBtn')?.addEventListener('click',changeCredentials);
     $('adminNewPasswordConfirm')?.addEventListener('keydown',e=>{if(e.key==='Enter')changeCredentials();});
-    $('adminLogoutBtn')?.addEventListener('click',()=>{sessionStorage.removeItem(USER_KEY);pendingUsername='';pendingPassword='';queueMicrotask(showLogin);},{capture:true});
+    $('adminLogoutBtn')?.addEventListener('click',()=>{sessionStorage.removeItem(USER_KEY);pendingUsername='';pendingPassword='';queueMicrotask(()=>{showLogin();refreshAccess();});},{capture:true});
   }
 
   enhance();

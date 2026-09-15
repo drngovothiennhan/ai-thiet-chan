@@ -19,7 +19,7 @@ try{
   const start=Date.now(),store=await call('stall-store');
   assert.equal(store.status,200);assert.equal(store.data.collection.ok,false);assert.equal(store.data.collection.error,'CASE_STORE_FAILED');
   assert.ok(Date.now()-start<9000,'stalled storage must return analysis within the six-second storage budget');
-  assert.ok(store.data.assessment.combined.summary.includes('stall-store'));
+  assert.ok(store.data.assessment.top.summary.includes('stall-store'));
   const malformed=await call('test-malformed');assert.equal(malformed.status,502);assert.equal(malformed.data.message,'VISION_RESPONSE_INCOMPLETE');
   console.log('AI UPGRADE HTTP PASS: real Express pipeline, provider failover trace, fused storage, stalled-store result preservation, malformed vision rejection. External services mocked; no clinical benchmark.');
 }catch(error){console.error(logs);throw error;}

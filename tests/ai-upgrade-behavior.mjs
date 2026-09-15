@@ -48,6 +48,10 @@ const out=applyAcademicFusion(sample(),{academicSignature:sig});
 assert.equal(out.ml.evidence.layers.geminiAcademic,false,'derived fusion signals are not original Gemini evidence');
 assert.deepEqual(out.ml.featureVector.combined.generalSignals,out.combined.generalSignals);
 assert.equal(out.ml.featureVector.combined.confidence,out.combined.confidence);
+const unsupported=sample();unsupported.top={quality:'good'};unsupported.combined.generalSignals=[{label:'test-unconfirmed',confidence:.8}];
+const guarded=fuse(unsupported,sig,[],{patternCandidates:[{label:'test-unconfirmed',score:.8}]},[]);
+assert.deepEqual(guarded.combined.generalSignals,[],'original model claims cannot bypass the two-layer gate');
+assert.equal(guarded.combined.diagnosticStatus,'insufficient-evidence');
 const directOnly=fuse(sample(),sig,[],{patternCandidates:[]},[]);
 assert.equal(directOnly.combined.academicFusion.acceptedPatterns.length,0,'one direct signal must not count as two layers');
 for(const mutate of [a=>a.top.visualValidity.tongueVisible=false,a=>a.top.quality='poor']){

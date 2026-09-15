@@ -94,7 +94,13 @@ export function applyAcademicFusion(assessment,body={}){
   if(!signature){
     const evidenceProfile=evidenceReadiness(assessment,{direct:[],matches:[]});
     const learningProfile=refineLearningProfile(learningPriorityFromSimilarity(0,{quality:assessment?.top?.quality||'poor',signaturePresent:false}),evidenceProfile,assessment?.top?.quality||'poor');
-    return attachLearningPolicy(assessment,learningProfile,evidenceProfile);
+    assessment.combined.generalSignals=[];assessment.combined.stomachPatternSignals=[];
+    assessment.combined.diagnosticStatus='insufficient-evidence';
+    assessment.combined.confidence=Math.min(.25,Number(assessment.combined.confidence)||0);
+    assessment.combined.summary='Đã ghi nhận mô tả ảnh; chưa có chữ ký ảnh hợp lệ để hoàn tất đối chiếu học liệu đa tầng.';
+    attachLearningPolicy(assessment,learningProfile,evidenceProfile);
+    assessment.ml.featureVector.combined={...assessment.combined};
+    return assessment;
   }
   const matches=matchAtlas(signature);
   const direct=directPatterns(assessment);

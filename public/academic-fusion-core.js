@@ -30,11 +30,15 @@ export function fuse(assessment,sig,matches,gemini,evidence){
   const agreement=(direct>=.60&&atlas>=.68&&academic>=.60)?'strong':([direct>=.52,atlas>=.58,academic>=.52].filter(Boolean).length>=2?'moderate':'weak');
   const existing=Array.isArray(assessment?.combined?.generalSignals)?assessment.combined.generalSignals:[];
   const additions=candidates.map(p=>({label:p.label,evidence:[p.directEvidence,p.atlasEvidence].filter(Boolean).join(' | '),rule:'Chỉ giữ khi tối thiểu 2/3 lớp bằng chứng đồng thuận (ảnh trực tiếp + atlas Knowledge + học thuật Gemini).',confidence:p.score}));
-  const seen=new Set(existing.map(x=>String(x?.label||'').toLowerCase()));assessment.combined.generalSignals=[...existing,...additions.filter(x=>!seen.has(x.label.toLowerCase()))];
+  const acceptedLabels=new Set(candidates.map(x=>x.label.toLowerCase()));
+  const supported=existing.filter(x=>acceptedLabels.has(String(x?.label||'').toLowerCase()));
+  const seen=new Set(supported.map(x=>String(x?.label||'').toLowerCase()));assessment.combined.generalSignals=[...supported,...additions.filter(x=>!seen.has(x.label.toLowerCase()))];
+  assessment.combined.stomachPatternSignals=(assessment.combined.stomachPatternSignals||[]).filter(x=>acceptedLabels.has(String(x?.label||'').toLowerCase()));
+  assessment.combined.diagnosticStatus=candidates.length?'supported-patterns':'insufficient-evidence';
   assessment.combined.confidence=Number(finalConfidence.toFixed(3));
   const base=String(assessment.combined.summary||assessment?.top?.summary||'').trim();
   const tail=agreement==='strong'?'Đối chiếu học thuật đa lớp có độ đồng thuận cao.':agreement==='moderate'?'Đối chiếu học thuật đa lớp có độ đồng thuận trung bình; vẫn cần Vấn chẩn/Tứ chẩn để củng cố.':'Đối chiếu học thuật đa lớp còn yếu hoặc không đồng nhất; không nâng mức kết luận.';
-  assessment.combined.summary=[base,tail].filter(Boolean).join(' ');
+  assessment.combined.summary=candidates.length?[base,tail].filter(Boolean).join(' '):'Đã ghi nhận mô tả ảnh; chưa đủ hai tầng bằng chứng để đưa ra nhận định tổng hợp. Cần đối chiếu thêm dữ kiện ca bệnh.';
   assessment.combined.academicFusion={version:FUSION_VERSION,knowledgeVersion:KNOWLEDGE_VERSION,weights:WEIGHTS,agreement,finalConfidence:Number(finalConfidence.toFixed(3)),sourceDocument:SOURCE,atlasMatches:matches.map(m=>({id:m.id,sourceId:m.sourceId,page:m.page,kind:m.kind,similarity:m.similarity,hash:m.hash,usage:'visual-similarity-only'})),evidence:evidence.map(e=>({source:e.source,page:e.page,text:e.text})),geminiAcademic:gemini||null,acceptedPatterns:candidates.map(p=>({label:p.label,score:p.score,layers:p.layers})),rule:'Không chuyển bệnh danh ca atlas thành chẩn đoán; chỉ nhận định khi ít nhất 2/3 lớp bằng chứng đồng thuận.'};
   assessment.ml=assessment.ml||{};assessment.ml.academicFusion=assessment.combined.academicFusion;
   if(assessment.ml.featureVector)assessment.ml.featureVector.academic={source:'KNOWLEDGE-5DOC',signature:sig,atlasMatches:assessment.combined.academicFusion.atlasMatches,acceptedPatterns:assessment.combined.academicFusion.acceptedPatterns};

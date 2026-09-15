@@ -6,6 +6,8 @@ on:
     paths:
       - 'package.json'
       - 'knowledge.mjs'
+      - 'knowledge-evidence.mjs'
+      - 'knowledge-extended.mjs'
       - 'runtime-guard.mjs'
       - 'server.mjs'
       - 'public/**'

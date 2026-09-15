@@ -1,7 +1,13 @@
 import './runtime-guard.mjs';
-import { CORE_TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
+import { TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS as BASE_KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
+import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } from './knowledge-extended.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-15.2doc';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-15.5doc';
+
+export const KNOWLEDGE_DOCUMENTS = [
+  ...BASE_KNOWLEDGE_DOCUMENTS,
+  ...EXTENDED_KNOWLEDGE_DOCUMENTS
+];
 
 export const KNOWLEDGE_SOURCES = [
   ...KNOWLEDGE_DOCUMENTS.map(d=>`${d.id}: ${d.title}${d.author?` - ${d.author}`:''}`),
@@ -9,17 +15,69 @@ export const KNOWLEDGE_SOURCES = [
   'Ứng dụng thiệt chẩn điều trị bệnh lý dạ dày thực quản theo Y học cổ truyền - ThS.BS Nguyễn Đức Huệ Tiên'
 ];
 
+const ALL_EVIDENCE=[...TONGUE_EVIDENCE,...EXTENDED_EVIDENCE];
+const documentById=new Map(KNOWLEDGE_DOCUMENTS.map(d=>[d.id,d]));
+
+function analysisEvidence(){
+  return ALL_EVIDENCE.map(e=>`- ${e.text}`).join('\n');
+}
+
+function normalizeSearchText(value){
+  return String(value||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function tokens(value){return [...new Set(normalizeSearchText(value).split(' ').filter(x=>x.length>=3))];}
+function evidenceScore(e,queryTokens){
+  if(!queryTokens.length)return 0;
+  const hay=tokens(`${e.topics?.join(' ')||''} ${e.text}`);let score=0;
+  for(const q of queryTokens){if(hay.includes(q))score+=3;else if(hay.some(h=>h.includes(q)||q.includes(h)))score+=1;}
+  return score;
+}
+function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam xuc|buon|hoang|mat ngu|tu hai|hanh vi|cang thang)/.test(normalizeSearchText(query));}
+function renderCitedEvidence(items){
+  return items.map(e=>{
+    const doc=documentById.get(e.source);
+    return `- [${e.source}, tr. ${e.page}] ${e.text}${doc?` (Nguồn: ${doc.title})`:''}`;
+  }).join('\n');
+}
+
+export function knowledgeForQuery(query,{limit=18}={}){
+  const qTokens=tokens(query);
+  const allowPsych=psychRelevant(query);
+  const ranked=ALL_EVIDENCE
+    .filter(e=>allowPsych||e.source!=='PSY1')
+    .map(e=>({e,score:evidenceScore(e,qTokens)}))
+    .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||a.e.page-b.e.page);
+  const selected=[];const seen=new Set();
+  for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=limit)break;}
+  for(const source of ['TC1','DY1','MC1','AT1']){
+    if(selected.some(e=>e.source===source))continue;
+    const fallback=ALL_EVIDENCE.find(e=>e.source===source);
+    if(fallback&&!seen.has(fallback.id)){selected.push(fallback);seen.add(fallback.id);}
+  }
+  if(allowPsych&&!selected.some(e=>e.source==='PSY1')){
+    const fallback=EXTENDED_EVIDENCE.find(e=>e.source==='PSY1');if(fallback)selected.push(fallback);
+  }
+  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,Math.max(limit,12)))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
+}
+
 export const TONGUE_KNOWLEDGE = `
 PHẠM VI: Dùng để chuẩn hóa mô tả thiệt tượng và gợi ý biện chứng YHCT phục vụ học tập/tham khảo. Không được suy từ ảnh lưỡi thành chẩn đoán bệnh xác định, không kê đơn, không thay thế tứ chẩn.
+
+KIẾN TRÚC SUY LUẬN:
+- Tách ba lớp: (1) quan sát trực tiếp từ ảnh; (2) đối chiếu lý thuyết/atlas; (3) tổng hợp có điều kiện với dữ kiện vấn chẩn đã có.
+- Năm tài liệu PDF người dùng cung cấp được phối hợp theo vai trò: lý thuyết thiệt chẩn, atlas hình ảnh, mạch-thiệt chẩn/giải phẫu-bệnh lý lưỡi, và Tâm bệnh học cho bối cảnh thập vấn sau phân tích.
+- Không dùng Tâm bệnh học để tạo quan hệ nhân quả giữa hình lưỡi và bệnh tâm thần.
+- Không để một atlas ca đơn lẻ lấn át nguyên tắc tổng hợp chất lưỡi + rêu + QC + dữ kiện còn thiếu.
 
 QUY TRÌNH QUAN SÁT:
 - Đánh giá lần lượt: chất lưỡi (thần, màu sắc, hình dáng, trạng thái), rêu lưỡi (màu, dày/mỏng, nhuận/khô, nhầy/vữa/tróc), rồi tĩnh mạch dưới lưỡi nếu ảnh thực sự thấy mặt dưới lưỡi.
 - Tư thế chuẩn: lưỡi đưa tự nhiên, thả lỏng, mặt lưỡi phẳng, bộc lộ toàn bộ lưỡi. Ưu tiên ánh sáng tự nhiên/trung tính; ảnh ám màu, thiếu sáng, cháy sáng, mờ hoặc filter màu phải hạ độ tin cậy.
+- Phân biệt cấu trúc giải phẫu/nhú lưỡi bình thường với tổn thương khu trú. Loét dai dẳng, khối bất thường, vùng chảy máu/hoại tử hoặc tổn thương khu trú đáng ngờ phải được nêu là cờ đỏ cần khám trực tiếp, không quy thành thể YHCT.
 - Không kết luận một dấu hiệu đơn độc; phải tổng hợp chất lưỡi + rêu lưỡi. Nếu hai nhóm dấu hiệu không đồng nhất phải nêu là hỗn hợp/không đủ dữ kiện.
 
 THIỆT TƯỢNG BÌNH THƯỜNG:
 - Chất lưỡi đỏ nhạt, mềm mại, linh hoạt; rêu trắng mỏng, phân bố đều, khô ướt vừa phải.
-- Tĩnh mạch dưới lưỡi bình thường: tím nhạt, mềm, không giãn/uốn lượn; tài liệu nêu đường kính thường không quá khoảng 2.7 mm và chiều dài thường không quá 3/5 đường nối đầu lưỡi đến thắng lưỡi. Chỉ áp dụng tiêu chí này khi ảnh có thước/chuẩn kích thước đủ tin cậy; nếu không thì chỉ mô tả định tính.
+- Tĩnh mạch dưới lưỡi bình thường: tím nhạt, mềm, không giãn/uốn lượn; chỉ áp dụng tiêu chí định lượng khi ảnh có chuẩn kích thước đủ tin cậy, nếu không thì mô tả định tính.
 
 MÀU CHẤT LƯỠI:
 - Đỏ nhạt: thường là bình thường hoặc bệnh nhẹ/biểu chứng sớm.
@@ -66,12 +124,16 @@ NGUYÊN TẮC SUY LUẬN:
 3) Nếu QC poor, chỉ mô tả thô; không xếp thể.
 4) Nếu QC fair, tối đa gợi ý yếu/trung bình; nếu good mới cho phép gợi ý mạnh nhưng vẫn không chẩn đoán xác định.
 5) Không suy ra triệu chứng, mạch, bệnh danh, nguyên nhân, điều trị hoặc phương thuốc từ ảnh nếu đầu vào không có.
+6) Atlas hình ảnh chỉ là đối chiếu tương tự, không phải nhãn tuyệt đối.
+7) Kiến thức Tâm bệnh học chỉ dùng khi người dùng chủ động cung cấp dữ kiện tâm lý/tình chí trong Thập vấn sau phân tích.
 
-KHỐI DẪN CHỨNG TỪ 2 TÀI LIỆU NGƯỜI DÙNG CUNG CẤP:
-${CORE_TONGUE_EVIDENCE}
+BẰNG CHỨNG ĐÃ CHUẨN HÓA TỪ 5 TÀI LIỆU PDF NGƯỜI DÙNG CUNG CẤP:
+${analysisEvidence()}
 
-${citationInstruction()}
-- Khi tạo phân tích JSON: trường rule/evidence và summary phải kèm mã dẫn chứng phù hợp nếu có căn cứ từ khối trên; ví dụ “... [TC1, tr. 20]”.
-- Khi trả lời chatbot: mọi kết luận YHCT phải có ít nhất một dẫn chứng trang; ưu tiên 2 nguồn khi cả hai cùng hỗ trợ. Cuối câu trả lời thêm mục “Nguồn đối chiếu” liệt kê mã nguồn, tên tài liệu và trang PDF đã dùng.
+${PSYCH_CONTEXT_RULES}
+
+QUY TẮC HIỂN THỊ NGUỒN:
+- Trong JSON phân tích ảnh, màn hình kết quả, dashboard, lịch sử và báo cáo tổng kết: KHÔNG xuất tên tài liệu, mã nguồn, số trang, “Nguồn đối chiếu”, “Tham khảo” hoặc citation dạng [XX, tr. N].
+- Nguồn/trang chỉ được hiển thị trong chatbot sau khi đã có kết quả thiệt chẩn; chatbot dùng knowledgeForQuery để chọn bằng chứng liên quan.
 - Không dẫn nguồn cho quan sát thuần túy từ ảnh; chỉ dẫn nguồn cho phần diễn giải/đối chiếu lý thuyết.
 `;

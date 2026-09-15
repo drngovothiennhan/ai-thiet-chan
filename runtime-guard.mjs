@@ -5,6 +5,10 @@ const GEMINI_FALLBACK_MODEL='gemini-3.6-flash';
 const GEMINI_MODEL_CHAIN=[GEMINI_MODEL,GEMINI_FALLBACK_MODEL];
 const GEMINI_VISION_TIMEOUT_MS=14_000;
 const GEMINI_TEXT_TIMEOUT_MS=10_000;
+const RUNTIME_AGENT_VERSION='aitc-provider-agent-v1';
+const MODEL_FAILURE_OPEN_THRESHOLD=3;
+const MODEL_COOLDOWN_MS=45_000;
+const modelHealth=new Map(GEMINI_MODEL_CHAIN.map(model=>[model,{failures:0,openUntil:0}]));
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 process.env.GEMINI_FALLBACK_MODEL=GEMINI_FALLBACK_MODEL;
 
@@ -135,21 +139,56 @@ function localClinicalFallback(prompt){
 function localJsonFallback(){
   return JSON.stringify({localKnowledgeOnly:true,combined:{confidence:0,summary:'Chưa có phản hồi thị giác mới; không tự tạo đặc điểm hình ảnh.'}});
 }
-function localKnowledgeResponse(init,reason,elapsedMs){
+function modelState(model){
+  if(!modelHealth.has(model))modelHealth.set(model,{failures:0,openUntil:0});
+  return modelHealth.get(model);
+}
+function retryAfterMs(response){
+  const raw=response?.headers?.get?.('retry-after');
+  if(!raw)return 0;
+  const seconds=Number(raw);
+  if(Number.isFinite(seconds)&&seconds>=0)return seconds*1000;
+  const date=Date.parse(raw);
+  return Number.isFinite(date)?Math.max(0,date-Date.now()):0;
+}
+function markModelSuccess(model){
+  const state=modelState(model);state.failures=0;state.openUntil=0;
+}
+function markModelFailure(model,response){
+  const state=modelState(model);state.failures+=1;
+  if(state.failures>=MODEL_FAILURE_OPEN_THRESHOLD){
+    state.openUntil=Date.now()+Math.max(MODEL_COOLDOWN_MS,retryAfterMs(response));
+  }
+  return {...state};
+}
+function availableModels(){
+  const now=Date.now();
+  return GEMINI_MODEL_CHAIN.filter(model=>modelState(model).openUntil<=now);
+}
+function circuitSnapshot(){
+  const now=Date.now();
+  return GEMINI_MODEL_CHAIN.map(model=>{const state=modelState(model);return {model,failures:state.failures,open:state.openUntil>now,cooldownRemainingMs:Math.max(0,state.openUntil-now)};});
+}
+function agentMeta(trace={}){
+  return {version:RUNTIME_AGENT_VERSION,attempts:Array.isArray(trace.attempts)?trace.attempts:[],circuits:circuitSnapshot()};
+}
+function localKnowledgeResponse(init,reason,elapsedMs,trace={}){
   const payload=requestPayload(init);
   const prompt=promptFromPayload(payload);
   const wantsJson=String(payload?.generationConfig?.responseMimeType||'').toLowerCase()==='application/json';
   const text=wantsJson?localJsonFallback():localClinicalFallback(prompt);
-  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,primaryModel:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,response:wantsJson?'json':'text',elapsedMs}));
+  const agent=agentMeta(trace);
+  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,primaryModel:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,response:wantsJson?'json':'text',elapsedMs,agentVersion:RUNTIME_AGENT_VERSION,attempts:agent.attempts}));
   return new Response(JSON.stringify({
     candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],
-    localFallback:{active:true,reason,model:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,elapsedMs}
-  }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge','x-ai-elapsed-ms':String(elapsedMs||0)}});
+    localFallback:{active:true,reason,model:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,elapsedMs,agent}
+  }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge','x-ai-elapsed-ms':String(elapsedMs||0),'x-ai-agent-version':RUNTIME_AGENT_VERSION}});
 }
-function unavailableVisionResponse(reason,status=503,elapsedMs=0){
-  console.warn('gemini_vision_unavailable',JSON.stringify({reason,primaryModel:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,status,elapsedMs}));
-  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,modelsTried:GEMINI_MODEL_CHAIN,elapsedMs}),{
-    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable','x-ai-elapsed-ms':String(elapsedMs||0)}
+function unavailableVisionResponse(reason,status=503,elapsedMs=0,trace={}){
+  const agent=agentMeta(trace);
+  console.warn('gemini_vision_unavailable',JSON.stringify({reason,primaryModel:GEMINI_MODEL,fallbackModel:GEMINI_FALLBACK_MODEL,status,elapsedMs,agentVersion:RUNTIME_AGENT_VERSION,attempts:agent.attempts}));
+  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,modelsTried:agent.attempts.map(x=>x.model),elapsedMs,agent}),{
+    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable','x-ai-elapsed-ms':String(elapsedMs||0),'x-ai-agent-version':RUNTIME_AGENT_VERSION}
   });
 }
 async function timedFetch(input,init,url,timeoutMs){
@@ -172,32 +211,47 @@ async function geminiResilientFetch(input,init,url){
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
+  const trace={attempts:[]};
   let lastResponse=null;
   let lastError=null;
-  for(let index=0;index<GEMINI_MODEL_CHAIN.length;index++){
-    const model=GEMINI_MODEL_CHAIN[index];
+  const candidates=availableModels();
+  if(!candidates.length){
+    const elapsedMs=Date.now()-startedAt;
+    console.warn('gemini_agent_circuit_open',JSON.stringify({vision,agentVersion:RUNTIME_AGENT_VERSION,circuits:circuitSnapshot()}));
+    if(vision)return unavailableVisionResponse('CIRCUIT_OPEN',503,elapsedMs,trace);
+    return localKnowledgeResponse(init,'CIRCUIT_OPEN',elapsedMs,trace);
+  }
+  for(let index=0;index<candidates.length;index++){
+    const model=candidates[index];
     const candidate=replaceGeminiModel(url,model);
+    const attemptStarted=Date.now();
     try{
       const response=await timedFetch(candidate,init,candidate,timeoutMs);
+      const attempt={model,status:response.status,elapsedMs:Date.now()-attemptStarted};
+      trace.attempts.push(attempt);
       if(response.ok){
-        console.info('gemini_request_benchmark',JSON.stringify({ok:true,vision,model,modelIndex:index,elapsedMs:Date.now()-startedAt}));
+        markModelSuccess(model);
+        console.info('gemini_request_benchmark',JSON.stringify({ok:true,vision,model,modelIndex:GEMINI_MODEL_CHAIN.indexOf(model),elapsedMs:Date.now()-startedAt,agentVersion:RUNTIME_AGENT_VERSION,attempts:trace.attempts}));
         return response;
       }
       if(!(await isRetryableGeminiFailure(response))) return response;
       lastResponse=response;
-      console.warn('gemini_model_failure',JSON.stringify({status:response.status,model,modelIndex:index,vision}));
+      const state=markModelFailure(model,response);
+      console.warn('gemini_model_failure',JSON.stringify({status:response.status,model,modelIndex:GEMINI_MODEL_CHAIN.indexOf(model),vision,failures:state.failures,circuitOpenUntil:state.openUntil||0}));
     }catch(err){
       lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model,modelIndex:index,error:err?.message||String(err),vision}));
+      trace.attempts.push({model,status:err?.status||0,error:err?.message||'TRANSPORT_ERROR',elapsedMs:Date.now()-attemptStarted});
+      const state=markModelFailure(model,null);
+      console.warn('gemini_transport_failure',JSON.stringify({model,modelIndex:GEMINI_MODEL_CHAIN.indexOf(model),error:err?.message||String(err),vision,failures:state.failures,circuitOpenUntil:state.openUntil||0}));
     }
-    if(index<GEMINI_MODEL_CHAIN.length-1) await sleep(250);
+    if(index<candidates.length-1) await sleep(250);
   }
   const elapsedMs=Date.now()-startedAt;
   if(vision){
-    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
-    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
+    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs,trace);
+    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs,trace);
   }
-  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),elapsedMs);
+  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),elapsedMs,trace);
 }
 
 if(nativeFetch){

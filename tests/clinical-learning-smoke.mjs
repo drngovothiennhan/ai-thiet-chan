@@ -1,4 +1,4 @@
-// Repo-native regression gate for A.I Thiet Chan clinical learning v2.6.0.
+// Repo-native regression gate for A.I Thiet Chan clinical learning v2.6.1.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -8,7 +8,7 @@ const source=fs.readFileSync(new URL('../public/open-source.html',import.meta.ur
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
 assert.ok(consultation.includes("window.__aitcRawFetch=window.__aitcRawFetch||window.fetch.bind(window);"),'missing raw fetch bootstrap');
-assert.ok(consultation.includes("import('/clinical-learning.js')"),'missing clinical learning bootstrap');
+assert.ok(consultation.includes("import('/clinical-learning.js?v=2.6.1')"),'missing versioned clinical learning bootstrap');
 
 for(const marker of [
   'HIU CLB YHCT',
@@ -17,12 +17,14 @@ for(const marker of [
   'ai_thiet_chan_admin_review_feedback_v1',
   'ai_thiet_chan_find_learned_cases_v1',
   'Góp ý ca lâm sàng',
+  'Phân tích ca trước',
+  'clinical-feedback-card{display:block}',
   'Bác sĩ',
   'Y sĩ',
   'admin duyệt'
 ]) assert.ok(learning.includes(marker),`missing clinical learning marker: ${marker}`);
 
 assert.ok(source.includes('Sản phẩm được phát triển bởi Câu Lạc Bộ Y Học Cổ Truyền Trường Đại Học Quốc Tế Hồng Bàng, phục vụ việc học và tham vấn chuyên môn'),'missing attribution');
-assert.ok(sw.includes("ai-thiet-chan-v2.6.0"),'service worker cache not bumped');
+assert.ok(sw.includes("ai-thiet-chan-v2.6.1"),'service worker cache not bumped');
 assert.ok(sw.includes("'/clinical-learning.js'"),'clinical learning missing from app shell');
 console.log('clinical-learning-smoke: ok');

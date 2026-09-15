@@ -14,6 +14,7 @@ import('/clinical-learning.js?v=2.8.2').catch(()=>{});
       historyPanel.hidden=!open;
       historyToggle.textContent=open?'Ẩn lịch sử':'Xem lịch sử';
       historyToggle.setAttribute('aria-expanded',String(open));
+      if(open)window.dispatchEvent(new CustomEvent('aitc:history-open'));
     });
   }
 

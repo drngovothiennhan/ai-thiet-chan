@@ -25,6 +25,7 @@
   function showDashboard(username,password){
     sessionStorage.setItem(USER_KEY,username);
     sessionStorage.setItem(TOKEN_KEY,password);
+    if($('adminCenterToken'))$('adminCenterToken').value=password;
     pendingUsername='';pendingPassword='';
     if($('adminCredentialChange'))$('adminCredentialChange').hidden=true;
     if($('adminLoginView'))$('adminLoginView').hidden=true;
@@ -75,6 +76,7 @@
     const view=$('adminLoginView');if(!view||view.dataset.credentialsV1==='true')return;
     view.dataset.credentialsV1='true';
     view.innerHTML=`
+      <input id="adminCenterToken" type="password" hidden aria-hidden="true" tabindex="-1" />
       <div id="adminCredentialLogin" class="admin-credential-form">
         <label>Tài khoản<input id="adminCenterUsername" type="text" autocomplete="username" value="${sessionStorage.getItem(USER_KEY)||'admin'}" placeholder="Tài khoản admin" /></label>
         <label>Mật khẩu<input id="adminCenterPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu admin" /></label>

@@ -66,8 +66,10 @@ const deps=Object.keys(pkg.dependencies||{}).join(' ');
 assert.doesNotMatch(deps,/langgraph|monai|evidently|onnxruntime|segment-anything|torch|tensorflow/i);
 
 // Knowledge corpus remains the complete five-document corpus with safety boundary intact.
-assert.match(corpus,/sourceCount:5/);
-assert.match(corpus,/noSilentOmission:true/);
+assert.equal(ACADEMIC_HEALTH.sourceCount,5);
+assert.equal(ACADEMIC_HEALTH.noSilentOmission,true);
+assert.equal(ACADEMIC_HEALTH.allPagesIndexed,true);
+assert.equal(ACADEMIC_HEALTH.allEmbeddedImageOccurrencesIndexed,true);
 assert.match(corpus,/positiveDiagnosticVisualSources:\['TC1','DY1','MC1','AT1'\]/);
 assert.match(corpus,/PSY1 context-only; never infer psychiatric state from tongue image/);
 

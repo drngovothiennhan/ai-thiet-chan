@@ -18,7 +18,7 @@ async function enrichAnalyzeRequest(request){
 self.addEventListener('fetch',event=>{
   const request=event.request,url=new URL(request.url);if(url.origin!==self.location.origin)return;
   if(request.method==='POST'&&url.pathname==='/api/analyze'){
-    event.respondWith((async()=>{const forwarded=await enrichAnalyzeRequest(request);const response=await fetch(forwarded);if(response.status!==429)return response;const body=await response.clone().text();const headers=new Headers(response.headers);headers.delete('retry-after');return new Response(body,{status:403,statusText:'Forbidden',headers});})());return;
+    event.respondWith((async()=>{const forwarded=await enrichAnalyzeRequest(request);return fetch(forwarded);})());return;
   }
   if(request.method!=='GET')return;
   if(url.pathname.startsWith('/api/')){event.respondWith(fetch(request,{cache:'no-store'}));return;}

@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { installAccessControl } from './access-control.mjs';
 import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
 
@@ -8,7 +9,7 @@ const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const VERSION = '2.9.0';
+const VERSION = '2.9.1';
 const BUILD = process.env.RENDER_GIT_COMMIT || 'local';
 const AI_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.AI_RATE_LIMIT_WINDOW_MS || 600_000));
 const AI_RATE_LIMIT_MAX = Math.max(1, Number(process.env.AI_RATE_LIMIT_MAX || 30));
@@ -40,7 +41,9 @@ function requestIdentity(req){
   const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();
   return (forwarded||req.socket?.remoteAddress||'unknown').slice(0,96);
 }
+const { consumeCaseAccess }=installAccessControl(app,{supabaseUrl:CASE_STORE_URL,supabaseKey:CASE_STORE_KEY,requestIdentity});
 function aiRateLimit(req,res,next){
+  if(req.studentAccess?.role==='student') return next();
   const now=Date.now(); const key=requestIdentity(req); let bucket=rateBuckets.get(key);
   if(!bucket||now-bucket.startedAt>=AI_RATE_LIMIT_WINDOW_MS){bucket={startedAt:now,count:0};rateBuckets.set(key,bucket);}
   bucket.count+=1;
@@ -241,7 +244,7 @@ app.get('/api/health',(req,res)=>res.json({
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   caseCollection:{mode:'automatic',history:true,deduplicate:'sha256-composite',storeReady:caseStoreReady},
-  aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX},time:new Date().toISOString()
+  aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX},access:{guestAnalysesPerDay:5,studentUnlimited:true},time:new Date().toISOString()
 }));
 app.get('/api/sources',(req,res)=>res.json({ok:true,version:VERSION,references:OPEN_SOURCE_REFERENCES}));
 app.get('/api/cases',async(req,res)=>{
@@ -260,6 +263,7 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
     const bottomImage=mode==='general'?body.bottomImage:null;const bottomMimeType=body.bottomMimeType||'image/jpeg';const bottomQc=mode==='general'?(body.bottomQc||{}):null;
     const topBase64=validateImage(topImage,'TOP_IMAGE');
     const bottomBase64=mode==='general'?validateImage(bottomImage,'BOTTOM_IMAGE'):null;
+    const accessQuota=await consumeCaseAccess(req);
     const prompt=`Bạn là bộ phân tích thiệt tượng YHCT của A.I Thiệt Chẩn. Chỉ dùng HỆ TRI THỨC được cung cấp và những gì nhìn thấy trực tiếp trong ảnh. Không tự bịa triệu chứng, mạch chẩn, bệnh danh, nguyên nhân, điều trị hay phương thuốc. Công cụ chỉ hỗ trợ học tập/tham khảo, không phải chẩn đoán xác định. Trong JSON phân tích tuyệt đối không xuất tên tài liệu, mã nguồn, số trang, mục Nguồn đối chiếu hoặc mục Tham khảo.\n\nCHẾ ĐỘ: ${mode==='general'?'TỔNG QUÁT - 2 ảnh mặt trên và mặt dưới lưỡi':'BÌNH THƯỜNG - 1 ảnh mặt trên lưỡi'}\nQC MẶT TRÊN: ${JSON.stringify(topQc)}\nQC MẶT DƯỚI: ${JSON.stringify(bottomQc)}\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${TONGUE_KNOWLEDGE}\n\nYÊU CẦU MẶT TRÊN:\n- Xác nhận có đúng mặt trên lưỡi, có thấy toàn bộ lưỡi hay không; ở chế độ tổng quát đánh giá thêm phần sau/gốc lưỡi có được bộc lộ rõ hay không.\n- Mô tả hình dạng, màu chất lưỡi, rêu lưỡi, độ ẩm, nứt, hằn răng, gai/điểm, ban/điểm ứ và đặc điểm nhìn thấy khác.\n- Không chẩn đoán bệnh vùng họng; phần vùng họng chỉ dùng để đánh giá mức bộc lộ phần sau/gốc lưỡi.\n\nYÊU CẦU MẶT DƯỚI (chỉ khi chế độ tổng quát):\n- Xác nhận có đúng mặt dưới lưỡi và mạch máu/tĩnh mạch dưới lưỡi có nhìn thấy rõ hay không.\n- Mô tả màu mặt dưới; tình trạng mạch máu/tĩnh mạch: màu, mức nổi, giãn, uốn lượn/ngoằn ngoèo, dấu ứ nhìn thấy nếu có.\n- Theo tài liệu, chỉ dùng tiêu chí đường kính/chiều dài khi ảnh có chuẩn kích thước đáng tin cậy; ảnh thông thường chỉ mô tả định tính.\n- Không biến thay đổi mạch dưới lưỡi thành chẩn đoán bệnh xác định.\n\nTỔNG HỢP:\n- Tách rõ quan sát mặt trên, quan sát mặt dưới và nhận định kết hợp.\n- Mỗi diễn giải YHCT phải nêu bằng chứng nhìn thấy và giới hạn/dữ kiện còn thiếu.\n- Nếu QC poor chỉ mô tả thô; QC fair chỉ gợi ý yếu/trung bình.\n\nTrả về DUY NHẤT JSON hợp lệ theo schema:\n{\n  \"mode\":\"normal|general\",\n  \"top\":{\n    \"quality\":\"good|fair|poor\",\n    \"visualValidity\":{\"tongueVisible\":true,\"wholeTongueVisible\":true,\"rootVisible\":true,\"framing\":\"good|fair|poor\",\"occlusion\":\"none|partial|major\",\"colorReliability\":\"good|fair|poor\"},\n    \"tongueColor\":\"...\",\"shape\":\"...\",\"coatingColor\":\"...\",\"coatingThickness\":\"...\",\"coatingTexture\":\"...\",\"moisture\":\"...\",\"fissures\":\"...\",\"toothmarks\":\"...\",\"pricklesSpots\":\"...\",\"stasisMarks\":\"...\",\"otherVisibleFeatures\":[\"...\"],\n    \"theoryAssessment\":{\"generalSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"rule\":\"...\",\"confidence\":0.0}],\"stomachPatternSignals\":[{\"label\":\"Hàn tà khách Vị|Ẩm thực thương Vị|Can khí phạm Vị|Ứ huyết đình trệ|Thấp nhiệt trung trở|Vị âm khuy hư|Tỳ Vị hư hàn\",\"evidence\":\"...\",\"missingForConclusion\":\"...\",\"confidence\":0.0}],\"cannotConclude\":[\"...\"]},\n    \"confidence\":0.0,\"summary\":\"...\",\"limitations\":[\"...\"]\n  },\n  \"bottom\":${mode==='general'?'{\"quality\":\"good|fair|poor\",\"visualValidity\":{\"undersideVisible\":true,\"vesselsVisible\":true,\"framing\":\"good|fair|poor\",\"occlusion\":\"none|partial|major\",\"colorReliability\":\"good|fair|poor\"},\"undersideColor\":\"...\",\"vessels\":{\"visible\":true,\"color\":\"...\",\"prominence\":\"...\",\"dilation\":\"...\",\"tortuosity\":\"...\",\"stasisSigns\":\"...\",\"measurement\":\"định tính/không đủ chuẩn kích thước\"},\"otherVisibleFeatures\":[\"...\"],\"confidence\":0.0,\"summary\":\"...\",\"limitations\":[\"...\"]}':'null'},\n  \"combined\":{\"confidence\":0.0,\"summary\":\"...\",\"generalSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"rule\":\"...\",\"confidence\":0.0}],\"stomachPatternSignals\":[{\"label\":\"...\",\"evidence\":\"...\",\"missingForConclusion\":\"...\",\"confidence\":0.0}],\"cannotConclude\":[\"...\"]}\n}`;
     const parts=[{text:prompt},{text:'ẢNH 1 - MẶT TRÊN LƯỠI:'},{inline_data:{mime_type:topMimeType,data:topBase64}}];
     if(mode==='general') parts.push({text:'ẢNH 2 - MẶT DƯỚI LƯỠI:'},{inline_data:{mime_type:bottomMimeType,data:bottomBase64}});
@@ -270,7 +274,7 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
       const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment});
       collection={ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null};
     }catch(err){console.error('case_store_error',err?.message||err);collection={ok:false,error:'CASE_STORE_FAILED'};}
-    return res.json({ok:true,assessment,analysis:assessment,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,collection});
+    return res.json({ok:true,assessment,analysis:assessment,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,collection,access:accessQuota});
   }catch(err){console.error('analyze_error',err?.message||err);const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:502;return res.status(status).json({error:'ANALYZE_FAILED',message:err?.message||'Unknown error'});}
 });
 

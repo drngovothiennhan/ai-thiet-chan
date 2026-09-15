@@ -57,12 +57,14 @@
 })();
 
 (()=>{
-  const RELEASE='2.9.0';
+  const RELEASE='2.9.1';
   const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
   function load(src,key){const attr=attrName(key);if(document.querySelector(`script[${attr}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
   load('/torch.js','rearTorch');
   load('/ui-controls.js','aitcUiControls');
+  load('/access-control.js','aitcAccessControl');
   load('/admin-center.js','aitcAdminCenter');
+  load('/user-admin.js','aitcUserAdmin');
   load('/admin-credentials.js','aitcAdminCredentials');
   load('/feedback-lifecycle.js','aitcFeedbackLifecycle');
   load('/upload-controls.js','aitcUploadControls');

@@ -22,9 +22,9 @@ for(const marker of [
 ]) assert.ok(credentials.includes(marker),`missing admin credential marker: ${marker}`);
 assert.ok(!credentials.includes('localStorage.setItem(TOKEN_KEY'),'admin password must not persist in localStorage');
 for(const marker of ['qualityToggleBtn','clinicalFeedbackToggleBtn','aitc:quality-open','body.hidden=true']) assert.ok(ui.includes(marker),`missing collapsed UI marker: ${marker}`);
-for(const marker of ['/ui-controls.js?v=2.7.2','/admin-center.js?v=2.7.2','/admin-credentials.js?v=2.7.2','/feedback-lifecycle.js?v=2.7.2']) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
+for(const marker of ["const RELEASE='2.8.2'","load('/ui-controls.js','aitcUiControls')","load('/admin-center.js','aitcAdminCenter')","load('/admin-credentials.js','aitcAdminCredentials')","load('/feedback-lifecycle.js','aitcFeedbackLifecycle')","load('/upload-controls.js','aitcUploadControls')"]) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
 assert.ok(quality.includes("window.addEventListener('aitc:quality-open'"),'quality metrics must load on demand');
 assert.ok(!quality.includes('requestIdleCallback(()=>load()'),'quality metrics must not auto-load');
-assert.ok(sw.includes("ai-thiet-chan-v2.7.2"),'PWA cache must be v2.7.2');
-assert.ok(sw.includes("'/ui-controls.js'")&&sw.includes("'/admin-center.js'")&&sw.includes("'/admin-credentials.js'")&&sw.includes("'/feedback-lifecycle.js'"),'Admin/lifecycle assets missing from PWA shell');
-console.log('ADMIN CENTER SMOKE PASS: username/password login, forced first-login rotation, collapsed panels, feedback lifecycle, diagnostics, backup and restore are wired');
+assert.ok(sw.includes("ai-thiet-chan-v2.8.2"),'PWA cache must be v2.8.2');
+assert.ok(sw.includes("'/ui-controls.js'")&&sw.includes("'/admin-center.js'")&&sw.includes("'/admin-credentials.js'")&&sw.includes("'/feedback-lifecycle.js'")&&sw.includes("'/upload-controls.js'"),'Admin/lifecycle/upload assets missing from PWA shell');
+console.log('ADMIN CENTER SMOKE PASS: username/password login, forced first-login rotation, collapsed panels, upload controls, feedback lifecycle, diagnostics, backup and restore are wired');

@@ -57,6 +57,7 @@
 })();
 
 (()=>{
-  const assets=[['/torch.js','rearTorch'],['/ui-controls.js?v=2.7.0','aitcUiControls'],['/admin-center.js?v=2.7.0','aitcAdminCenter']];
-  for(const [src,key] of assets){if(document.querySelector(`script[data-${key}]`))continue;const script=document.createElement('script');script.src=src;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-rear-torch]')){const script=document.createElement('script');script.src='/torch.js';script.async=false;script.dataset.rearTorch='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-aitc-ui-controls]')){const script=document.createElement('script');script.src='/ui-controls.js?v=2.7.0';script.async=false;script.dataset.aitcUiControls='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-aitc-admin-center]')){const script=document.createElement('script');script.src='/admin-center.js?v=2.7.0';script.async=false;script.dataset.aitcAdminCenter='true';document.head.appendChild(script);}
 })();

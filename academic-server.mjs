@@ -2,6 +2,10 @@ import {matchAtlas,ACADEMIC_PAGE_CORPUS,corpusContext,searchTextCorpus} from './
 import {directPatterns,evidenceFor,fuse} from './public/academic-fusion-core.js';
 import {FUSION_VERSION,SOURCE,WEIGHTS} from './public/academic-source.js';
 
+const LEARNING_POLICY_VERSION='novelty-priority-v1';
+const NOVEL_SIMILARITY_THRESHOLD=0.55;
+const REVIEW_SIMILARITY_THRESHOLD=0.72;
+
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
   const arrays=[assessment?.combined?.generalSignals,assessment?.combined?.stomachPatternSignals,assessment?.top?.theoryAssessment?.generalSignals,assessment?.top?.theoryAssessment?.stomachPatternSignals].filter(Array.isArray);
@@ -14,9 +18,30 @@ function geminiLayer(assessment){
   const cannotConclude=[...(Array.isArray(assessment?.combined?.cannotConclude)?assessment.combined.cannotConclude:[]),...(Array.isArray(assessment?.top?.theoryAssessment?.cannotConclude)?assessment.top.theoryAssessment.cannotConclude:[])].map(String).filter(Boolean);
   return {academicSummary:String(assessment?.combined?.summary||''),patternCandidates,cannotConclude:[...new Set(cannotConclude)]};
 }
+
+export function learningPriorityFromSimilarity(similarity,{quality='good',signaturePresent=true}={}){
+  const q=String(quality||'poor').toLowerCase();
+  if(!signaturePresent) return {policyVersion:LEARNING_POLICY_VERSION,status:'unscored',priority:'review',learningCandidate:false,reason:'academic-signature-missing',maxAtlasSimilarity:null,noveltyScore:null};
+  const sim=Math.max(0,Math.min(1,Number(similarity)||0));
+  const noveltyScore=Number((1-sim).toFixed(3));
+  if(q==='poor') return {policyVersion:LEARNING_POLICY_VERSION,status:'excluded-qc',priority:'reject-qc',learningCandidate:false,reason:'poor-image-quality',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
+  if(sim<NOVEL_SIMILARITY_THRESHOLD) return {policyVersion:LEARNING_POLICY_VERSION,status:'novel',priority:'high',learningCandidate:true,reason:'low-similarity-to-existing-visual-corpus',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
+  if(sim<REVIEW_SIMILARITY_THRESHOLD) return {policyVersion:LEARNING_POLICY_VERSION,status:'uncommon',priority:'medium',learningCandidate:true,reason:'partial-match-requires-review',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
+  return {policyVersion:LEARNING_POLICY_VERSION,status:'covered',priority:'low',learningCandidate:false,reason:'well-covered-by-existing-visual-corpus',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
+}
+function attachLearningPolicy(assessment,profile){
+  assessment.ml=assessment.ml||{};
+  assessment.ml.featureVector=assessment.ml.featureVector||{};
+  assessment.ml.learning=profile;
+  assessment.ml.featureVector.learning=profile;
+  return assessment;
+}
+
 export function applyAcademicFusion(assessment,body={}){
   const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
-  if(!signature)return assessment;
+  if(!signature){
+    return attachLearningPolicy(assessment,learningPriorityFromSimilarity(0,{quality:assessment?.top?.quality||'poor',signaturePresent:false}));
+  }
   const matches=matchAtlas(signature);
   const direct=directPatterns(assessment);
   const evidence=evidenceFor(direct);
@@ -24,8 +49,9 @@ export function applyAcademicFusion(assessment,body={}){
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
   const fused=fuse(assessment,signature,matches,geminiLayer(assessment),evidence);
-  fused.ml=fused.ml||{};
-  fused.ml.featureVector=fused.ml.featureVector||{};
+  const maxAtlasSimilarity=Number(matches?.[0]?.similarity||0);
+  const learningProfile=learningPriorityFromSimilarity(maxAtlasSimilarity,{quality:fused?.top?.quality||assessment?.top?.quality||'poor',signaturePresent:true});
+  attachLearningPolicy(fused,learningProfile);
   fused.ml.featureVector.academic=fused.ml.featureVector.academic||{};
   fused.ml.featureVector.academic.corpus={
     id:ACADEMIC_PAGE_CORPUS.id,
@@ -40,9 +66,14 @@ export function applyAcademicFusion(assessment,body={}){
     weights:WEIGHTS,
     matchedAtlas:matches.map(m=>({sourceId:m.sourceId,page:m.page,kind:m.kind,hash:m.hash,similarity:m.similarity})),
     visualContext,
-    textMatches
+    textMatches,
+    learningPriority:learningProfile
   };
-  if(fused.combined?.academicFusion){fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));fused.combined.academicFusion.visualContext=visualContext;}
+  if(fused.combined?.academicFusion){
+    fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));
+    fused.combined.academicFusion.visualContext=visualContext;
+    fused.combined.academicFusion.learningPriority=learningProfile;
+  }
   return fused;
 }
 export const ACADEMIC_HEALTH=Object.freeze({
@@ -60,5 +91,13 @@ export const ACADEMIC_HEALTH=Object.freeze({
   allEmbeddedImageOccurrencesIndexed:ACADEMIC_PAGE_CORPUS.policies.allEmbeddedImageOccurrencesIndexed,
   weights:WEIGHTS,
   minimumLayers:2,
-  totalLayers:3
+  totalLayers:3,
+  learningCollection:{
+    policyVersion:LEARNING_POLICY_VERSION,
+    focus:'novel-cases-first',
+    novelBelowSimilarity:NOVEL_SIMILARITY_THRESHOLD,
+    reviewBelowSimilarity:REVIEW_SIMILARITY_THRESHOLD,
+    poorQcExcludedFromLearning:true,
+    autoPromoteToKnowledge:false
+  }
 });

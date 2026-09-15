@@ -1,4 +1,4 @@
-const CACHE='ai-thiet-chan-v2.6.1';
+const CACHE='ai-thiet-chan-v2.6.2';
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/app.js','/capture-metadata.js','/consultation.js','/clinical-learning.js','/torch.js','/settings.js','/quality-dashboard.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
 

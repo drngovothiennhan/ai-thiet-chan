@@ -16,9 +16,9 @@
   }
   window.fetch=(input,init={})=>{
     const path=apiPath(input),t=token();
-    if(!path||!t)return nativeFetch(input,init);
+    if(!path)return nativeFetch(input,init);
     const headers=new Headers(init.headers||(input instanceof Request?input.headers:undefined));
-    if(!headers.has('authorization'))headers.set('authorization',`Bearer ${t}`);
+    if(t&&!headers.has('authorization'))headers.set('authorization',`Bearer ${t}`);
     return nativeFetch(input,{...init,headers}).then(response=>{
       if(path==='/api/analyze')setTimeout(()=>refresh(),0);
       return response;
@@ -28,7 +28,7 @@
   function ensureUi(){
     const actions=document.querySelector('.topbar-actions');
     if(actions&&!$('accessBtn')){
-      const btn=document.createElement('button');btn.id='accessBtn';btn.className='icon-btn';btn.type='button';btn.textContent='Khách · 5/5';btn.setAttribute('aria-label','Tài khoản sinh viên');
+      const btn=document.createElement('button');btn.id='accessBtn';btn.className='icon-btn';btn.type='button';btn.textContent='Khách · còn 5/5';btn.setAttribute('aria-label','Tài khoản sinh viên');
       actions.insertBefore(btn,actions.firstChild);btn.addEventListener('click',openDialog);
     }
     if(!$('accessDialog')){
@@ -71,9 +71,11 @@
     const el=$('accessMessage');if(!el)return;el.hidden=!text;el.textContent=text||'';el.className=`admin-center-status ${kind}`.trim();
   }
   function paint(data){
-    state.access=data||{role:'guest',remaining:0,limit:5};
+    state.access=data||{role:'guest',limit:5};
     const student=data?.role==='student',btn=$('accessBtn');
-    if(btn)btn.textContent=student?`SV · ${data.student?.mssv||''}`:`Khách · ${data?.remaining??0}/${data?.limit??5}`;
+    const limit=Number.isFinite(Number(data?.limit))?Number(data.limit):5;
+    const remaining=Number.isFinite(Number(data?.remaining))?Number(data.remaining):null;
+    if(btn)btn.textContent=student?`SV · ${data.student?.mssv||''}`:(remaining===null?'Khách':`Khách · còn ${remaining}/${limit}`);
     if($('accessGuestView'))$('accessGuestView').hidden=student;
     if($('accessStudentView'))$('accessStudentView').hidden=!student;
     if(student){
@@ -82,7 +84,7 @@
       if(data.student?.mustChangePassword)message('Đây là mật khẩu lần đầu. Bạn nên đổi mật khẩu sau khi đăng nhập.','warn');
       else message('', '');
     }else{
-      if($('accessQuotaText'))$('accessQuotaText').textContent=`${data?.remaining??0}/${data?.limit??5}`;
+      if($('accessQuotaText'))$('accessQuotaText').textContent=remaining===null?'Chưa xác định':`${remaining}/${limit}`;
       message('', '');
     }
     window.dispatchEvent(new CustomEvent('aitc:access',{detail:data}));
@@ -95,7 +97,10 @@
       if(!response.ok)throw new Error(data?.message||data?.error||`HTTP ${response.status}`);
       if(data?.role!=='student'&&token())setToken('');
       paint(data);
-    }catch{paint({role:'guest',limit:5,remaining:0,used:0});message('Chưa kiểm tra được quyền sử dụng.','warn');}
+    }catch{
+      if(!state.access)paint({role:'guest',limit:5});
+      message('Chưa cập nhật được lượt sử dụng.','warn');
+    }
   }
   async function login(event){
     event.preventDefault();message('Đang đăng nhập…');

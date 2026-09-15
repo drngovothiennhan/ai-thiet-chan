@@ -1,3 +1,6 @@
+window.__aitcRawFetch=window.__aitcRawFetch||window.fetch.bind(window);
+import('/clinical-learning.js').catch(()=>{});
+
 (()=>{
   const $=id=>document.getElementById(id);
   const form=$('chatForm'),input=$('chatInput'),log=$('chatLog'),startBtn=$('startInquiryBtn'),progress=$('inquiryProgress'),resultCard=$('resultCard');

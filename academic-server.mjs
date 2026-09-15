@@ -6,6 +6,12 @@ const LEARNING_POLICY_VERSION='novelty-priority-v1';
 const EVIDENCE_PROFILE_VERSION='evidence-readiness-v1';
 const NOVEL_SIMILARITY_THRESHOLD=0.55;
 const REVIEW_SIMILARITY_THRESHOLD=0.72;
+const SIGNATURE_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
+export function validAcademicSignature(sig){
+  return Boolean(sig&&typeof sig==='object'&&!Array.isArray(sig)&&SIGNATURE_KEYS.every(k=>
+    typeof sig[k]==='number'&&Number.isFinite(sig[k])&&sig[k]>=0&&sig[k]<=(k==='aspect'?10:1))&&sig.aspect>0&&sig.coverage>0);
+}
+
 
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
@@ -25,16 +31,16 @@ export function learningPriorityFromSimilarity(similarity,{quality='good',signat
   if(!signaturePresent) return {policyVersion:LEARNING_POLICY_VERSION,status:'unscored',priority:'review',learningCandidate:false,reason:'academic-signature-missing',maxAtlasSimilarity:null,noveltyScore:null};
   const sim=Math.max(0,Math.min(1,Number(similarity)||0));
   const noveltyScore=Number((1-sim).toFixed(3));
-  if(q==='poor') return {policyVersion:LEARNING_POLICY_VERSION,status:'excluded-qc',priority:'reject-qc',learningCandidate:false,reason:'poor-image-quality',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
+  if(!['good','fair'].includes(q)) return {policyVersion:LEARNING_POLICY_VERSION,status:'excluded-qc',priority:'reject-qc',learningCandidate:false,reason:'poor-image-quality',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
   if(sim<NOVEL_SIMILARITY_THRESHOLD) return {policyVersion:LEARNING_POLICY_VERSION,status:'novel',priority:'high',learningCandidate:true,reason:'low-similarity-to-existing-visual-corpus',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
   if(sim<REVIEW_SIMILARITY_THRESHOLD) return {policyVersion:LEARNING_POLICY_VERSION,status:'uncommon',priority:'medium',learningCandidate:true,reason:'partial-match-requires-review',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
   return {policyVersion:LEARNING_POLICY_VERSION,status:'covered',priority:'low',learningCandidate:false,reason:'well-covered-by-existing-visual-corpus',maxAtlasSimilarity:Number(sim.toFixed(3)),noveltyScore};
 }
 
 export function evidenceReadiness(assessment,{direct=[],matches=[]}={}){
-  const directCount=Array.isArray(direct)?direct.length:0;
-  const atlasCount=Array.isArray(matches)?matches.length:0;
-  const geminiCount=collectSignals(assessment).length;
+  const directCount=Array.isArray(direct)?direct.filter(p=>Number(p.score)>=.55).length:0;
+  const atlasCount=Array.isArray(matches)?matches.filter(m=>Number.isFinite(m.similarity)&&m.similarity>=.60).length:0;
+  const geminiCount=collectSignals(assessment).filter(s=>scoreOf(s)>=.55&&String(s.evidence||'').trim()).length;
   const layers={directImage:directCount>0,atlasSimilarity:atlasCount>0,geminiAcademic:geminiCount>0};
   const activeLayers=Object.values(layers).filter(Boolean).length;
   return {
@@ -71,7 +77,20 @@ function attachLearningPolicy(assessment,profile,evidenceProfile=null){
 }
 
 export function applyAcademicFusion(assessment,body={}){
-  const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
+  const qc=body?.topQc?.grade||body?.qc?.grade;
+  if(qc==='poor'||(qc==='fair'&&assessment?.top?.quality==='good'))assessment.top.quality=qc;
+  const signature=validAcademicSignature(body?.academicSignature)?body.academicSignature:null;
+  if(assessment?.top?.visualValidity?.tongueVisible===false||assessment?.top?.quality==='poor'){
+    assessment.combined.generalSignals=[];assessment.combined.stomachPatternSignals=[];
+    assessment.combined.confidence=0;
+    assessment.combined.summary='Chưa đủ dữ kiện ảnh lưỡi hợp lệ để biện luận; cần chụp lại ảnh rõ hơn.';
+    if(assessment.top.theoryAssessment){assessment.top.theoryAssessment.generalSignals=[];assessment.top.theoryAssessment.stomachPatternSignals=[];}
+    const profile=evidenceReadiness(assessment);
+    const learning=learningPriorityFromSimilarity(0,{quality:'poor',signaturePresent:true});
+    attachLearningPolicy(assessment,learning,profile);
+    assessment.ml.featureVector.combined={...assessment.combined};
+    return assessment;
+  }
   if(!signature){
     const evidenceProfile=evidenceReadiness(assessment,{direct:[],matches:[]});
     const learningProfile=refineLearningProfile(learningPriorityFromSimilarity(0,{quality:assessment?.top?.quality||'poor',signaturePresent:false}),evidenceProfile,assessment?.top?.quality||'poor');
@@ -83,8 +102,9 @@ export function applyAcademicFusion(assessment,body={}){
   const query=[assessment?.combined?.summary,...direct.map(x=>x.label),...(assessment?.combined?.generalSignals||[]).map(x=>x?.label||'')].filter(Boolean).join(' ');
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
+  // Measure original provider evidence before fusion can append derived signals.
+  const evidenceProfile=evidenceReadiness(assessment,{direct,matches});
   const fused=fuse(assessment,signature,matches,geminiLayer(assessment),evidence);
-  const evidenceProfile=evidenceReadiness(fused,{direct,matches});
   const maxAtlasSimilarity=Number(matches?.[0]?.similarity||0);
   const baseLearningProfile=learningPriorityFromSimilarity(maxAtlasSimilarity,{quality:fused?.top?.quality||assessment?.top?.quality||'poor',signaturePresent:true});
   const learningProfile=refineLearningProfile(baseLearningProfile,evidenceProfile,fused?.top?.quality||assessment?.top?.quality||'poor');
@@ -113,6 +133,7 @@ export function applyAcademicFusion(assessment,body={}){
     fused.combined.academicFusion.evidenceReadiness=evidenceProfile;
     fused.combined.academicFusion.learningPriority=learningProfile;
   }
+  fused.ml.featureVector.combined={confidence:fused.combined.confidence,generalSignals:fused.combined.generalSignals,stomachPatternSignals:fused.combined.stomachPatternSignals};
   return fused;
 }
 export const ACADEMIC_HEALTH=Object.freeze({

@@ -3,7 +3,7 @@ import {MODERN_EVIDENCE,WEIGHTS,FUSION_VERSION,KNOWLEDGE_VERSION,SOURCE} from '.
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
 export function directPatterns(assessment){
   const t=assessment?.top||{};
-  const text=[t.tongueColor,t.shape,t.coatingColor,t.coatingThickness,t.coatingTexture,t.moisture,t.fissures,t.toothmarks,t.pricklesSpots,t.stasisMarks].join(' ').toLowerCase();
+  const text=[t.tongueColor,t.shape,t.coatingColor,t.coatingThickness,t.coatingTexture,t.moisture,t.fissures,t.toothmarks,t.pricklesSpots,t.stasisMarks].map(value=>String(value||'').split(/[;,.]/).filter(part=>!/không|chưa|khó xác định|khó đánh giá/i.test(part)).join(' ')).join(' ').toLowerCase();
   const out=[],add=(label,ev,score)=>out.push({label,directEvidence:ev,score});
   if(/đỏ/.test(text)&&/vàng/.test(text))add('Tín hiệu nhiệt / thực nhiệt','Chất lưỡi đỏ phối hợp rêu vàng.',.72);
   if(/nhợt|nhạt/.test(text)&&/trắng/.test(text))add('Tín hiệu hư hàn','Chất lưỡi nhợt/nhạt phối hợp rêu trắng.',.68);
@@ -23,7 +23,7 @@ export function fuse(assessment,sig,matches,gemini,evidence){
   const direct=clamp(assessment?.combined?.confidence||assessment?.top?.confidence||0),atlas=clamp(matches[0]?.similarity||0);
   const geminiPatterns=Array.isArray(gemini?.patternCandidates)?gemini.patternCandidates:[],directP=directPatterns(assessment),byLabel=new Map();
   for(const p of [...directP,...geminiPatterns]){const key=String(p.label||'').trim();if(!key)continue;const prev=byLabel.get(key)||{label:key};byLabel.set(key,{...prev,...p});}
-  const candidates=[...byLabel.values()].map(p=>{const gp=clamp(p.score||0),local=directP.find(x=>x.label===p.label),directScore=clamp(local?.score||0);const atlasSupport=atlas>=.72?.82:atlas>=.60?.64:atlas>=.50?.48:.25,layers=[directScore>=.55,atlasSupport>=.55,gp>=.55].filter(Boolean).length;const score=clamp(WEIGHTS.directImage*directScore+WEIGHTS.atlasSimilarity*atlasSupport+WEIGHTS.geminiAcademic*gp);return {...p,directEvidence:p.directEvidence||local?.directEvidence||'',atlasEvidence:p.atlasEvidence||`Top atlas similarity ${Math.round(atlas*100)}%`,academicEvidence:p.academicEvidence||'',score:Number(score.toFixed(3)),accepted:layers>=2,layers};}).filter(p=>p.accepted).sort((a,b)=>b.score-a.score).slice(0,4);
+  const candidates=[...byLabel.values()].map(p=>{const gp=clamp(geminiPatterns.find(x=>x.label===p.label)?.score||0),local=directP.find(x=>x.label===p.label),directScore=clamp(local?.score||0);const atlasSupport=atlas>=.72?.82:atlas>=.60?.64:atlas>=.50?.48:.25,layers=[directScore>=.55,atlasSupport>=.55,gp>=.55].filter(Boolean).length;const score=clamp(WEIGHTS.directImage*directScore+WEIGHTS.atlasSimilarity*atlasSupport+WEIGHTS.geminiAcademic*gp);return {...p,directEvidence:p.directEvidence||local?.directEvidence||'',atlasEvidence:p.atlasEvidence||`Top atlas similarity ${Math.round(atlas*100)}%`,academicEvidence:p.academicEvidence||'',score:Number(score.toFixed(3)),accepted:layers>=2,layers};}).filter(p=>p.accepted).sort((a,b)=>b.score-a.score).slice(0,4);
   const academic=candidates.length?candidates.reduce((s,p)=>s+p.score,0)/candidates.length:clamp(geminiPatterns[0]?.score||.35);
   const weighted=WEIGHTS.directImage*direct+WEIGHTS.atlasSimilarity*atlas+WEIGHTS.geminiAcademic*academic,q=assessment?.top?.quality,cap=q==='good'?.88:q==='fair'?.62:.25;
   const finalConfidence=Math.max(0,Math.min(cap,direct+.08,weighted));

@@ -51,13 +51,14 @@ for(const testCase of cases){
   const body={
     mode,
     topImage,topMimeType:mimeFor(testCase.top),topQc:testCase.topQc||{},
+    academicSignature:testCase.academicSignature||null,
     bottomImage,bottomMimeType:mode==='general'?mimeFor(testCase.bottom):'image/jpeg',bottomQc:mode==='general'?(testCase.bottomQc||{}):null
   };
   for(let iteration=1;iteration<=repeats;iteration++){
     const started=performance.now();
     let response,data;
     try{
-      response=await fetch(`${baseUrl}/api/analyze`,{method:'POST',headers,body:JSON.stringify(body)});
+      response=await fetch(`${baseUrl}/api/analyze`,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
       data=await response.json().catch(()=>({}));
     }catch(error){
       runs.push({id,mode,iteration,ok:false,httpStatus:0,elapsedMs:Number((performance.now()-started).toFixed(1)),error:error?.message||String(error)});
@@ -66,6 +67,7 @@ for(const testCase of cases){
     const elapsedMs=Number((performance.now()-started).toFixed(1));
     runs.push({
       id,mode,iteration,ok:Boolean(response.ok&&data?.ok),httpStatus:response.status,elapsedMs,
+      providerFallback:data?.provider?.fallback??null,
       model:data?.model||null,knowledgeVersion:data?.knowledgeVersion||null,
       visionStatus:data?.visionStatus||null,error:data?.message||data?.error||null,
       collectionOk:Boolean(data?.collection?.ok),duplicate:Boolean(data?.collection?.duplicate)
@@ -82,8 +84,8 @@ const summary={
   successfulRuns:successful.length,successRate:Number((successful.length/Math.max(1,runs.length)).toFixed(4)),
   latencyMs:{mean:mean(latencies),p50:pct(latencies,50),p95:pct(latencies,95),max:latencies.length?Number(Math.max(...latencies).toFixed(1)):null},
   statusCounts,
-  fallbackRate:null,
-  fallbackRateNote:'Derive from server runtime event gemini_request_benchmark: modelIndex > 0 means fallback. Do not infer fallback from the API model field.',
+  fallbackRate:successful.length&&successful.every(r=>['none','provider'].includes(r.providerFallback))?successful.filter(r=>r.providerFallback==='provider').length/successful.length:null,
+  fallbackRateNote:'Measured from server provider trace; null when any successful run lacks trace. Not inferred from configured model.',
   runs
 };
 const text=JSON.stringify(summary,null,2);

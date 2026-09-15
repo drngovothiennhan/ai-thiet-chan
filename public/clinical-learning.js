@@ -48,8 +48,15 @@
   }
 
   async function sha256Text(text){const data=new TextEncoder().encode(String(text||''));const digest=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');}
-  async function hashDataUrl(dataUrl){return dataUrl?sha256Text(dataUrl):'';}
-  async function supabaseRpc(name,payload){const response=await rawFetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':`Bearer ${SUPABASE_KEY}`},body:JSON.stringify(payload)});const data=await response.json().catch(()=>null);if(!response.ok){throw new Error(data?.message||data?.hint||data?.error||`HTTP ${response.status}`);}return data;}
+  async function hashDataUrl(dataUrl){return dataUrl?sha256Text(String(dataUrl).split(',').pop()):'';}
+  async function boundedJson(url,options,timeoutMs=5000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{const response=await rawFetch(url,{...options,signal:controller.signal});const data=await response.json();return {response,data};}
+    finally{clearTimeout(timer);}
+  }
+  async function supabaseRpc(name,payload){const {response,data}=await boundedJson(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':`Bearer ${SUPABASE_KEY}`},body:JSON.stringify(payload)});if(!response.ok)throw new Error(data?.message||data?.error||`HTTP ${response.status}`);return data;}
+
 
   async function findApprovedLearning(){
     if(!learning.featureVector)return [];
@@ -62,8 +69,8 @@
     const approvedKnowledge=matches.map(row=>({similarity:Number(row.similarity||0),exactImageMatch:Boolean(row.exact_image_match),approvedAt:row.approved_at,professionalTitle:row.professional_title,knowledgeRevision:row.knowledge_revision,clinicalNote:row.clinical_note}));
     const context=JSON.parse(JSON.stringify(baseAssessment||{}));context.approvedClinicalKnowledge=approvedKnowledge;
     try{
-      const response=await rawFetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({assessment:context,message:'Hãy tổng hợp lại nhận định cho ca hiện tại bằng cách đối chiếu lý thuyết thiệt chẩn trong kết quả hiện tại với các góp ý lâm sàng đã được admin duyệt. Ưu tiên ca trùng ảnh hoặc có độ tương tự cao; khi độ tương tự gần nhau ưu tiên bản duyệt mới nhất. Chỉ mở rộng trong phạm vi dữ kiện nhìn thấy và kiến thức đã duyệt; nếu mâu thuẫn phải nêu rõ, không tự thêm triệu chứng, không kê đơn và không biến thành chẩn đoán xác định. Trả lời ngắn gọn bằng tiếng Việt.'})});
-      const data=await response.json().catch(()=>({}));if(response.ok&&data.reply){context.combined=context.combined||{};context.combined.summary=data.reply;}
+      const {response,data}=await boundedJson('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({assessment:context,message:'Hãy tổng hợp lại nhận định cho ca hiện tại bằng cách đối chiếu lý thuyết thiệt chẩn trong kết quả hiện tại với các góp ý lâm sàng đã được admin duyệt. Ưu tiên ca trùng ảnh hoặc có độ tương tự cao; khi độ tương tự gần nhau ưu tiên bản duyệt mới nhất. Chỉ mở rộng trong phạm vi dữ kiện nhìn thấy và kiến thức đã duyệt; nếu mâu thuẫn phải nêu rõ, không tự thêm triệu chứng, không kê đơn và không biến thành chẩn đoán xác định. Trả lời ngắn gọn bằng tiếng Việt.'})},12000);
+      if(response.ok&&data.reply){context.combined=context.combined||{};context.combined.summary=data.reply;}
     }catch{}
     context.approvedClinicalKnowledge=approvedKnowledge;return context;
   }
@@ -105,7 +112,7 @@
       const response=await previousFetch(inputArg,init);if(!response.ok)return response;
       try{
         const data=await response.clone().json(),assessment=data.assessment||data.analysis||null;
-        learning.caseId=data.collection?.caseId||null;learning.topHash=topHash;learning.bottomHash=bottomHash;learning.caseHash=await sha256Text(`${topHash}|${bottomHash}|${requestBody.mode||'normal'}`);learning.assessment=assessment;learning.featureVector=assessment?.ml?.featureVector||null;
+        learning.caseId=data.collection?.caseId||null;learning.topHash=topHash;learning.bottomHash=bottomHash;learning.caseHash=await sha256Text(`${requestBody.mode==='general'?'general':'normal'}:${topHash}:${bottomHash}`);learning.assessment=assessment;learning.featureVector=assessment?.ml?.featureVector||null;
         learning.matches=await findApprovedLearning().catch(()=>[]);
         if(assessment&&learning.matches.length){const enhanced=await synthesizeWithLearning(assessment,learning.matches);learning.assessment=enhanced;data.assessment=enhanced;data.analysis=enhanced;const headers=new Headers(response.headers);headers.delete('content-length');queueMicrotask(()=>{setFeedbackState();renderLearningEvidence();});return new Response(JSON.stringify(data),{status:response.status,statusText:response.statusText,headers});}
         queueMicrotask(setFeedbackState);

@@ -1,4 +1,5 @@
 import express from 'express';
+import {aiAdmission} from './request-budget.mjs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { installAccessControl } from './access-control.mjs';
@@ -27,6 +28,7 @@ const OPEN_SOURCE_REFERENCES = [
 ];
 
 app.disable('x-powered-by');
+app.use(aiAdmission());
 app.use(express.json({ limit: '24mb' }));
 app.use((req,res,next)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
@@ -63,11 +65,14 @@ cleanupTimer.unref?.();
 
 function apiKey(){ return String(process.env.GEMINI_API_KEY||'').trim(); }
 function textFromGemini(data){ return (data?.candidates?.[0]?.content?.parts||[]).map(p=>p?.text||'').join('').trim(); }
-async function geminiGenerate(key,contents,generationConfig={}){
+async function geminiGenerate(key,contents,generationConfig={},signal,trace={}){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent?key=${encodeURIComponent(key)}`;
-  const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contents,generationConfig:{temperature:0.15,...generationConfig}})});
+  const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},signal,body:JSON.stringify({contents,generationConfig:{temperature:0.15,...generationConfig}})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok){const err=new Error(data?.error?.message||`Gemini HTTP ${response.status}`);err.status=response.status;throw err;}
+  trace.model=response.headers.get('x-ai-fallback')==='local-knowledge'?'local-knowledge':response.headers.get('x-ai-model')||MODEL;
+  trace.fallback=response.headers.get('x-ai-fallback')||'unknown';
+  trace.elapsedMs=Number(response.headers.get('x-ai-elapsed-ms'))||null;
   return textFromGemini(data);
 }
 function parseJsonText(text){
@@ -153,6 +158,7 @@ function normalizeBottom(bottom,qc){
 }
 
 function normalizeAssessment(raw,{mode,topQc,bottomQc}){
+  if(!raw||typeof raw!=='object'||!raw.top||!raw.combined||typeof raw.top.visualValidity?.tongueVisible!=='boolean')throw new Error('VISION_RESPONSE_INCOMPLETE');
   const selectedMode=mode==='general'?'general':'normal';
   const src=raw&&typeof raw==='object'?raw:{};
   const top=normalizeTop(src.top,topQc,selectedMode);
@@ -190,17 +196,17 @@ function normalizeAssessment(raw,{mode,topQc,bottomQc}){
   return assessment;
 }
 
-async function supabaseRpc(name,payload){
+async function supabaseRpc(name,payload,signal){
   const response=await fetch(`${CASE_STORE_URL}/rest/v1/rpc/${name}`,{
-    method:'POST',headers:{'content-type':'application/json','apikey':CASE_STORE_KEY,'authorization':`Bearer ${CASE_STORE_KEY}`},body:JSON.stringify(payload)
+    method:'POST',signal,headers:{'content-type':'application/json','apikey':CASE_STORE_KEY,'authorization':`Bearer ${CASE_STORE_KEY}`},body:JSON.stringify(payload)
   });
   const data=await response.json().catch(()=>null);
   if(!response.ok) throw new Error(data?.message||data?.hint||`Case store HTTP ${response.status}`);
   return data;
 }
-async function ensureCaseStoreSecret(){
+async function ensureCaseStoreSecret(signal=AbortSignal.timeout(5000)){
   const token=apiKey();if(!token){caseStoreReady=false;return false;}
-  try{const ok=await supabaseRpc('ai_thiet_chan_register_secret',{p_token:token});caseStoreReady=Boolean(ok);}catch(err){caseStoreReady=false;console.error('case_store_register_error',err?.message||err);}
+  try{const ok=await supabaseRpc('ai_thiet_chan_register_secret',{p_token:token},signal);caseStoreReady=Boolean(ok);}catch(err){caseStoreReady=false;console.error('case_store_register_error',err?.message||err);}
   return caseStoreReady;
 }
 function imageHash(image){
@@ -211,20 +217,19 @@ function caseHash(mode,topImage,bottomImage){
   const top=imageHash(topImage);const bottom=bottomImage?imageHash(bottomImage):'';
   return createHash('sha256').update(`${mode}:${top}:${bottom}`).digest('hex');
 }
-async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment}){
-  if(!caseStoreReady) await ensureCaseStoreSecret();
+async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment,signal,providerModel=MODEL}){
+  const deadline=AbortSignal.timeout(6000);
+  const storageSignal=signal?AbortSignal.any([signal,deadline]):deadline;
+  if(!caseStoreReady) await ensureCaseStoreSecret(storageSignal);
   if(!caseStoreReady) throw new Error('CASE_STORE_NOT_READY');
   const payload={
     p_token:apiKey(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
     p_top_image_hash:imageHash(topImage),p_top_image_data_url:topImage,p_top_mime_type:topMimeType||'image/jpeg',
     p_bottom_image_hash:bottomImage?imageHash(bottomImage):null,p_bottom_image_data_url:bottomImage||null,p_bottom_mime_type:bottomImage?(bottomMimeType||'image/jpeg'):null,
-    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:MODEL,p_knowledge_version:KNOWLEDGE_VERSION
+    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:providerModel,p_knowledge_version:KNOWLEDGE_VERSION
   };
-  let lastError;
-  for(let attempt=0;attempt<3;attempt++){
-    try{return await supabaseRpc('ai_thiet_chan_store_case_v2',payload);}catch(err){lastError=err;if(attempt<2) await new Promise(r=>setTimeout(r,500*(attempt+1)));}
-  }
-  throw lastError;
+  // A storage failure must not trigger another analysis or three serial waits.
+  return supabaseRpc('ai_thiet_chan_store_case_v2',payload,storageSignal);
 }
 async function listTrainingCases(limit=30){
   if(!caseStoreReady) await ensureCaseStoreSecret();
@@ -305,16 +310,18 @@ Trả về DUY NHẤT JSON hợp lệ theo schema:
 }`;
     const parts=[{text:prompt},{text:'ẢNH 1 - MẶT TRÊN LƯỠI:'},{inline_data:{mime_type:topMimeType,data:topBase64}}];
     if(mode==='general') parts.push({text:'ẢNH 2 - MẶT DƯỚI LƯỠI:'},{inline_data:{mime_type:bottomMimeType,data:bottomBase64}});
-    const text=await geminiGenerate(key,[{role:'user',parts}],{responseMimeType:'application/json',temperature:0.05});
+    const provider={};
+    const text=await geminiGenerate(key,[{role:'user',parts}],{responseMimeType:'application/json',temperature:0.05},req.aiSignal,provider);
     let assessment=normalizeAssessment(parseJsonText(text),{mode,topQc,bottomQc});
-    try{assessment=applyAcademicFusion(assessment,body);}catch(err){console.error('academic_fusion_error',err?.message||err);}
+    try{assessment=applyAcademicFusion(assessment,body);}catch(err){throw Object.assign(new Error('ACADEMIC_FUSION_FAILED'),{status:503});}
     let collection={ok:false,stored:false,duplicate:false};
     try{
-      const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment});
+      const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment,signal:req.aiSignal,providerModel:provider.model});
       collection={ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null};
     }catch(err){console.error('case_store_error',err?.message||err);collection={ok:false,error:'CASE_STORE_FAILED'};}
-    return res.json({ok:true,assessment,analysis:assessment,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,collection,access:accessQuota});
-  }catch(err){console.error('analyze_error',err?.message||err);const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:502;return res.status(status).json({error:'ANALYZE_FAILED',message:err?.message||'Unknown error'});}
+    if(res.headersSent||res.destroyed)return;
+    return res.json({ok:true,assessment,analysis:assessment,model:provider.model,provider,knowledgeVersion:KNOWLEDGE_VERSION,collection,access:accessQuota});
+  }catch(err){if(res.headersSent||res.destroyed)return;console.error('analyze_error',err?.message||err);const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:502;return res.status(status).json({error:'ANALYZE_FAILED',message:err?.message||'Unknown error'});}
 });
 
 app.post('/api/chat',aiRateLimit,async(req,res)=>{
@@ -332,9 +339,11 @@ ${retrievedKnowledge}
 Bối cảnh phân tích: ${contextText}
 Câu hỏi người dùng: ${message}
 Trả lời ngắn gọn bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối câu trả lời thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng các tài liệu/trang thực sự đã dùng trong lập luận. Nếu chưa có kết quả thiệt chẩn, không hiển thị mục nguồn.`;
-    const reply=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
-    return res.json({ok:true,reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
-  }catch(err){console.error('chat_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
+    const provider={};
+    const reply=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15},req.aiSignal,provider);
+    if(res.headersSent||res.destroyed)return;
+    return res.json({ok:true,reply,model:provider.model,provider,knowledgeVersion:KNOWLEDGE_VERSION});
+  }catch(err){if(res.headersSent||res.destroyed)return;console.error('chat_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
 });
 
 app.post('/api/report',aiRateLimit,async(req,res)=>{
@@ -347,9 +356,11 @@ QC mặt trên: ${JSON.stringify(topQc||qc||{})}
 QC mặt dưới: ${JSON.stringify(bottomQc||null)}
 Phân tích: ${JSON.stringify(data)}
 Knowledge: ${KNOWLEDGE_VERSION}`;
-    const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
-    return res.json({ok:true,report,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
-  }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}
+    const provider={};
+    const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05},req.aiSignal,provider);
+    if(res.headersSent||res.destroyed)return;
+    return res.json({ok:true,report,model:provider.model,provider,knowledgeVersion:KNOWLEDGE_VERSION});
+  }catch(err){if(res.headersSent||res.destroyed)return;console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}
 });
 
 app.use(express.static(path.join(__dirname,'public'),{maxAge:0,etag:true,setHeaders:(res,filePath)=>{if(/\.(html|js|css|webmanifest|svg)$/i.test(filePath)) res.setHeader('Cache-Control','no-cache');}}));

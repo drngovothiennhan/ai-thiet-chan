@@ -1,3 +1,4 @@
+import {boundedFetch} from './bounded-fetch.mjs';
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
@@ -130,6 +131,7 @@ function localClinicalFallback(prompt){
   else out.push('Nhận định hiện tại:');
   if(details.length) out.push(`• Quan sát: ${details.join('; ')}.`);
   if(summary) out.push(`• Tổng hợp: ${summary}`);
+  if(groundedKnowledge.length) out.push('• Học liệu liên quan câu hỏi:',...groundedKnowledge);
   if(signals.length) out.push(`• Đối chiếu YHCT: ${signals.join(' | ')}.`);
   if(skipped) out.push('• Do chưa bổ sung Thập vấn, mức biện chứng chỉ dựa trên thiệt tượng hiện có và cần xem là nhận định tham khảo.');
   if(limits.length) out.push(`• Chưa đủ căn cứ: ${limits.join(' | ')}.`);
@@ -192,21 +194,12 @@ function unavailableVisionResponse(reason,status=503,elapsedMs=0,trace={}){
   });
 }
 async function timedFetch(input,init,url,timeoutMs){
-  if(!timeoutMs||init?.signal) return nativeFetch(input,init);
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{return await nativeFetch(input,{...init,signal:controller.signal});}
-  catch(err){
-    if(err?.name==='AbortError'){
-      const timeoutError=new Error('UPSTREAM_TIMEOUT');
-      timeoutError.status=504;
-      throw timeoutError;
-    }
-    throw err;
-  }finally{clearTimeout(timer);}
+  if(!timeoutMs)return nativeFetch(input,init);
+  return boundedFetch(nativeFetch,input,init,timeoutMs,url.includes('.supabase.co')?32*1024*1024:4*1024*1024);
 }
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function geminiResilientFetch(input,init,url){
+  init?.signal?.throwIfAborted();
   const startedAt=Date.now();
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
@@ -226,19 +219,25 @@ async function geminiResilientFetch(input,init,url){
     const candidate=replaceGeminiModel(url,model);
     const attemptStarted=Date.now();
     try{
+      init?.signal?.throwIfAborted();
       const response=await timedFetch(candidate,init,candidate,timeoutMs);
       const attempt={model,status:response.status,elapsedMs:Date.now()-attemptStarted};
       trace.attempts.push(attempt);
       if(response.ok){
         markModelSuccess(model);
         console.info('gemini_request_benchmark',JSON.stringify({ok:true,vision,model,modelIndex:GEMINI_MODEL_CHAIN.indexOf(model),elapsedMs:Date.now()-startedAt,agentVersion:RUNTIME_AGENT_VERSION,attempts:trace.attempts}));
-        return response;
+        const headers=new Headers(response.headers);
+        headers.set('x-ai-model',model);
+        headers.set('x-ai-fallback',GEMINI_MODEL_CHAIN.indexOf(model)>0?'provider':'none');
+        headers.set('x-ai-elapsed-ms',String(Date.now()-startedAt));
+        return new Response(response.body,{status:response.status,headers});
       }
       if(!(await isRetryableGeminiFailure(response))) return response;
       lastResponse=response;
       const state=markModelFailure(model,response);
       console.warn('gemini_model_failure',JSON.stringify({status:response.status,model,modelIndex:GEMINI_MODEL_CHAIN.indexOf(model),vision,failures:state.failures,circuitOpenUntil:state.openUntil||0}));
     }catch(err){
+      if(init?.signal?.aborted)throw init.signal.reason;
       lastError=err;
       trace.attempts.push({model,status:err?.status||0,error:err?.message||'TRANSPORT_ERROR',elapsedMs:Date.now()-attemptStarted});
       const state=markModelFailure(model,null);

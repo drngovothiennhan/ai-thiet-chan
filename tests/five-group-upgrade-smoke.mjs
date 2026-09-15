@@ -28,12 +28,12 @@ assert.doesNotMatch(runtime,/gemini-2\.5|gemini-2\.0|gpt-|claude-/i);
 assert.match(runtime,/VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE/);
 
 // Pipeline evidence readiness: 3 layers, 2 required, no weight changes.
-const assessment={top:{quality:'good',theoryAssessment:{generalSignals:[{label:'x',confidence:.5}]}},combined:{generalSignals:[{label:'x',confidence:.5}],stomachPatternSignals:[],cannotConclude:[]}};
-const profile=evidenceReadiness(assessment,{direct:[{label:'x'}],matches:[{similarity:.44}]});
+const assessment={top:{quality:'good',theoryAssessment:{generalSignals:[{label:'x',confidence:.7,evidence:'observed'}]}},combined:{generalSignals:[{label:'x',confidence:.7,evidence:'observed'}],stomachPatternSignals:[],cannotConclude:[]}};
+const profile=evidenceReadiness(assessment,{direct:[{label:'x',score:.7}],matches:[{similarity:.74}]});
 assert.equal(profile.activeLayers,3);
 assert.equal(profile.minimumRequired,2);
 assert.equal(profile.minimumMet,true);
-assert.equal(profile.topAtlasSimilarity,.44);
+assert.equal(profile.topAtlasSimilarity,.74);
 assert.equal(ACADEMIC_HEALTH.minimumLayers,2);
 assert.deepEqual(ACADEMIC_HEALTH.weights,{directImage:0.45,atlasSimilarity:0.35,geminiAcademic:0.2});
 

@@ -26,10 +26,13 @@ assert.match(calls[0],/gemini-3\.8-flash/);
 assert.match(calls[1],/gemini-3\.6-flash/);
 assert.doesNotMatch(calls.join('\n'),/gemini-2\.5/);
 assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');
+assert.equal(response.headers.get('x-ai-agent-version'),'aitc-provider-agent-v1');
 assert.ok(Number(response.headers.get('x-ai-elapsed-ms'))>=0);
 const data=await response.json();
 assert.match(data.candidates[0].content.parts[0].text,/suy luận nội bộ/i);
 assert.match(data.candidates[0].content.parts[0].text,/TC1/);
+assert.equal(data.localFallback.agent.version,'aitc-provider-agent-v1');
+assert.equal(data.localFallback.agent.attempts.length,2);
 
 calls.length=0;
 mode='fallback-success';
@@ -54,9 +57,20 @@ const visionResponse=await globalThis.fetch('https://generativelanguage.googleap
 assert.equal(visionResponse.status,503);
 assert.equal(calls.length,2);
 assert.equal(visionResponse.headers.get('x-ai-vision-status'),'unavailable');
+assert.equal(visionResponse.headers.get('x-ai-agent-version'),'aitc-provider-agent-v1');
 const visionData=await visionResponse.json();
 assert.equal(visionData.visionStatus,'unavailable');
 assert.equal(visionData.error.message,'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE');
 assert.deepEqual(visionData.modelsTried,['gemini-3.8-flash','gemini-3.6-flash']);
+assert.equal(visionData.agent.version,'aitc-provider-agent-v1');
+assert.ok(visionData.agent.circuits.some(x=>x.model==='gemini-3.8-flash'&&x.open===true));
 
-console.log('GEMINI RESILIENCE SMOKE PASS: 3.8 Flash is primary, 3.6 Flash is multimodal failover; text can use grounded local fallback, image analysis never fabricates visual findings.');
+calls.length=0;
+const circuitResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(visionPayload)});
+assert.equal(circuitResponse.status,503);
+assert.equal(calls.length,1,'open primary circuit must be skipped while fallback remains eligible');
+assert.match(calls[0],/gemini-3\.6-flash/);
+const circuitData=await circuitResponse.json();
+assert.deepEqual(circuitData.modelsTried,['gemini-3.6-flash']);
+
+console.log('GEMINI RESILIENCE SMOKE PASS: deterministic provider agent uses 3.8 primary, 3.6 failover, opens a circuit after repeated failures, preserves grounded text fallback, and never fabricates vision findings.');

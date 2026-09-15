@@ -46,6 +46,9 @@
       els.dataState.classList.toggle('warn',true);
     }finally{if(els.refresh)els.refresh.disabled=false;}
   }
-  renderDevice();load();
+  renderDevice();
+  els.dataState.textContent='Thống kê sẽ tải sau khi giao diện chính sẵn sàng…';
+  if('requestIdleCallback' in window) requestIdleCallback(()=>load(),{timeout:1800});
+  else setTimeout(load,900);
   els.refresh?.addEventListener('click',load);
 })();

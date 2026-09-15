@@ -17,6 +17,7 @@
     }
     input.hidden=true;
     input.setAttribute('accept','image/*');
+    input.removeAttribute('capture');
 
     const btn=document.createElement('button');
     btn.id=buttonId;
@@ -24,6 +25,7 @@
     btn.className='btn upload-image-btn';
     btn.textContent=`⇧ ${label}`;
     btn.setAttribute('aria-controls',inputId);
+    btn.setAttribute('aria-label',`${label} có sẵn từ thiết bị`);
     btn.addEventListener('click',()=>input.click());
 
     const reset=host.querySelector('[id$="ResetBtn"]');

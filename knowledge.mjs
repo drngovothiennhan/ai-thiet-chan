@@ -1,6 +1,9 @@
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-14.1';
+import { CORE_TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
+
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-15.2doc';
 
 export const KNOWLEDGE_SOURCES = [
+  ...KNOWLEDGE_DOCUMENTS.map(d=>`${d.id}: ${d.title}${d.author?` - ${d.author}`:''}`),
   'Tài liệu thiệt chẩn cơ bản - Nguyễn Phương, Học viện Y học Cổ truyền Việt Nam',
   'Ứng dụng thiệt chẩn điều trị bệnh lý dạ dày thực quản theo Y học cổ truyền - ThS.BS Nguyễn Đức Huệ Tiên'
 ];
@@ -62,4 +65,12 @@ NGUYÊN TẮC SUY LUẬN:
 3) Nếu QC poor, chỉ mô tả thô; không xếp thể.
 4) Nếu QC fair, tối đa gợi ý yếu/trung bình; nếu good mới cho phép gợi ý mạnh nhưng vẫn không chẩn đoán xác định.
 5) Không suy ra triệu chứng, mạch, bệnh danh, nguyên nhân, điều trị hoặc phương thuốc từ ảnh nếu đầu vào không có.
+
+KHỐI DẪN CHỨNG TỪ 2 TÀI LIỆU NGƯỜI DÙNG CUNG CẤP:
+${CORE_TONGUE_EVIDENCE}
+
+${citationInstruction()}
+- Khi tạo phân tích JSON: trường rule/evidence và summary phải kèm mã dẫn chứng phù hợp nếu có căn cứ từ khối trên; ví dụ “... [TC1, tr. 20]”.
+- Khi trả lời chatbot: mọi kết luận YHCT phải có ít nhất một dẫn chứng trang; ưu tiên 2 nguồn khi cả hai cùng hỗ trợ. Cuối câu trả lời thêm mục “Nguồn đối chiếu” liệt kê mã nguồn, tên tài liệu và trang PDF đã dùng.
+- Không dẫn nguồn cho quan sát thuần túy từ ảnh; chỉ dẫn nguồn cho phần diễn giải/đối chiếu lý thuyết.
 `;

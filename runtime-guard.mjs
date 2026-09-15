@@ -45,42 +45,89 @@ function hasInlineMedia(payload={}){
   }
   return false;
 }
-function extractedEvidence(prompt){
-  const cited=prompt.match(/^- \[[^\n]+\][^\n]*/gm)||[];
-  if(cited.length) return cited.slice(0,5);
-  const bullets=(prompt.match(/^- [^\n]{24,}/gm)||[])
-    .filter(line=>!/(không được|không hiển thị|chỉ chatbot|nếu nguồn|trả lời|json|schema)/i.test(line));
-  return bullets.slice(0,5);
-}
 function extractedQuestion(prompt){
   const match=prompt.match(/Câu hỏi người dùng:\s*([\s\S]*?)(?:\nTrả lời|$)/i);
-  return String(match?.[1]||'').trim().slice(0,600);
+  return String(match?.[1]||'').trim().slice(0,1200);
 }
-function localPlainFallback(prompt){
-  const evidence=extractedEvidence(prompt);
+function extractAssessment(prompt){
+  const match=prompt.match(/Bối cảnh phân tích:\s*([\s\S]*?)\nCâu hỏi người dùng:/i);
+  if(!match) return null;
+  const text=String(match[1]||'').trim();
+  if(!text||text==='Chưa có kết quả phân tích hình lưỡi.') return null;
+  try{return JSON.parse(text);}catch{return null;}
+}
+function cleanText(v){return String(v||'').trim();}
+function compactUnique(items,limit=5){
+  return [...new Set(items.map(cleanText).filter(Boolean))].slice(0,limit);
+}
+function signalText(item){
+  if(!item||typeof item!=='object') return '';
+  const label=cleanText(item.label);
+  const evidence=cleanText(item.evidence);
+  return [label,evidence].filter(Boolean).join(': ');
+}
+function localClinicalFallback(prompt){
+  const assessment=extractAssessment(prompt);
   const question=extractedQuestion(prompt);
-  const lines=evidence.length?evidence.map(x=>`• ${x.replace(/^-\s*/, '')}`).join('\n'):'• Đối chiếu nguyên tắc thiệt chẩn trong kho dữ liệu nội bộ đã được nạp cho phiên phân tích.';
-  return [
-    'Hệ thống đang tiếp tục bằng chế độ suy luận nội bộ để không làm gián đoạn phiên.',
-    question?`Nội dung đang xử lý: ${question}`:'',
-    'Đối chiếu từ kho dữ liệu đã nạp:',
-    lines,
-    'Tổng hợp tham khảo: ưu tiên phối hợp chất lưỡi, rêu lưỡi, chất lượng ảnh và dữ kiện vấn chẩn; không kết luận từ một dấu hiệu đơn độc và không tự tạo dữ kiện chưa được quan sát.'
-  ].filter(Boolean).join('\n\n');
+  if(!assessment){
+    return 'Tôi chưa có đủ kết quả quan sát của ca hiện tại để đưa ra nhận định. Hãy hoàn tất phân tích ảnh trước, sau đó tôi sẽ đối chiếu các dấu hiệu và trả lời theo dữ kiện đã có.';
+  }
+
+  const top=assessment?.top||{};
+  const bottom=assessment?.bottom||null;
+  const combined=assessment?.combined||{};
+  const details=[
+    top.tongueColor&&`chất lưỡi ${top.tongueColor}`,
+    top.shape&&`hình thể ${top.shape}`,
+    top.coatingColor&&`rêu ${top.coatingColor}`,
+    top.coatingThickness&&`độ dày rêu ${top.coatingThickness}`,
+    top.coatingTexture&&`tính chất rêu ${top.coatingTexture}`,
+    top.moisture&&`độ ẩm ${top.moisture}`,
+    top.fissures&&`nứt ${top.fissures}`,
+    top.toothmarks&&`dấu răng ${top.toothmarks}`
+  ].filter(Boolean);
+  if(bottom){
+    const vessels=bottom?.vessels||{};
+    if(bottom.undersideColor) details.push(`mặt dưới ${bottom.undersideColor}`);
+    if(vessels.color) details.push(`mạch dưới lưỡi ${vessels.color}`);
+    if(vessels.prominence) details.push(`mức nổi mạch ${vessels.prominence}`);
+    if(vessels.dilation) details.push(`giãn mạch ${vessels.dilation}`);
+  }
+
+  const signals=compactUnique([
+    ...(Array.isArray(combined.generalSignals)?combined.generalSignals.map(signalText):[]),
+    ...(Array.isArray(combined.stomachPatternSignals)?combined.stomachPatternSignals.map(signalText):[]),
+    ...(Array.isArray(top?.theoryAssessment?.generalSignals)?top.theoryAssessment.generalSignals.map(signalText):[]),
+    ...(Array.isArray(top?.theoryAssessment?.stomachPatternSignals)?top.theoryAssessment.stomachPatternSignals.map(signalText):[])
+  ],5);
+  const limits=compactUnique([
+    ...(Array.isArray(combined.cannotConclude)?combined.cannotConclude:[]),
+    ...(Array.isArray(top.limitations)?top.limitations:[]),
+    ...(bottom&&Array.isArray(bottom.limitations)?bottom.limitations:[])
+  ],4);
+  const summary=cleanText(combined.summary||top.summary);
+  const wantsDetail=/DETAIL_WITHOUT_THAP_VAN|chi tiết|chi tiet/i.test(question);
+  const skipped=/SKIP_THAP_VAN|NO_THAP_VAN_CONTEXT/i.test(question);
+
+  const out=[];
+  if(wantsDetail) out.push('Nhận định chi tiết từ dữ kiện hiện có:');
+  else out.push('Nhận định hiện tại:');
+  if(details.length) out.push(`• Quan sát: ${details.join('; ')}.`);
+  if(summary) out.push(`• Tổng hợp: ${summary}`);
+  if(signals.length) out.push(`• Đối chiếu YHCT: ${signals.join(' | ')}.`);
+  if(skipped) out.push('• Do chưa bổ sung Thập vấn, mức biện chứng chỉ dựa trên thiệt tượng hiện có và cần xem là nhận định tham khảo.');
+  if(limits.length) out.push(`• Chưa đủ căn cứ: ${limits.join(' | ')}.`);
+  if(wantsDetail) out.push('Nếu cần tăng độ chắc chắn, lựa chọn Thập vấn sẽ giúp đối chiếu thêm các dữ kiện còn thiếu mà không thay đổi những gì đã quan sát từ ảnh.');
+  return out.join('\n');
 }
-function localJsonFallback(prompt){
-  const evidence=extractedEvidence(prompt).slice(0,3);
-  const evidenceText=evidence.length?evidence.join(' | '):'Đối chiếu nguyên tắc thiệt chẩn trong kho dữ liệu nội bộ đã được nạp.';
-  return JSON.stringify({
-    localKnowledgeOnly:true,
-    combined:{confidence:0,summary:`Tiếp tục biện luận từ kho dữ liệu nội bộ: ${evidenceText}`}
-  });
+function localJsonFallback(){
+  return JSON.stringify({localKnowledgeOnly:true,combined:{confidence:0,summary:'Chưa có phản hồi thị giác mới; không tự tạo đặc điểm hình ảnh.'}});
 }
 function localKnowledgeResponse(init,reason){
   const payload=requestPayload(init);
   const prompt=promptFromPayload(payload);
   const wantsJson=String(payload?.generationConfig?.responseMimeType||'').toLowerCase()==='application/json';
-  const text=wantsJson?localJsonFallback(prompt):localPlainFallback(prompt);
+  const text=wantsJson?localJsonFallback():localClinicalFallback(prompt);
   console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,model:GEMINI_MODEL,response:wantsJson?'json':'text'}));
   return new Response(JSON.stringify({
     candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],

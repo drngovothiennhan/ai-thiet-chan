@@ -59,6 +59,21 @@
     });
   }
 
+  function installNewCaseButton(){
+    if($('#newCaseBtn'))return;
+    const health=$('#healthBadge');
+    if(!health)return;
+    const wrap=document.createElement('div');wrap.className='aitc-health-actions';
+    health.parentElement?.replaceChild(wrap,health);wrap.appendChild(health);
+    const btn=document.createElement('button');btn.id='newCaseBtn';btn.type='button';btn.className='btn ghost compact';btn.textContent='Bắt đầu ca mới';btn.setAttribute('aria-label','Xóa dữ liệu ca hiện tại và bắt đầu ca mới');wrap.appendChild(btn);
+    const style=document.createElement('style');style.textContent='.aitc-health-actions{display:grid;gap:8px;justify-items:end;align-content:start}.aitc-health-actions .btn{min-height:34px;padding:6px 10px;font-size:12px;white-space:nowrap}@media(max-width:420px){.aitc-health-actions{justify-items:end}}';document.head.appendChild(style);
+    btn.addEventListener('click',()=>{
+      try{sessionStorage.removeItem('aitc-current-session-v1');sessionStorage.removeItem('aitc-consultation-session-v1');}catch{}
+      window.dispatchEvent(new CustomEvent('aitc:clear-session'));
+      location.reload();
+    });
+  }
+
   const citationPattern=/\s*\[(?:TC1|DY1|MC1|AT1|PSY1)\s*,?\s*tr\.?\s*\d+\]\s*/gi;
   function cleanReferenceText(value){
     let text=String(value||'').replace(citationPattern,' ');
@@ -85,7 +100,7 @@
     $('#summaryText')?.closest('.summary-box')?.classList.add('evidence-summary');
   }
 
-  installStepper();installBottomNav();markEvidenceFirst();observeReferenceBoundary();updateStepper();
+  installStepper();installBottomNav();installNewCaseButton();markEvidenceFirst();observeReferenceBoundary();updateStepper();
   const stateObserver=new MutationObserver(updateStepper);
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});
   document.addEventListener('change',()=>queueMicrotask(updateStepper));

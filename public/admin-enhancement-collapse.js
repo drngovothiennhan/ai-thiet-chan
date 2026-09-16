@@ -65,9 +65,19 @@
       const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcQualityRuntime=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
     });
   }
+  function waitForClinicalLearning(timeoutMs=8000){
+    if(document.getElementById('clinicalFeedbackCard'))return Promise.resolve(true);
+    return new Promise(resolve=>{
+      const started=Date.now();
+      const timer=setInterval(()=>{
+        if(document.getElementById('clinicalFeedbackCard')){clearInterval(timer);resolve(true);return;}
+        if(Date.now()-started>=timeoutMs){clearInterval(timer);resolve(false);}
+      },50);
+    });
+  }
   async function installQualityRuntime(){
     try{
-      await loadRuntime('/clinical-learning.js');
+      await waitForClinicalLearning();
       await loadRuntime('/quality-grounding-v4.js');
     }catch(err){console.warn('quality_grounding_loader_failed',err?.message||err);}
   }

@@ -1,6 +1,7 @@
 import {matchAtlas,ACADEMIC_PAGE_CORPUS,corpusContext,searchTextCorpus} from './knowledge-corpus.mjs';
 import {directPatterns,evidenceFor,fuse} from './public/academic-fusion-core.js';
 import {FUSION_VERSION,SOURCE,WEIGHTS} from './public/academic-source.js';
+import {groundTongueMorphology,MORPHOLOGY_POLICY_VERSION} from './morphology-reference.mjs';
 
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
@@ -15,6 +16,7 @@ function geminiLayer(assessment){
   return {academicSummary:String(assessment?.combined?.summary||''),patternCandidates,cannotConclude:[...new Set(cannotConclude)]};
 }
 export function applyAcademicFusion(assessment,body={}){
+  assessment=groundTongueMorphology(assessment,body);
   const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
   if(!signature)return assessment;
   const matches=matchAtlas(signature);
@@ -38,17 +40,19 @@ export function applyAcademicFusion(assessment,body={}){
     clientSource:body?.academicSource||null,
     fusionVersion:FUSION_VERSION,
     weights:WEIGHTS,
+    morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
     matchedAtlas:matches.map(m=>({sourceId:m.sourceId,page:m.page,kind:m.kind,hash:m.hash,similarity:m.similarity})),
     visualContext,
     textMatches
   };
-  if(fused.combined?.academicFusion){fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));fused.combined.academicFusion.visualContext=visualContext;}
+  if(fused.combined?.academicFusion){fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));fused.combined.academicFusion.visualContext=visualContext;fused.combined.academicFusion.morphologyPolicyVersion=MORPHOLOGY_POLICY_VERSION;}
   return fused;
 }
 export const ACADEMIC_HEALTH=Object.freeze({
   enabled:true,
   source:'KNOWLEDGE-5DOC',
   fusionVersion:FUSION_VERSION,
+  morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
   sourceCount:ACADEMIC_PAGE_CORPUS.sourceCount,
   indexedPages:ACADEMIC_PAGE_CORPUS.totals.indexedPages,
   indexedImageOccurrences:ACADEMIC_PAGE_CORPUS.totals.indexedImageOccurrences,

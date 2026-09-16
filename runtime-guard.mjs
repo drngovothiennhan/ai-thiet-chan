@@ -1,9 +1,10 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
-const GEMINI_VISION_TIMEOUT_MS=20_000;
+const GEMINI_VISION_TIMEOUT_MS=8_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
-const GEMINI_MAX_ATTEMPTS=2;
+const GEMINI_TEXT_MAX_ATTEMPTS=2;
+const GEMINI_VISION_MAX_ATTEMPTS=1;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 
 function requestUrl(input){
@@ -62,14 +63,10 @@ function extractGroundedKnowledge(prompt){
   return String(match[1]||'').split('\n').map(x=>x.trim()).filter(x=>x.startsWith('- ')).slice(0,5);
 }
 function cleanText(v){return String(v||'').trim();}
-function compactUnique(items,limit=5){
-  return [...new Set(items.map(cleanText).filter(Boolean))].slice(0,limit);
-}
+function compactUnique(items,limit=5){return [...new Set(items.map(cleanText).filter(Boolean))].slice(0,limit);}
 function signalText(item){
   if(!item||typeof item!=='object') return '';
-  const label=cleanText(item.label);
-  const evidence=cleanText(item.evidence);
-  return [label,evidence].filter(Boolean).join(': ');
+  return [cleanText(item.label),cleanText(item.evidence)].filter(Boolean).join(': ');
 }
 function localClinicalFallback(prompt){
   const assessment=extractAssessment(prompt);
@@ -81,7 +78,6 @@ function localClinicalFallback(prompt){
     out.push('Chưa có đủ kết quả quan sát của ca hiện tại để gắn các quy tắc trên vào hình lưỡi cụ thể. Hãy hoàn tất phân tích ảnh; hệ thống sẽ đối chiếu tiếp mà không tự tạo đặc điểm hình ảnh.');
     return out.join('\n');
   }
-
   const top=assessment?.top||{};
   const bottom=assessment?.bottom||null;
   const combined=assessment?.combined||{};
@@ -102,7 +98,6 @@ function localClinicalFallback(prompt){
     if(vessels.prominence) details.push(`mức nổi mạch ${vessels.prominence}`);
     if(vessels.dilation) details.push(`giãn mạch ${vessels.dilation}`);
   }
-
   const signals=compactUnique([
     ...(Array.isArray(combined.generalSignals)?combined.generalSignals.map(signalText):[]),
     ...(Array.isArray(combined.stomachPatternSignals)?combined.stomachPatternSignals.map(signalText):[]),
@@ -117,10 +112,7 @@ function localClinicalFallback(prompt){
   const summary=cleanText(combined.summary||top.summary);
   const wantsDetail=/DETAIL_WITHOUT_THAP_VAN|chi tiết|chi tiet/i.test(question);
   const skipped=/SKIP_THAP_VAN|NO_THAP_VAN_CONTEXT/i.test(question);
-
-  const out=[];
-  if(wantsDetail) out.push('Nhận định chi tiết từ dữ kiện hiện có:');
-  else out.push('Nhận định hiện tại:');
+  const out=[wantsDetail?'Nhận định chi tiết từ dữ kiện hiện có:':'Nhận định hiện tại:'];
   if(details.length) out.push(`• Quan sát: ${details.join('; ')}.`);
   if(summary) out.push(`• Tổng hợp: ${summary}`);
   if(signals.length) out.push(`• Đối chiếu YHCT: ${signals.join(' | ')}.`);
@@ -132,21 +124,21 @@ function localClinicalFallback(prompt){
 function localJsonFallback(){
   return JSON.stringify({localKnowledgeOnly:true,combined:{confidence:0,summary:'Chưa có phản hồi thị giác mới; không tự tạo đặc điểm hình ảnh.'}});
 }
-function localKnowledgeResponse(init,reason){
+function localKnowledgeResponse(init,reason,elapsedMs){
   const payload=requestPayload(init);
   const prompt=promptFromPayload(payload);
   const wantsJson=String(payload?.generationConfig?.responseMimeType||'').toLowerCase()==='application/json';
   const text=wantsJson?localJsonFallback():localClinicalFallback(prompt);
-  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,model:GEMINI_MODEL,response:wantsJson?'json':'text'}));
+  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,model:GEMINI_MODEL,response:wantsJson?'json':'text',elapsedMs}));
   return new Response(JSON.stringify({
     candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],
-    localFallback:{active:true,reason,model:GEMINI_MODEL}
-  }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge'}});
+    localFallback:{active:true,reason,model:GEMINI_MODEL,elapsedMs}
+  }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge','x-ai-upstream-ms':String(elapsedMs||0)}});
 }
-function unavailableVisionResponse(reason,status=503){
-  console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status}));
-  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason}),{
-    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable'}
+function unavailableVisionResponse(reason,status=503,elapsedMs=0){
+  console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status,elapsedMs}));
+  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,elapsedMs}),{
+    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
   });
 }
 async function timedFetch(input,init,url,timeoutMs){
@@ -165,30 +157,41 @@ async function timedFetch(input,init,url,timeoutMs){
 }
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function geminiResilientFetch(input,init,url){
+  const startedAt=Date.now();
   const candidate=replaceGeminiModel(url,GEMINI_MODEL);
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
+  const maxAttempts=vision?GEMINI_VISION_MAX_ATTEMPTS:GEMINI_TEXT_MAX_ATTEMPTS;
   let lastResponse=null;
   let lastError=null;
-  for(let attempt=1;attempt<=GEMINI_MAX_ATTEMPTS;attempt++){
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    const attemptStarted=Date.now();
     try{
       const response=await timedFetch(candidate,init,candidate,timeoutMs);
-      if(response.ok) return response;
-      if(!(await isTransientGeminiFailure(response))) return response;
+      const attemptMs=Date.now()-attemptStarted;
+      if(response.ok){
+        console.info('gemini_attempt_complete',JSON.stringify({model:GEMINI_MODEL,attempt,vision,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+        return response;
+      }
+      if(!(await isTransientGeminiFailure(response))){
+        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
+        return response;
+      }
       lastResponse=response;
-      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision}));
+      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
     }catch(err){
       lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision}));
+      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
     }
-    if(attempt<GEMINI_MAX_ATTEMPTS) await sleep(450*attempt);
+    if(attempt<maxAttempts) await sleep(300*attempt);
   }
+  const elapsedMs=Date.now()-startedAt;
   if(vision){
-    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status);
-    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503);
+    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
+    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
   }
-  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'));
+  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),elapsedMs);
 }
 
 if(nativeFetch){

@@ -186,23 +186,37 @@
     removeLearningSyncNotices();
   }
 
+  async function prepareLocalImage(dataUrl,qc={}){
+    const enhancer=window.AITCImageEnhancement;
+    if(!dataUrl||!enhancer?.enhanceDataUrl)return {dataUrl,qc,enhanced:false};
+    try{
+      const result=await enhancer.enhanceDataUrl(dataUrl,qc);
+      if(!result?.dataUrl)return {dataUrl,qc,enhanced:false};
+      return {dataUrl:result.dataUrl,qc:{...qc,enhancement:result.meta},enhanced:true};
+    }catch{return {dataUrl,qc,enhanced:false};}
+  }
+
   async function localVisionResponse(body,serverResponse){
     try{
-      const top=await inspectView(body.topImage||body.image,body.topQc||body.qc||{},'top');
-      const bottom=body.mode==='general'?await inspectView(body.bottomImage,body.bottomQc||{},'bottom'):null;
-      const assessment=buildAssessment(body.mode==='general'?'general':'normal',top,bottom,body.topQc||body.qc||{},body.bottomQc||{});
+      const mode=body.mode==='general'?'general':'normal';
+      const topInput=await prepareLocalImage(body.topImage||body.image,body.topQc||body.qc||{});
+      const bottomInput=mode==='general'?await prepareLocalImage(body.bottomImage,body.bottomQc||{}):null;
+      const top=await inspectView(topInput.dataUrl,topInput.qc,'top');
+      const bottom=mode==='general'?await inspectView(bottomInput.dataUrl,bottomInput.qc,'bottom'):null;
+      const assessment=buildAssessment(mode,top,bottom,topInput.qc,bottomInput?.qc||{});
+      assessment.ml.imageEnhancementFallback={top:topInput.enhanced,bottom:Boolean(bottomInput?.enhanced),version:topInput.qc?.enhancement?.version||bottomInput?.qc?.enhancement?.version||null};
       if(assessment.top.visualValidity.tongueVisible!==true){return serverResponse;}
       let collection={ok:false,stored:false,localOnly:true};
       try{
-        const saved=await syncLocalLearning(body,assessment);
+        const saved=await syncLocalLearning({...body,topQc:topInput.qc,bottomQc:bottomInput?.qc||body.bottomQc},assessment);
         if(saved?.ok){
           assessment.ml.storage='automatic-local-training-store';
           collection={ok:true,stored:Boolean(saved.stored),duplicate:Boolean(saved.duplicate),caseId:saved.id||null,localVision:true};
         }
       }catch{}
-      const payload={ok:true,assessment,analysis:assessment,model:null,knowledgeVersion:'local-open-source-vision-v1',collection,localVision:true,visionStatus:'local-image-analysis'};
-      setTimeout(()=>sanitizeLocalUi(body.mode==='general'?'general':'normal'),0);
-      return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-aitc-vision':'local-image-analysis'}});
+      const payload={ok:true,assessment,analysis:assessment,model:null,knowledgeVersion:'local-open-source-vision-v1',collection,localVision:true,visionStatus:'local-image-analysis',imageEnhanced:Boolean(topInput.enhanced||bottomInput?.enhanced)};
+      setTimeout(()=>sanitizeLocalUi(mode),0);
+      return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-aitc-vision':'local-image-analysis','x-aitc-image-enhanced':topInput.enhanced||bottomInput?.enhanced?'1':'0'}});
     }catch{return serverResponse;}
   }
 
@@ -214,9 +228,9 @@
         body.topQc={...(body.topQc||body.qc||{}),captureContext:meta};
         if(body.mode==='general') body.bottomQc={...(body.bottomQc||{}),captureContext:meta};
         const response=await nativeFetch(input,{...init,body:JSON.stringify(body)});
-        if(response.status===502){
+        if(response.status===502||response.status===503||response.status===504){
           const data=await response.clone().json().catch(()=>({}));
-          if(String(data?.message||'').includes('VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE')) return localVisionResponse(body,response);
+          if(String(data?.message||data?.error?.message||'').includes('VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE')) return localVisionResponse(body,response);
         }
         return response;
       }

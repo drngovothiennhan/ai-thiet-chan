@@ -1,5 +1,5 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
-const CACHE='ai-thiet-chan-v2.9.14-admin-enhancement-collapse';
+const CACHE='ai-thiet-chan-v2.9.15-rollback-mobile-layout';
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation.js','/consultation-lock.js','/admin-enhancement-collapse.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
 

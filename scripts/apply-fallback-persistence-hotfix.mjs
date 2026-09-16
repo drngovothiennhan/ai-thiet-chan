@@ -57,7 +57,7 @@ test=replaceOnce(
 test=replaceOnce(
   test,
   "assert.match(hotfix,/FALLBACK_DEADLINE_MS=8_500/);\n",
-  "assert.match(hotfix,/FALLBACK_DEADLINE_MS=8_500/);\nassert.match(hotfix,/LOCAL_PERSIST_DEADLINE_MS=3_500/);\nassert.match(hotfix,/\\/api\\/cases\\/collect-local/);\nassert.match(hotfix,/x-aitc-collection/);\nassert.match(server,/app\\.post\\('\u002Fapi\u002Flocal-fusion'/);\nassert.match(server,/app\\.post\\('\u002Fapi\u002Fcases\u002Fcollect-local',aiRateLimit/);\nassert.match(server,/source:'local-fallback'/);\n",
+  "assert.match(hotfix,/FALLBACK_DEADLINE_MS=8_500/);\nassert.match(hotfix,/LOCAL_PERSIST_DEADLINE_MS=3_500/);\nassert.match(hotfix,/\\/api\\/cases\\/collect-local/);\nassert.match(hotfix,/x-aitc-collection/);\nassert.ok(server.includes(\"app.post('/api/local-fusion'\"));\nassert.ok(server.includes(\"app.post('/api/cases/collect-local',aiRateLimit\"));\nassert.match(server,/source:'local-fallback'/);\n",
   'test-persistence-assertions'
 );
 test=test.replace(

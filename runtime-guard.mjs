@@ -4,7 +4,7 @@ const GEMINI_MODEL='gemini-3.8-flash';
 const GEMINI_VISION_TIMEOUT_MS=8_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
 const GEMINI_TEXT_MAX_ATTEMPTS=2;
-const GEMINI_VISION_MAX_ATTEMPTS=1;
+const GEMINI_VISION_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 
 function requestUrl(input){
@@ -185,6 +185,7 @@ async function geminiResilientFetch(input,init,url){
     }catch(err){
       lastError=err;
       console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
+      if(vision&&err?.message==='UPSTREAM_TIMEOUT') break;
     }
     if(attempt<maxAttempts) await sleep(300*attempt);
   }

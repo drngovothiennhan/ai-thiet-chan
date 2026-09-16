@@ -115,6 +115,7 @@
       await loadScript('/analysis-hotfix.js');
       await loadScript('/book-fallback.js');
       await loadScript('/benchmark-telemetry.js');
+      await loadScript('/consultation-lock.js');
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();
 })();

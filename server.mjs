@@ -10,7 +10,7 @@ const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const VERSION = '2.9.1';
+const VERSION = '2.9.2';
 const BUILD = process.env.RENDER_GIT_COMMIT || 'local';
 const AI_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.AI_RATE_LIMIT_WINDOW_MS || 600_000));
 const AI_RATE_LIMIT_MAX = Math.max(1, Number(process.env.AI_RATE_LIMIT_MAX || 30));
@@ -81,6 +81,15 @@ function clampConfidence(value){const n=Number(value);return Number.isFinite(n)?
 function qcFactor(qc){return qc?.grade==='good'?1:qc?.grade==='fair'?0.72:0.35;}
 function ensureStringArray(v){return Array.isArray(v)?v.map(x=>String(x||'')).filter(Boolean):[];}
 function ensureSignalArray(v){return Array.isArray(v)?v.filter(x=>x&&typeof x==='object'):[];}
+function normalizeChatReply(text){
+  let reply=String(text||'').trim();
+  const match=reply.match(/^GROUNDING\s*=\s*(IN|OUT)\s*\n?/i);
+  const outside=!match||String(match[1]).toUpperCase()==='OUT';
+  if(match)reply=reply.slice(match[0].length).trim();
+  reply=reply.replace(/\s*\[A\.I\]\s*$/i,'').trim();
+  if(outside)reply=[reply,'[A.I]'].filter(Boolean).join('\n');
+  return {reply,outsideKnowledge:outside};
+}
 
 function normalizeTop(top,qc,mode){
   const out=top&&typeof top==='object'?top:{};
@@ -246,7 +255,9 @@ app.get('/api/health',(req,res)=>res.json({
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,
   caseCollection:{mode:'automatic',history:true,deduplicate:'sha256-composite',storeReady:caseStoreReady},
-  aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX},access:{guestAnalysesPerDay:5,studentUnlimited:true},time:new Date().toISOString()
+  aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX,appliesTo:['analyze','report']},
+  chatPolicy:{provider:'Gemini',applicationRateLimit:false,outsideKnowledgeSuffix:'[A.I]',documentVoice:true,atlasLanguageThreshold:ACADEMIC_HEALTH.atlasLanguageThreshold},
+  access:{guestAnalysesPerDay:5,studentUnlimited:true},time:new Date().toISOString()
 }));
 app.get('/api/sources',(req,res)=>res.json({ok:true,version:VERSION,references:OPEN_SOURCE_REFERENCES}));
 app.get('/api/cases',async(req,res)=>{
@@ -276,6 +287,7 @@ ${TONGUE_KNOWLEDGE}
 
 YÊU CẦU MẶT TRÊN:
 - Xác nhận có đúng mặt trên lưỡi, có thấy toàn bộ lưỡi hay không; ở chế độ tổng quát đánh giá thêm phần sau/gốc lưỡi có được bộc lộ rõ hay không.
+- Tiêu chí khung đủ toàn bộ lưỡi: phải thấy mặt lưng lưỡi liên tục từ đầu lưỡi đến vùng gốc lưỡi phía sau; vùng vòm miệng/lưỡi gà chỉ dùng làm mốc định hướng phía sau của khung hình. Nếu mặt lưng lưỡi liên tục đến vùng gốc lưỡi ngay phía trước mốc này, không bị môi/răng che đáng kể và các bờ lưỡi cần đánh giá còn quan sát được thì có thể đặt wholeTongueVisible=true và rootVisible=true. Không coi lưỡi gà là một phần của lưỡi.
 - Mô tả hình dạng, màu chất lưỡi, rêu lưỡi, độ ẩm, nứt, hằn răng, gai/điểm, ban/điểm ứ và đặc điểm nhìn thấy khác.
 - Không chẩn đoán bệnh vùng họng; phần vùng họng chỉ dùng để đánh giá mức bộc lộ phần sau/gốc lưỡi.
 
@@ -289,6 +301,7 @@ TỔNG HỢP:
 - Tách rõ quan sát mặt trên, quan sát mặt dưới và nhận định kết hợp.
 - Mỗi diễn giải YHCT phải nêu bằng chứng nhìn thấy và giới hạn/dữ kiện còn thiếu.
 - Nếu QC poor chỉ mô tả thô; QC fair chỉ gợi ý yếu/trung bình.
+- Dùng thuật ngữ và giọng văn của hệ tri thức khi mô tả. Tầng đối chiếu atlas phía sau sẽ chỉ giữ nguyên ngôn từ tài liệu khi độ tương đồng hình ảnh đạt từ 85% trở lên và có câu văn liên quan trực tiếp; không biến độ giống hình ảnh thành chẩn đoán xác định.
 
 Trả về DUY NHẤT JSON hợp lệ theo schema:
 {
@@ -317,36 +330,25 @@ Trả về DUY NHẤT JSON hợp lệ theo schema:
   }catch(err){console.error('analyze_error',err?.message||err);const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:502;return res.status(status).json({error:'ANALYZE_FAILED',message:err?.message||'Unknown error'});}
 });
 
-app.post('/api/chat',aiRateLimit,async(req,res)=>{
+app.post('/api/chat',async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const {assessment,analysis,message}=req.body||{};if(!message||typeof message!=='string') return res.status(400).json({error:'MESSAGE_REQUIRED'});
     const context=assessment||analysis;const contextText=context?JSON.stringify(context):'Chưa có kết quả phân tích hình lưỡi.';
     const hasAssessment=Boolean(context);
     const retrievedKnowledge=hasAssessment?knowledgeForQuery(`${contextText}\n${message}`,{limit:18}):TONGUE_KNOWLEDGE;
-    const prompt=`Bạn là chatbot tư vấn nhanh của A.I Thiệt Chẩn. Chỉ dùng kết quả quan sát hiện tại và hệ tri thức được cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.
-
-HỆ TRI THỨC ${KNOWLEDGE_VERSION}:
-${retrievedKnowledge}
-
-Bối cảnh phân tích: ${contextText}
-Câu hỏi người dùng: ${message}
-Trả lời ngắn gọn bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối câu trả lời thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng các tài liệu/trang thực sự đã dùng trong lập luận. Nếu chưa có kết quả thiệt chẩn, không hiển thị mục nguồn.`;
-    const reply=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
-    return res.json({ok:true,reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
-  }catch(err){console.error('chat_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
+    const prompt=`[CHAT_GROUNDING_PROTOCOL]\nBạn là chatbot Gemini của A.I Thiệt Chẩn. Gemini phụ trách trả lời và phân tích hội thoại. Ưu tiên tuyệt đối hệ tri thức được cung cấp, kết quả quan sát của ca hiện tại và dữ kiện Thập vấn do người dùng cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nGIỌNG VĂN: dùng thuật ngữ, cách gọi và nhịp diễn đạt của tài liệu/hệ tri thức đã cung cấp khi có nội dung tương ứng; không thay bằng từ ngữ chat đời thường nếu tài liệu đã có thuật ngữ chuẩn. Nếu bối cảnh có combined.academicFusion.atlasLanguage.applied=true và câu hỏi liên quan trực tiếp đến dấu đó, giữ nguyên trường wording của tài liệu khi diễn đạt phần đối chiếu.\n\nQUY TẮC NGOÀI TÀI LIỆU: nếu toàn bộ nội dung y học/YHCT trong câu trả lời đều được hỗ trợ trực tiếp bởi HỆ TRI THỨC hoặc dữ kiện ca hiện tại, dòng đầu phải là GROUNDING=IN. Nếu có bất kỳ phần trả lời nào dựa trên kiến thức chung của Gemini mà không có trong HỆ TRI THỨC/dữ kiện ca hiện tại, vẫn được trả lời nhưng dòng đầu phải là GROUNDING=OUT. Không tự ghi ký hiệu [A.I]; máy chủ sẽ gắn ký hiệu đó ở cuối câu trả lời. Không bịa nguồn hoặc giả vờ nội dung ngoài tài liệu là nội dung đã nạp.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối phần nội dung có thể thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng tài liệu/trang thực sự đã dùng trong lập luận; nếu không có nguồn cụ thể thì không tạo mục nguồn.`;
+    const raw=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
+    const normalized=normalizeChatReply(raw);
+    return res.json({ok:true,reply:normalized.reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,grounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge',applicationRateLimited:false});
+  }catch(err){console.error('chat_error',err?.message||err);return res.status(502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
 });
 
 app.post('/api/report',aiRateLimit,async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const {mode='normal',assessment,analysis,topQc,bottomQc,qc}=req.body||{};const data=assessment||analysis;if(!data) return res.status(400).json({error:'ANALYSIS_REQUIRED'});
-    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu dưới đây. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang.
-Mode: ${mode}
-QC mặt trên: ${JSON.stringify(topQc||qc||{})}
-QC mặt dưới: ${JSON.stringify(bottomQc||null)}
-Phân tích: ${JSON.stringify(data)}
-Knowledge: ${KNOWLEDGE_VERSION}`;
+    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu dưới đây. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang. Dùng giọng văn và thuật ngữ của hệ tri thức; nếu analysis.combined.academicFusion.atlasLanguage.applied=true thì giữ nguyên wording tương ứng trong phần đối chiếu hình ảnh.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích: ${JSON.stringify(data)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
     const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
     return res.json({ok:true,report,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
   }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}

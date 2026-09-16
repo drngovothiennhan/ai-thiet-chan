@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 const consultation=fs.readFileSync(new URL('../public/consultation.js',import.meta.url),'utf8');
 const learning=fs.readFileSync(new URL('../public/clinical-learning.js',import.meta.url),'utf8');
 const lifecycle=fs.readFileSync(new URL('../public/feedback-lifecycle.js',import.meta.url),'utf8');
+const settings=fs.readFileSync(new URL('../public/settings.js',import.meta.url),'utf8');
 const source=fs.readFileSync(new URL('../public/open-source.html',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
@@ -28,5 +29,6 @@ for(const marker of ['hideSubmittedFeedback','reopenForNewCase','Đã gửi về
 
 assert.ok(source.includes('Sản phẩm được phát triển bởi Câu Lạc Bộ Y Học Cổ Truyền Trường Đại Học Quốc Tế Hồng Bàng, phục vụ việc học và tham vấn chuyên môn'),'missing attribution');
 assert.ok(sw.includes("ai-thiet-chan-v2.9.8-knowledge-5doc-complete"),'service worker cache not bumped');
-assert.ok(sw.includes("'/clinical-learning.js'")&&sw.includes("'/feedback-lifecycle.js'"),'clinical learning lifecycle missing from app shell');
+assert.ok(settings.includes("'/feedback-lifecycle.js','aitcFeedbackLifecycle'")&&settings.includes('afterWindowLoad(async()=>'),'feedback lifecycle must remain dynamically loaded after window load');
+assert.ok(!sw.includes("'/clinical-learning.js'")&&!sw.includes("'/feedback-lifecycle.js'"),'clinical learning secondary assets must not block service-worker installation');
 console.log('clinical-learning-smoke: ok');

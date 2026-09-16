@@ -32,7 +32,9 @@
     return {input,init:{...init,headers}};
   }
   function faultBucket(value){
-    const name=String(value?.name||value?.constructor?.name||value||'Error').replace(/[^A-Za-z0-9_.-]/g,'').slice(0,40)||'Error';
+    let candidate='Error';
+    if(value&&typeof value==='object')candidate=value.name||value.constructor?.name||'Error';
+    const name=String(candidate).replace(/[^A-Za-z0-9_.-]/g,'').slice(0,40)||'Error';
     return name;
   }
   function sourceBucket(filename){
@@ -88,8 +90,8 @@
     }finally{state.active=Math.max(0,state.active-1);}
   };
 
-  window.addEventListener('error',event=>{recordFault('error',event?.error||event?.message,sourceBucket(event?.filename));});
-  window.addEventListener('unhandledrejection',event=>{recordFault('rejection',event?.reason,'app');});
+  window.addEventListener('error',event=>{recordFault('error',event?.error||{name:'WindowError'},sourceBucket(event?.filename));});
+  window.addEventListener('unhandledrejection',event=>{recordFault('rejection',(event?.reason&&typeof event.reason==='object')?event.reason:{name:'UnhandledRejection'},'app');});
 
   window.fetch=guardedFetch;
   try{

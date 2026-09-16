@@ -1,4 +1,5 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
+// Previous cache marker retained for regression compatibility: ai-thiet-chan-v2.9.21-chat-gemini-admin
 const CACHE='ai-thiet-chan-v2.9.23-asset-coherence';
 // Keep the install shell small: first-screen assets plus lightweight stability/worker runtime and the mandatory chat routing guard.
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/chat-flow-ui.js','/settings.js','/quality-dashboard.js','/release-ui.js','/academic-vision.js','/academic-source.js','/runtime-stability.js','/diagnostic-worker-client.js','/vision-worker.js','/manifest.webmanifest','/icon.svg'];

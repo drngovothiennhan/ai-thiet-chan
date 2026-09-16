@@ -25,7 +25,8 @@ assert.match(telemetry,/requestToResultMs/);
 assert.match(telemetry,/fallbackReason/);
 assert.match(releaseUi,/analysis-hotfix\.js/);
 assert.match(releaseUi,/benchmark-telemetry\.js/);
-assert.match(releaseUi,/afterWindowLoad\(loadOperationalRuntime\)/);
+assert.match(releaseUi,/whenIdle\(\(\)=>loadOperationalRuntime\(\),2200\)/);
+assert.match(releaseUi,/pointerdown.*loadOperationalRuntime\(\).*warmVisionEvidence\(\)/s);
 assert.doesNotMatch(sw,/benchmark-telemetry\.js/);
 
-console.log('ANALYSIS HOTFIX SMOKE PASS: analysis fallback and telemetry remain wired but load after the critical render path.');
+console.log('ANALYSIS HOTFIX SMOKE PASS: analysis fallback and telemetry remain wired, are prewarmed on analysis intent, and otherwise load off the critical render path.');

@@ -81,7 +81,8 @@ assert.match(academicVision,/adaptive-low-saturation/);
 assert.match(academicVision,/hsv\.s>\.045/);
 assert.match(sw,/importScripts\('\/academic-vision\.js'\)/);
 assert.match(sw,/\/image-enhancement\.js/);
-assert.match(sw,/ai-thiet-chan-v2\.9\.20-sustainable-core/);
+assert.match(sw,/ai-thiet-chan-v2\.9\.21-chat-gemini-admin/);
+assert.match(sw,/\/chat-flow-ui\.js/);
 assert.doesNotMatch(sw,/skipWaiting\(\)|clients\.claim\(\)/);
 
-console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera restoration remains wired while the service worker uses the nonblocking sustainable-core release.');
+console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera restoration remains wired while the service worker uses the nonblocking chat-gemini-admin release.');

@@ -81,6 +81,6 @@ assert.match(academicVision,/adaptive-low-saturation/);
 assert.match(academicVision,/hsv\.s>\.045/);
 assert.match(sw,/importScripts\('\/academic-vision\.js'\)/);
 assert.match(sw,/\/image-enhancement\.js/);
-assert.match(sw,/ai-thiet-chan-v2\.9\.12-vision-chat-score/);
+assert.match(sw,/ai-thiet-chan-v2\.9\.15-rollback-mobile-layout/);
 
 console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera autofocus/exposure hints, stable-frame capture, bounded non-generative restoration, enhanced local fallback, adaptive low-saturation segmentation, and color/glare rollback are wired.');

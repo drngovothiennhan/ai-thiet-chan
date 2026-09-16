@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: read
     env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -40,9 +41,7 @@ jobs:
           gradle-version: '9.6.0'
 
       - name: Decode signing key when configured
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ai-thiet-chan-upload.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ai-thiet-chan-upload.jks" >> "$GITHUB_ENV"
@@ -51,7 +50,7 @@ jobs:
         run: gradle -p android-playstore --no-daemon clean bundleRelease assembleDebug
 
       - name: Verify signed bundle when signing is configured
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
         run: jarsigner -verify -verbose -certs android-playstore/app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload Android artifacts

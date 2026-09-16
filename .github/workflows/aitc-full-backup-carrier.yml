@@ -1,0 +1,42 @@
+name: AITC Full Backup Carrier
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aitc-full-backup-carrier.yml'
+
+permissions:
+  contents: read
+
+env:
+  BACKUP_ID: 79021dce-ceae-419b-90fb-ecc8b9f37120
+  BACKUP_URL: https://gzmpnsrwqjpsbklyflqr.supabase.co/functions/v1/aitc-full-backup-encrypted-v1?id=79021dce-ceae-419b-90fb-ecc8b9f37120
+
+jobs:
+  carry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download encrypted full backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 2 \
+            "$BACKUP_URL" \
+            --output "AITC_FULL_BACKUP_${BACKUP_ID}.json.enc"
+          test -s "AITC_FULL_BACKUP_${BACKUP_ID}.json.enc"
+          sha256sum "AITC_FULL_BACKUP_${BACKUP_ID}.json.enc" | tee "AITC_FULL_BACKUP_${BACKUP_ID}.sha256"
+          stat -c '%s' "AITC_FULL_BACKUP_${BACKUP_ID}.json.enc" | tee "AITC_FULL_BACKUP_${BACKUP_ID}.bytes"
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITC_FULL_BACKUP_79021dce
+          path: |
+            AITC_FULL_BACKUP_${{ env.BACKUP_ID }}.json.enc
+            AITC_FULL_BACKUP_${{ env.BACKUP_ID }}.sha256
+            AITC_FULL_BACKUP_${{ env.BACKUP_ID }}.bytes
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1

@@ -36,6 +36,7 @@
   }
   function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});}
   function canvas(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c;}
+  function releaseCanvas(c){try{if(c){c.width=1;c.height=1;}}catch{}}
   function drawHighQuality(source,target){
     const ctx=target.getContext('2d',{alpha:false,willReadFrequently:true});
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(source,0,0,target.width,target.height);return target;
@@ -45,7 +46,10 @@
     const scale=Math.max(targetW/sw,targetH/sh);
     if(scale<=1.45)return drawHighQuality(source,canvas(targetW,targetH));
     const midScale=Math.sqrt(scale),midW=Math.round(sw*midScale),midH=Math.round(sh*midScale);
-    const mid=drawHighQuality(source,canvas(midW,midH));return drawHighQuality(mid,canvas(targetW,targetH));
+    const mid=drawHighQuality(source,canvas(midW,midH));
+    const out=drawHighQuality(mid,canvas(targetW,targetH));
+    releaseCanvas(mid);
+    return out;
   }
   function sampleMetrics(source){
     const sw=source.width||source.naturalWidth,sh=source.height||source.naturalHeight,max=240,scale=Math.min(1,max/Math.max(sw,sh));
@@ -59,7 +63,9 @@
     }
     const percentile=p=>{const goal=n*p;let acc=0;for(let i=0;i<256;i++){acc+=hist[i];if(acc>=goal)return i;}return 255;};
     const p10=percentile(.1),p90=percentile(.9);
-    return {brightness:n?sumY/n:0,median:percentile(.5),p10,p90,contrastSpread:p90-p10,dark:n?dark/n:0,glare:n?glare/n:0,chroma:n?[cr/n,cg/n,cb/n]:[1/3,1/3,1/3]};
+    const result={brightness:n?sumY/n:0,median:percentile(.5),p10,p90,contrastSpread:p90-p10,dark:n?dark/n:0,glare:n?glare/n:0,chroma:n?[cr/n,cg/n,cb/n]:[1/3,1/3,1/3]};
+    releaseCanvas(c);
+    return result;
   }
   function colorDrift(a,b){return ((Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]))/3);}
   function gammaForMedian(median){if(median>=BRIGHTNESS_TRIGGER)return 1;const x=clamp(median/255,.05,.98),target=BRIGHTNESS_TARGET/255;return clamp(Math.log(target)/Math.log(x),MIN_GAMMA,1);}
@@ -97,12 +103,12 @@
   async function enhanceDataUrl(dataUrl,qc={}){
     const started=performance.now();const img=await loadImage(dataUrl),w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
     const frontCamera=qc?.capture?.frontCamera===true||qc?.capture?.facingMode==='user';
-    const original=canvas(w,h);drawHighQuality(img,original);const before=sampleMetrics(original);
+    const before=sampleMetrics(img);
     const shouldBrighten=before.brightness<BRIGHTNESS_TRIGGER&&before.glare<.12&&qc?.checks?.clipping!==false;
     const gamma=shouldBrighten?gammaForMedian(before.median):1;
     const contrastGain=(frontCamera&&before.contrastSpread<78)?MAX_CONTRAST_GAIN:(!frontCamera&&before.contrastSpread<62?1.04:1);
-    const corrected=canvas(w,h);drawHighQuality(original,corrected);applyLuminanceGamma(corrected,gamma);applyLuminanceContrast(corrected,contrastGain);
-    const target=outputSize(w,h,frontCamera);let enhanced=resizeMultipass(corrected,target.width,target.height);
+    const target=outputSize(w,h,frontCamera);let enhanced=resizeMultipass(img,target.width,target.height);
+    applyLuminanceGamma(enhanced,gamma);applyLuminanceContrast(enhanced,contrastGain);
     const blurMetric=Number(qc?.laplacianVariance)||0,focusFailed=qc?.checks?.focus===false;
     const recoverableBlur=focusFailed&&blurMetric>=12;
     const sharpenAmount=recoverableBlur?(frontCamera?.20:.12):0;
@@ -115,9 +121,12 @@
     if(after.brightness>205)rollbackReason.push('brightness');
     if(after.contrastSpread>Math.max(150,before.contrastSpread+55))rollbackReason.push('contrast');
     if(rollbackReason.length){
-      enhanced=resizeMultipass(original,target.width,target.height);after=sampleMetrics(enhanced);drift=colorDrift(before.chroma,after.chroma);guard='resample-only';brightnessApplied=false;contrastApplied=false;sharpenApplied=false;rollback=true;
+      releaseCanvas(enhanced);enhanced=resizeMultipass(img,target.width,target.height);after=sampleMetrics(enhanced);drift=colorDrift(before.chroma,after.chroma);guard='resample-only';brightnessApplied=false;contrastApplied=false;sharpenApplied=false;rollback=true;
     }
-    return {dataUrl:toJpeg(enhanced),meta:{version:VERSION,enabled:true,nonGenerative:true,profile:frontCamera?'front-camera-recovery':'standard',frontCamera,resampler:'canvas-high-quality-multipass',brightness:'hue-preserving-luminance-gamma',contrast:'bounded-luminance-contrast',sharpen:'bounded-luminance-unsharp',source:{width:w,height:h},output:{width:enhanced.width,height:enhanced.height,scale:Number(target.scale.toFixed(3))},brightnessApplied,contrastApplied,contrastGain:Number(contrastGain.toFixed(3)),sharpenApplied,sharpenAmount:Number(sharpenAmount.toFixed(3)),recoverableBlur,gamma:Number(gamma.toFixed(3)),guard,rollback,rollbackReason,before:{brightness:Number(before.brightness.toFixed(1)),median:before.median,contrastSpread:before.contrastSpread,darkPct:Number((before.dark*100).toFixed(1)),glarePct:Number((before.glare*100).toFixed(1))},after:{brightness:Number(after.brightness.toFixed(1)),median:after.median,contrastSpread:after.contrastSpread,darkPct:Number((after.dark*100).toFixed(1)),glarePct:Number((after.glare*100).toFixed(1))},colorDrift:Number(drift.toFixed(4)),glareDeltaPct:Number(((after.glare-before.glare)*100).toFixed(2)),capture:qc?.capture||null,limits:{maxOutputSide:MAX_OUTPUT_SIDE,maxUpscale:frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE,maxColorDrift:MAX_COLOR_DRIFT,maxGlareIncrease:MAX_GLARE_INCREASE,maxContrastGain:MAX_CONTRAST_GAIN,maxSharpenDelta:MAX_SHARPEN_DELTA,minGamma:MIN_GAMMA},elapsedMs:Math.round(performance.now()-started)}};
+    const output={width:enhanced.width,height:enhanced.height,scale:Number(target.scale.toFixed(3))};
+    const data=toJpeg(enhanced);
+    releaseCanvas(enhanced);
+    return {dataUrl:data,meta:{version:VERSION,enabled:true,nonGenerative:true,profile:frontCamera?'front-camera-recovery':'standard',frontCamera,resampler:'canvas-high-quality-multipass',brightness:'hue-preserving-luminance-gamma',contrast:'bounded-luminance-contrast',sharpen:'bounded-luminance-unsharp',source:{width:w,height:h},output,brightnessApplied,contrastApplied,contrastGain:Number(contrastGain.toFixed(3)),sharpenApplied,sharpenAmount:Number(sharpenAmount.toFixed(3)),recoverableBlur,gamma:Number(gamma.toFixed(3)),guard,rollback,rollbackReason,before:{brightness:Number(before.brightness.toFixed(1)),median:before.median,contrastSpread:before.contrastSpread,darkPct:Number((before.dark*100).toFixed(1)),glarePct:Number((before.glare*100).toFixed(1))},after:{brightness:Number(after.brightness.toFixed(1)),median:after.median,contrastSpread:after.contrastSpread,darkPct:Number((after.dark*100).toFixed(1)),glarePct:Number((after.glare*100).toFixed(1))},colorDrift:Number(drift.toFixed(4)),glareDeltaPct:Number(((after.glare-before.glare)*100).toFixed(2)),capture:qc?.capture||null,limits:{maxOutputSide:MAX_OUTPUT_SIDE,maxUpscale:frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE,maxColorDrift:MAX_COLOR_DRIFT,maxGlareIncrease:MAX_GLARE_INCREASE,maxContrastGain:MAX_CONTRAST_GAIN,maxSharpenDelta:MAX_SHARPEN_DELTA,minGamma:MIN_GAMMA},elapsedMs:Math.round(performance.now()-started)}};
   }
 
   async function rewriteAnalyzeRequest(input,init){
@@ -127,14 +136,14 @@
     if(!config.enabled)return request;
     let body;try{body=await request.clone().json();}catch{return request;}
     if(!body||typeof body!=='object'||typeof body.topImage!=='string')return request;
-    const originalTop=body.topImage,originalBottom=typeof body.bottomImage==='string'?body.bottomImage:null;
+    let originalTop=body.topImage,originalBottom=typeof body.bottomImage==='string'?body.bottomImage:null;
     try{
       const top=await enhanceDataUrl(originalTop,body.topQc||body.qc||{});
-      body.topOriginalImage=originalTop;body.topImage=top.dataUrl;body.topEnhancement=top.meta;
+      body.topImage=top.dataUrl;body.topEnhancement=top.meta;originalTop='';
       body.topQc={...(body.topQc||body.qc||{}),enhancement:top.meta};
       if(body.mode==='general'&&originalBottom){
         const bottom=await enhanceDataUrl(originalBottom,body.bottomQc||{});
-        body.bottomOriginalImage=originalBottom;body.bottomImage=bottom.dataUrl;body.bottomEnhancement=bottom.meta;
+        body.bottomImage=bottom.dataUrl;body.bottomEnhancement=bottom.meta;originalBottom='';
         body.bottomQc={...(body.bottomQc||{}),enhancement:bottom.meta};
       }
       body.imageEnhancement={enabled:true,version:VERSION,configuredVersion:config.version,nonGenerative:true,colorIntegrityGuard:true,frontCameraAware:true};

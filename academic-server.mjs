@@ -1,8 +1,9 @@
-import {matchAtlas,ACADEMIC_PAGE_CORPUS,corpusContext,searchTextCorpus} from './knowledge-corpus.mjs';
+import {matchAtlas,ACADEMIC_PAGE_CORPUS,corpusContext,searchTextCorpus,TEXT_CORPUS} from './knowledge-corpus.mjs';
 import {directPatterns,evidenceFor,fuse} from './public/academic-fusion-core.js';
 import {FUSION_VERSION,SOURCE,WEIGHTS} from './public/academic-source.js';
 import {groundTongueMorphology,MORPHOLOGY_POLICY_VERSION} from './morphology-reference.mjs';
 
+const ATLAS_LANGUAGE_THRESHOLD=.85;
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
   const arrays=[assessment?.combined?.generalSignals,assessment?.combined?.stomachPatternSignals,assessment?.top?.theoryAssessment?.generalSignals,assessment?.top?.theoryAssessment?.stomachPatternSignals].filter(Array.isArray);
@@ -15,6 +16,22 @@ function geminiLayer(assessment){
   const cannotConclude=[...(Array.isArray(assessment?.combined?.cannotConclude)?assessment.combined.cannotConclude:[]),...(Array.isArray(assessment?.top?.theoryAssessment?.cannotConclude)?assessment.top.theoryAssessment.cannotConclude:[])].map(String).filter(Boolean);
   return {academicSummary:String(assessment?.combined?.summary||''),patternCandidates,cannotConclude:[...new Set(cannotConclude)]};
 }
+function norm(v){return String(v||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();}
+function tokens(v){return [...new Set(norm(v).split(' ').filter(x=>x.length>=3))];}
+function wordingQuery(assessment){
+  const t=assessment?.top||{},v=assessment?.bottom?.vessels||{};
+  return [t.tongueColor,t.shape,t.coatingColor,t.coatingThickness,t.coatingTexture,t.moisture,t.fissures,t.toothmarks,t.pricklesSpots,t.stasisMarks,assessment?.bottom?.undersideColor,v.color,v.prominence,v.dilation,v.tortuosity,v.stasisSigns,...directPatterns(assessment).map(x=>x.label)].filter(Boolean).join(' ');
+}
+function documentWordingForMatch(match,assessment){
+  if(!match||Number(match.similarity)<ATLAS_LANGUAGE_THRESHOLD)return'';
+  const row=TEXT_CORPUS.find(x=>x.sourceId===match.sourceId&&Number(x.page)===Number(match.page));
+  if(!row?.text)return'';
+  const q=tokens(wordingQuery(assessment));if(!q.length)return'';
+  const candidates=String(row.text).split(/\n+|(?<=[.!?;:])\s+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(x=>x.length>=18);
+  let best='',bestScore=0;
+  for(const sentence of candidates){const hay=norm(sentence);let score=0;for(const token of q)if(hay.includes(token))score++;if(score>bestScore){best=sentence;bestScore=score;}}
+  return bestScore>0?best.slice(0,420):'';
+}
 export function applyAcademicFusion(assessment,body={}){
   assessment=groundTongueMorphology(assessment,body);
   const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
@@ -26,6 +43,20 @@ export function applyAcademicFusion(assessment,body={}){
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
   const fused=fuse(assessment,signature,matches,geminiLayer(assessment),evidence);
+  const strongAtlas=matches.find(m=>Number(m.similarity)>=ATLAS_LANGUAGE_THRESHOLD)||null;
+  const documentWording=documentWordingForMatch(strongAtlas,fused);
+  if(strongAtlas&&documentWording){
+    fused.combined=fused.combined||{};
+    fused.combined.generalSignals=Array.isArray(fused.combined.generalSignals)?fused.combined.generalSignals:[];
+    const pct=Math.round(Number(strongAtlas.similarity)*100);
+    const label=`Tham Vấn: tương đồng atlas ${pct}%`;
+    if(!fused.combined.generalSignals.some(x=>String(x?.label||'')===label))fused.combined.generalSignals.push({
+      label,
+      evidence:documentWording,
+      rule:'Ngôn từ được giữ theo tài liệu khi đối chiếu hình ảnh đạt từ 85% trở lên; chỉ dùng để mô tả/đối chiếu thiệt tượng, không tự chuyển thành chẩn đoán xác định.',
+      confidence:Number(strongAtlas.similarity)
+    });
+  }
   fused.ml=fused.ml||{};
   fused.ml.featureVector=fused.ml.featureVector||{};
   fused.ml.featureVector.academic=fused.ml.featureVector.academic||{};
@@ -41,11 +72,17 @@ export function applyAcademicFusion(assessment,body={}){
     fusionVersion:FUSION_VERSION,
     weights:WEIGHTS,
     morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
+    atlasLanguageThreshold:ATLAS_LANGUAGE_THRESHOLD,
     matchedAtlas:matches.map(m=>({sourceId:m.sourceId,page:m.page,kind:m.kind,hash:m.hash,similarity:m.similarity})),
     visualContext,
     textMatches
   };
-  if(fused.combined?.academicFusion){fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));fused.combined.academicFusion.visualContext=visualContext;fused.combined.academicFusion.morphologyPolicyVersion=MORPHOLOGY_POLICY_VERSION;}
+  if(fused.combined?.academicFusion){
+    fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));
+    fused.combined.academicFusion.visualContext=visualContext;
+    fused.combined.academicFusion.morphologyPolicyVersion=MORPHOLOGY_POLICY_VERSION;
+    fused.combined.academicFusion.atlasLanguage={applied:Boolean(strongAtlas&&documentWording),threshold:ATLAS_LANGUAGE_THRESHOLD,sourceId:strongAtlas?.sourceId||null,page:strongAtlas?.page||null,similarity:strongAtlas?.similarity||0,wording:documentWording||''};
+  }
   return fused;
 }
 export const ACADEMIC_HEALTH=Object.freeze({
@@ -53,6 +90,7 @@ export const ACADEMIC_HEALTH=Object.freeze({
   source:'KNOWLEDGE-5DOC',
   fusionVersion:FUSION_VERSION,
   morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
+  atlasLanguageThreshold:ATLAS_LANGUAGE_THRESHOLD,
   sourceCount:ACADEMIC_PAGE_CORPUS.sourceCount,
   indexedPages:ACADEMIC_PAGE_CORPUS.totals.indexedPages,
   indexedImageOccurrences:ACADEMIC_PAGE_CORPUS.totals.indexedImageOccurrences,

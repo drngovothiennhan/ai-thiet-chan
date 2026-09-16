@@ -8,7 +8,8 @@ const releaseUi=fs.readFileSync(new URL('../public/release-ui.js',import.meta.ur
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
 assert.match(runtime,/GEMINI_VISION_TIMEOUT_MS=8_000/);
-assert.match(runtime,/GEMINI_VISION_MAX_ATTEMPTS=1/);
+assert.match(runtime,/GEMINI_VISION_MAX_ATTEMPTS=2/);
+assert.match(runtime,/vision&&err\?\.message==='UPSTREAM_TIMEOUT'\) break/);
 assert.match(runtime,/gemini_attempt_complete/);
 assert.match(hotfix,/FALLBACK_DEADLINE_MS=8_500/);
 assert.match(hotfix,/prepareLocal\(body\)/);
@@ -26,4 +27,4 @@ assert.match(releaseUi,/analysis-hotfix\.js/);
 assert.match(releaseUi,/benchmark-telemetry\.js/);
 assert.match(sw,/benchmark-telemetry\.js/);
 
-console.log('ANALYSIS HOTFIX SMOKE PASS: vision is bounded, local CV runs in parallel, fallback is provenance-tagged/capped, and exact client benchmark telemetry is persisted without shadowing Express API routes.');
+console.log('ANALYSIS HOTFIX SMOKE PASS: vision uses one bounded fast transient retry, hard timeout stays single-pass, local CV runs in parallel, fallback is provenance-tagged/capped, and exact client benchmark telemetry is persisted.');

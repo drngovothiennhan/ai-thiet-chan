@@ -36,7 +36,7 @@ try{
   requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');
 
   const settings=await text('/settings.js');
-  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2.9.0'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
+  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2.9.0'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js','afterWindowLoad(async()=>','whenIdle(()=>loadOrdered(['],'settings');
 
   const uploads=await text('/upload-controls.js');
   requireMarkers(uploads,['topUploadBtn','bottomUploadBtn','Tải ảnh mặt trên','Tải ảnh mặt dưới','input.click()'],'upload controls');
@@ -56,7 +56,8 @@ try{
   if(credentials.includes('localStorage.setItem(TOKEN_KEY'))throw new Error('admin password must not persist in localStorage');
 
   const sw=await text('/sw.js');
-  requireMarkers(sw,['ai-thiet-chan-v2.9.8-knowledge-5doc-complete',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js','/upload-controls.js'],'service worker');
+  requireMarkers(sw,['ai-thiet-chan-v2.9.8-knowledge-5doc-complete',"url.pathname.startsWith('/api/')",'/release-ui.js','/quality-grounding-v4.js'],'service worker');
+  for(const secondary of ['/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js','/upload-controls.js'])if(sw.includes(`'${secondary}'`))throw new Error(`secondary asset must not block service-worker install: ${secondary}`);
 
   const noKey=await fetch(`http://127.0.0.1:${port}/api/analyze`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode:'normal',topImage:'data:image/jpeg;base64,'+'a'.repeat(200)})});
   if(noKey.status!==428)throw new Error(`expected analyze 428 without shared key, got ${noKey.status}`);
@@ -65,5 +66,5 @@ try{
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||!manifest.icons.length)throw new Error('PWA manifest gate failed');
 
   await scanPublic(path.join(root,'public'));
-  console.log('SMOKE PASS: A.I Thiet Chan production shell, dual-view AI, approved learning, upload controls, PWA and forced first-login admin credential rotation are wired');
+  console.log('SMOKE PASS: A.I Thiet Chan production shell, dual-view AI, approved learning, upload controls, nonblocking PWA startup and forced first-login admin credential rotation are wired');
 } finally { child.kill('SIGTERM'); }

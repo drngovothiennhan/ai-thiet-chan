@@ -39,7 +39,6 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     try{
       await rpc('ai_thiet_chan_admin_verify_v1',{p_admin_token:token});
       req.adminAccess={role:'admin',unlimited:true};
-      // Compatibility bridge for the existing AI rate-limit middleware in server.mjs.
       req.studentAccess={role:'student',unlimited:true,adminBridge:true};
       return req.adminAccess;
     }catch{
@@ -62,11 +61,33 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     }
   }
 
+  async function consumeCaseAccess(req){
+    if(req.adminAccess?.role==='admin') return {ok:true,role:'admin',unlimited:true};
+    if(req.studentAccess?.role==='student') return {ok:true,role:'student',unlimited:true};
+    const quota=await rpc('ai_thiet_chan_guest_consume_v1',{p_guest_key:guestKey(req)});
+    if(!quota?.ok){
+      const error=new Error('Khách đã dùng đủ 5 lượt thiệt chẩn hôm nay. Đăng nhập sinh viên để sử dụng không giới hạn.');
+      error.status=429;
+      error.code='GUEST_DAILY_LIMIT';
+      error.quota=quota;
+      throw error;
+    }
+    return quota;
+  }
+
   app.use(async(req,res,next)=>{
     if(!req.path.startsWith('/api/')) return next();
     try{
       await resolveAdmin(req);
       if(!req.adminAccess) await resolveStudent(req);
+      if(req.method==='POST'&&req.path==='/api/cases/collect-local'&&String(req.headers?.['x-aitc-local-primary']||'')==='1'){
+        try{
+          req.localPrimaryAccess=await consumeCaseAccess(req);
+        }catch(err){
+          const status=err?.status===429?429:503;
+          return res.status(status).json({error:err?.code||'ACCESS_CONSUME_FAILED',message:err?.message||'Chưa xác nhận được lượt sử dụng.',quota:err?.quota||null});
+        }
+      }
       next();
     }catch(err){console.error('access_context_error',err?.message||err);next();}
   });
@@ -117,20 +138,6 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
       return res.status(400).json({error:'PASSWORD_CHANGE_FAILED',message:'Không đổi được mật khẩu. Kiểm tra mật khẩu hiện tại.'});
     }
   });
-
-  async function consumeCaseAccess(req){
-    if(req.adminAccess?.role==='admin') return {ok:true,role:'admin',unlimited:true};
-    if(req.studentAccess?.role==='student') return {ok:true,role:'student',unlimited:true};
-    const quota=await rpc('ai_thiet_chan_guest_consume_v1',{p_guest_key:guestKey(req)});
-    if(!quota?.ok){
-      const error=new Error('Khách đã dùng đủ 5 lượt thiệt chẩn hôm nay. Đăng nhập sinh viên để sử dụng không giới hạn.');
-      error.status=429;
-      error.code='GUEST_DAILY_LIMIT';
-      error.quota=quota;
-      throw error;
-    }
-    return quota;
-  }
 
   return {consumeCaseAccess,resolveStudent,resolveAdmin};
 }

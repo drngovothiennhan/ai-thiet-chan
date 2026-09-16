@@ -220,14 +220,14 @@ function caseHash(mode,topImage,bottomImage){
   const top=imageHash(topImage);const bottom=bottomImage?imageHash(bottomImage):'';
   return createHash('sha256').update(`${mode}:${top}:${bottom}`).digest('hex');
 }
-async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment}){
+async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment,model=MODEL,knowledgeVersion=KNOWLEDGE_VERSION}){
   if(!caseStoreReady) await ensureCaseStoreSecret();
   if(!caseStoreReady) throw new Error('CASE_STORE_NOT_READY');
   const payload={
     p_token:apiKey(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
     p_top_image_hash:imageHash(topImage),p_top_image_data_url:topImage,p_top_mime_type:topMimeType||'image/jpeg',
     p_bottom_image_hash:bottomImage?imageHash(bottomImage):null,p_bottom_image_data_url:bottomImage||null,p_bottom_mime_type:bottomImage?(bottomMimeType||'image/jpeg'):null,
-    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:MODEL,p_knowledge_version:KNOWLEDGE_VERSION
+    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:model,p_knowledge_version:knowledgeVersion
   };
   let lastError;
   for(let attempt=0;attempt<3;attempt++){
@@ -266,6 +266,45 @@ app.get('/api/cases',async(req,res)=>{
     const cases=await listTrainingCases(req.query.limit||30);
     return res.json({ok:true,cases:Array.isArray(cases)?cases:[],collectionMode:'automatic'});
   }catch(err){console.error('case_history_error',err?.message||err);return res.status(503).json({error:'CASE_HISTORY_UNAVAILABLE'});}
+});
+
+app.post('/api/local-fusion',(req,res)=>{
+  try{
+    const assessment=req.body?.assessment;
+    if(!assessment||typeof assessment!=='object') return res.status(400).json({error:'ASSESSMENT_REQUIRED'});
+    const body=req.body?.body&&typeof req.body.body==='object'?req.body.body:{};
+    const fused=applyAcademicFusion(assessment,body);
+    return res.json({ok:true,assessment:fused,academicFusion:Boolean(fused?.combined?.academicFusion)});
+  }catch(err){
+    console.error('local_fusion_error',err?.message||err);
+    return res.status(422).json({error:'LOCAL_FUSION_FAILED',message:err?.message||'Unknown error'});
+  }
+});
+
+app.post('/api/cases/collect-local',aiRateLimit,async(req,res)=>{
+  try{
+    if(!apiKey()) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
+    const body=req.body||{};
+    const mode=body.mode==='general'?'general':'normal';
+    const topImage=body.topImage||body.image;
+    const topMimeType=body.topMimeType||body.mimeType||'image/jpeg';
+    const topQc=body.topQc||body.qc||{};
+    const bottomImage=mode==='general'?body.bottomImage:null;
+    const bottomMimeType=body.bottomMimeType||'image/jpeg';
+    const bottomQc=mode==='general'?(body.bottomQc||{}):null;
+    validateImage(topImage,'TOP_IMAGE');
+    if(mode==='general') validateImage(bottomImage,'BOTTOM_IMAGE');
+    const assessment=body.assessment||body.analysis;
+    if(!assessment||typeof assessment!=='object') return res.status(400).json({error:'ASSESSMENT_REQUIRED'});
+    const model=String(body.model||'local-open-source-vision-v1').slice(0,120);
+    const knowledgeVersion=String(body.knowledgeVersion||assessment?.knowledgeVersion||KNOWLEDGE_VERSION).slice(0,160);
+    const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment,model,knowledgeVersion});
+    return res.json({ok:true,collection:{ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null,source:'local-fallback'}});
+  }catch(err){
+    console.error('local_case_store_error',err?.message||err);
+    const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:503;
+    return res.status(status).json({error:'LOCAL_CASE_STORE_FAILED',message:err?.message||'Unknown error'});
+  }
 });
 
 app.post('/api/analyze',aiRateLimit,async(req,res)=>{

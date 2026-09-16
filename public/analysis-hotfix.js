@@ -2,6 +2,7 @@
 'use strict';
 const priorFetch=window.fetch.bind(window);
 const FALLBACK_DEADLINE_MS=8_500;
+const LOCAL_PERSIST_DEADLINE_MS=3_500;
 const FALLBACK_CONFIDENCE_CAP=.62;
 let clickStartedAt=null;
 let lastMetrics=null;
@@ -111,11 +112,30 @@ function reasonFromResponse(response,data){
   if(response?.status===503||text.includes('UNAVAILABLE'))return'gemini_503';
   return'gemini_unavailable';
 }
-function localResponse(body,prepared,reason,requestStarted){
+async function persistLocalFallback(body,assessment){
+  const mode=body.mode==='general'?'general':'normal';
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),LOCAL_PERSIST_DEADLINE_MS);
+  try{
+    const payload={
+      mode,topImage:body.topImage||body.image,topMimeType:body.topMimeType||body.mimeType||'image/jpeg',topQc:body.topQc||body.qc||{},
+      bottomImage:mode==='general'?body.bottomImage:null,bottomMimeType:body.bottomMimeType||'image/jpeg',bottomQc:mode==='general'?(body.bottomQc||{}):null,
+      assessment,model:'local-open-source-vision-v1',knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc'
+    };
+    const response=await priorFetch('/api/cases/collect-local',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+    const data=await response.json().catch(()=>null);
+    if(response.ok&&data?.collection?.ok) return data.collection;
+    return{ok:false,stored:false,duplicate:false,error:data?.error||'LOCAL_CASE_STORE_FAILED'};
+  }catch(err){
+    return{ok:false,stored:false,duplicate:false,error:err?.name==='AbortError'?'LOCAL_CASE_STORE_TIMEOUT':'LOCAL_CASE_STORE_FAILED'};
+  }finally{clearTimeout(timer);}
+}
+async function localResponse(body,prepared,reason,requestStarted){
+  const collection=await persistLocalFallback(body,prepared.assessment);
   const requestToResultMs=Math.round(now()-requestStarted);
-  const payload={ok:true,assessment:prepared.assessment,analysis:prepared.assessment,model:null,knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',collection:{ok:false,stored:false,backgroundSync:true,localVision:true},localVision:true,visionStatus:'local-image-analysis',fallback:true,inferenceSource:'local-open-source-vision-v1',fallbackReason:reason,academicFusion:Boolean(prepared.academicFusion),timing:{requestToResultMs,localVisionMs:prepared.localVisionMs,fusionMs:prepared.fusionMs,fallbackDeadlineMs:FALLBACK_DEADLINE_MS}};
-  lastMetrics={requestToResultMs,localVisionMs:prepared.localVisionMs,fusionMs:prepared.fusionMs,fallback:true,fallbackReason:reason,inferenceSource:'local-open-source-vision-v1',mode:body.mode==='general'?'general':'normal',success:true};
-  return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-aitc-vision':'local-parallel-fallback','x-aitc-fallback-reason':reason}});
+  const payload={ok:true,assessment:prepared.assessment,analysis:prepared.assessment,model:null,knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',collection:{...collection,backgroundSync:false,localVision:true},localVision:true,visionStatus:'local-image-analysis',fallback:true,inferenceSource:'local-open-source-vision-v1',fallbackReason:reason,academicFusion:Boolean(prepared.academicFusion),timing:{requestToResultMs,localVisionMs:prepared.localVisionMs,fusionMs:prepared.fusionMs,fallbackDeadlineMs:FALLBACK_DEADLINE_MS,persistDeadlineMs:LOCAL_PERSIST_DEADLINE_MS}};
+  lastMetrics={requestToResultMs,localVisionMs:prepared.localVisionMs,fusionMs:prepared.fusionMs,fallback:true,fallbackReason:reason,inferenceSource:'local-open-source-vision-v1',mode:body.mode==='general'?'general':'normal',collectionOk:Boolean(collection.ok),success:true};
+  return new Response(JSON.stringify(payload),{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-aitc-vision':'local-parallel-fallback','x-aitc-fallback-reason':reason,'x-aitc-collection':collection.ok?'saved':'failed'}});
 }
 async function inspectResponseMetrics(response,requestStarted,mode){
   try{

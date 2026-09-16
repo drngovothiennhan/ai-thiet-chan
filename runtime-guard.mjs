@@ -1,10 +1,12 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
+const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
 const GEMINI_VISION_TIMEOUT_MS=20_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
 const GEMINI_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
+process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');
@@ -21,6 +23,7 @@ async function isTransientGeminiFailure(response){
   if(response.ok) return false;
   try{
     const text=await response.clone().text();
+    if(response.status===404&&/model|not found|not available|unsupported/i.test(text)) return true;
     return /high demand|temporar|unavailable|resource[_ ]?exhausted|try again|overload|timeout/i.test(text);
   }catch{return false;}
 }
@@ -59,7 +62,7 @@ function extractAssessment(prompt){
 function extractGroundedKnowledge(prompt){
   const match=prompt.match(/HỆ TRI THỨC[^:]*:\s*([\s\S]*?)(?:\nCâu hỏi người dùng:|\nBối cảnh phân tích:|$)/i);
   if(!match)return[];
-  return String(match[1]||'').split('\n').map(x=>x.trim()).filter(x=>x.startsWith('- ')).slice(0,5);
+  return String(match[1]||'').split('\n').map(x=>x.trim()).filter(x=>x.startsWith('- ')).slice(0,18);
 }
 function cleanText(v){return String(v||'').trim();}
 function compactUnique(items,limit=5){
@@ -71,38 +74,47 @@ function signalText(item){
   const evidence=cleanText(item.evidence);
   return [label,evidence].filter(Boolean).join(': ');
 }
+function normalizeSearchText(value){
+  return String(value||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function questionTokens(value){return [...new Set(normalizeSearchText(value).split(' ').filter(x=>x.length>=3))];}
+function relevantKnowledge(lines,question,limit=3){
+  const q=questionTokens(question);
+  const ranked=(Array.isArray(lines)?lines:[]).map((line,index)=>{
+    const hay=normalizeSearchText(line);let score=0;
+    for(const token of q){if(hay.includes(token))score+=3;else if(hay.split(' ').some(x=>x.includes(token)||token.includes(x)))score+=1;}
+    return {line,index,score};
+  }).sort((a,b)=>b.score-a.score||a.index-b.index);
+  const positive=ranked.filter(x=>x.score>0).slice(0,limit).map(x=>x.line);
+  return positive.length?positive:ranked.slice(0,Math.min(2,limit)).map(x=>x.line);
+}
+function questionIntent(question){
+  const q=normalizeSearchText(question);
+  if(/reu|coating|lop phu|nhay|vua|troc|ban do|mat guong/.test(q)) return 'coating';
+  if(/mau luoi|chat luoi|do nhat|do sam|trang nhot|xanh tim|tim/.test(q)) return 'tongue-color';
+  if(/hinh dang|hinh the|map|gay|nut|han rang|dau rang|gai|diem do|ban u|le luoi/.test(q)) return 'shape';
+  if(/mat duoi|tinh mach|mach duoi luoi|mach mau|gian mach|uon luon/.test(q)) return 'underside';
+  if(/tin cay|confidence|chat luong|qc|anh mo|anh toi|anh sang|do net/.test(q)) return 'quality';
+  if(/nguon|tai lieu|hoc lieu|doi chieu|tham khao/.test(q)) return 'sources';
+  if(/the yhct|bien chung|han|nhiet|hu |thuc |thap|dam|u huyet|ty |vi |can khi/.test(` ${q} `)) return 'pattern';
+  if(/tom tat|ket luan|nhan dinh|ket qua|giai thich|tong hop/.test(q)) return 'summary';
+  return 'focused';
+}
 function localClinicalFallback(prompt){
   const assessment=extractAssessment(prompt);
   const question=extractedQuestion(prompt);
   const groundedKnowledge=extractGroundedKnowledge(prompt);
+  const knowledgeMatches=relevantKnowledge(groundedKnowledge,question,3);
   if(!assessment){
-    const out=['Suy luận nội bộ từ kho dữ liệu đã nạp:'];
-    if(groundedKnowledge.length) out.push(...groundedKnowledge);
-    out.push('Chưa có đủ kết quả quan sát của ca hiện tại để gắn các quy tắc trên vào hình lưỡi cụ thể. Hãy hoàn tất phân tích ảnh; hệ thống sẽ đối chiếu tiếp mà không tự tạo đặc điểm hình ảnh.');
+    const out=[`Trả lời theo câu hỏi hiện tại: ${question||'chưa xác định câu hỏi'}`];
+    if(knowledgeMatches.length) out.push(...knowledgeMatches);
+    out.push('Chưa có kết quả quan sát của ca hiện tại, nên tôi chỉ đối chiếu học liệu và không tự tạo đặc điểm hình ảnh hay chẩn đoán cho một ca cụ thể.');
     return out.join('\n');
   }
 
   const top=assessment?.top||{};
   const bottom=assessment?.bottom||null;
   const combined=assessment?.combined||{};
-  const details=[
-    top.tongueColor&&`chất lưỡi ${top.tongueColor}`,
-    top.shape&&`hình thể ${top.shape}`,
-    top.coatingColor&&`rêu ${top.coatingColor}`,
-    top.coatingThickness&&`độ dày rêu ${top.coatingThickness}`,
-    top.coatingTexture&&`tính chất rêu ${top.coatingTexture}`,
-    top.moisture&&`độ ẩm ${top.moisture}`,
-    top.fissures&&`nứt ${top.fissures}`,
-    top.toothmarks&&`dấu răng ${top.toothmarks}`
-  ].filter(Boolean);
-  if(bottom){
-    const vessels=bottom?.vessels||{};
-    if(bottom.undersideColor) details.push(`mặt dưới ${bottom.undersideColor}`);
-    if(vessels.color) details.push(`mạch dưới lưỡi ${vessels.color}`);
-    if(vessels.prominence) details.push(`mức nổi mạch ${vessels.prominence}`);
-    if(vessels.dilation) details.push(`giãn mạch ${vessels.dilation}`);
-  }
-
   const signals=compactUnique([
     ...(Array.isArray(combined.generalSignals)?combined.generalSignals.map(signalText):[]),
     ...(Array.isArray(combined.stomachPatternSignals)?combined.stomachPatternSignals.map(signalText):[]),
@@ -115,32 +127,71 @@ function localClinicalFallback(prompt){
     ...(bottom&&Array.isArray(bottom.limitations)?bottom.limitations:[])
   ],4);
   const summary=cleanText(combined.summary||top.summary);
-  const wantsDetail=/DETAIL_WITHOUT_THAP_VAN|chi tiết|chi tiet/i.test(question);
-  const skipped=/SKIP_THAP_VAN|NO_THAP_VAN_CONTEXT/i.test(question);
-
+  const intent=questionIntent(question);
   const out=[];
-  if(wantsDetail) out.push('Nhận định chi tiết từ dữ kiện hiện có:');
-  else out.push('Nhận định hiện tại:');
-  if(details.length) out.push(`• Quan sát: ${details.join('; ')}.`);
-  if(summary) out.push(`• Tổng hợp: ${summary}`);
-  if(signals.length) out.push(`• Đối chiếu YHCT: ${signals.join(' | ')}.`);
-  if(skipped) out.push('• Do chưa bổ sung Thập vấn, mức biện chứng chỉ dựa trên thiệt tượng hiện có và cần xem là nhận định tham khảo.');
-  if(limits.length) out.push(`• Chưa đủ căn cứ: ${limits.join(' | ')}.`);
-  if(wantsDetail) out.push('Nếu cần tăng độ chắc chắn, lựa chọn Thập vấn sẽ giúp đối chiếu thêm các dữ kiện còn thiếu mà không thay đổi những gì đã quan sát từ ảnh.');
+
+  if(intent==='tongue-color'){
+    out.push('Về màu/chất lưỡi của ca hiện tại:');
+    out.push(`• Màu chất lưỡi: ${cleanText(top.tongueColor)||'chưa xác định rõ từ kết quả ảnh'}.`);
+    if(top.stasisMarks) out.push(`• Dấu ứ/trệ nhìn thấy: ${top.stasisMarks}.`);
+  }else if(intent==='coating'){
+    out.push('Về rêu lưỡi của ca hiện tại:');
+    out.push(`• Màu rêu: ${cleanText(top.coatingColor)||'chưa xác định'}.`);
+    out.push(`• Độ dày: ${cleanText(top.coatingThickness)||'chưa xác định'}; tính chất: ${cleanText(top.coatingTexture)||'chưa xác định'}; độ ẩm: ${cleanText(top.moisture)||'chưa xác định'}.`);
+  }else if(intent==='shape'){
+    out.push('Về hình thể lưỡi của ca hiện tại:');
+    out.push(`• Hình thể: ${cleanText(top.shape)||'chưa xác định'}.`);
+    if(top.fissures) out.push(`• Nứt: ${top.fissures}.`);
+    if(top.toothmarks) out.push(`• Dấu răng: ${top.toothmarks}.`);
+    if(top.pricklesSpots) out.push(`• Gai/điểm: ${top.pricklesSpots}.`);
+  }else if(intent==='underside'){
+    out.push('Về mặt dưới và mạch dưới lưỡi:');
+    if(!bottom){out.push('• Ca hiện tại chưa có dữ liệu mặt dưới lưỡi, nên không kết luận đặc điểm tĩnh mạch dưới lưỡi.');}
+    else{
+      const vessels=bottom?.vessels||{};
+      out.push(`• Màu mặt dưới: ${cleanText(bottom.undersideColor)||'chưa xác định'}.`);
+      out.push(`• Mạch: màu ${cleanText(vessels.color)||'chưa xác định'}, mức nổi ${cleanText(vessels.prominence)||'chưa xác định'}, giãn ${cleanText(vessels.dilation)||'chưa xác định'}, uốn lượn ${cleanText(vessels.tortuosity)||'chưa xác định'}.`);
+    }
+  }else if(intent==='quality'){
+    const confidence=Number(combined.confidence);
+    out.push('Về chất lượng và độ tin cậy của ca hiện tại:');
+    out.push(`• QC mặt trên: ${cleanText(top.quality)||'chưa xác định'}.`);
+    if(Number.isFinite(confidence)) out.push(`• Độ tự tin nội bộ của A.I: ${Math.round(Math.max(0,Math.min(1,confidence))*100)}%; đây không phải độ chính xác chẩn đoán lâm sàng.`);
+    if(limits.length) out.push(`• Giới hạn: ${limits.join(' | ')}.`);
+  }else if(intent==='sources'){
+    out.push('Nguồn/học liệu liên quan trực tiếp đến câu hỏi:');
+    if(knowledgeMatches.length) out.push(...knowledgeMatches); else out.push('• Chưa truy xuất được dòng học liệu đủ liên quan để trích dẫn cho câu hỏi này.');
+  }else if(intent==='pattern'){
+    out.push('Về biện chứng YHCT từ dữ kiện hiện có:');
+    if(signals.length) out.push(`• Tín hiệu phù hợp: ${signals.join(' | ')}.`); else out.push('• Chưa có đủ tín hiệu trong kết quả hiện tại để nêu một thể YHCT cụ thể.');
+    if(limits.length) out.push(`• Còn thiếu/không thể kết luận: ${limits.join(' | ')}.`);
+  }else if(intent==='summary'){
+    out.push('Tóm tắt đúng ca hiện tại:');
+    if(summary) out.push(`• ${summary}`);
+    const key=[top.tongueColor&&`chất lưỡi ${top.tongueColor}`,top.coatingColor&&`rêu ${top.coatingColor}`,top.shape&&`hình thể ${top.shape}`].filter(Boolean);
+    if(key.length) out.push(`• Dấu chính: ${key.join('; ')}.`);
+  }else{
+    out.push(`Trả lời theo câu hỏi hiện tại: ${question}`);
+    if(knowledgeMatches.length) out.push(...knowledgeMatches);
+    if(summary) out.push(`• Liên hệ với ca đang phân tích: ${summary}`);
+  }
+
+  if(intent!=='sources'&&knowledgeMatches.length) out.push(`• Đối chiếu học liệu liên quan: ${knowledgeMatches.slice(0,2).join(' | ')}`);
+  if(!['quality','pattern'].includes(intent)&&limits.length) out.push(`• Giới hạn cần giữ: ${limits.slice(0,2).join(' | ')}.`);
   return out.join('\n');
 }
 function localJsonFallback(){
   return JSON.stringify({localKnowledgeOnly:true,combined:{confidence:0,summary:'Chưa có phản hồi thị giác mới; không tự tạo đặc điểm hình ảnh.'}});
 }
-function localKnowledgeResponse(init,reason){
+function localKnowledgeResponse(init,reason,modelsTried=[]){
   const payload=requestPayload(init);
   const prompt=promptFromPayload(payload);
   const wantsJson=String(payload?.generationConfig?.responseMimeType||'').toLowerCase()==='application/json';
   const text=wantsJson?localJsonFallback():localClinicalFallback(prompt);
-  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,model:GEMINI_MODEL,response:wantsJson?'json':'text'}));
+  console.warn('gemini_local_knowledge_fallback',JSON.stringify({reason,model:GEMINI_MODEL,response:wantsJson?'json':'text',modelsTried}));
   return new Response(JSON.stringify({
     candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],
-    localFallback:{active:true,reason,model:GEMINI_MODEL}
+    localFallback:{active:true,reason,model:GEMINI_MODEL,modelsTried}
   }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge'}});
 }
 function unavailableVisionResponse(reason,status=503){
@@ -165,30 +216,37 @@ async function timedFetch(input,init,url,timeoutMs){
 }
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function geminiResilientFetch(input,init,url){
-  const candidate=replaceGeminiModel(url,GEMINI_MODEL);
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
+  const models=vision?Array(GEMINI_MAX_ATTEMPTS).fill(GEMINI_MODEL):[GEMINI_MODEL,GEMINI_TEXT_FALLBACK_MODEL];
   let lastResponse=null;
   let lastError=null;
-  for(let attempt=1;attempt<=GEMINI_MAX_ATTEMPTS;attempt++){
+  const modelsTried=[];
+  for(let attempt=0;attempt<models.length;attempt++){
+    const model=models[attempt];
+    const candidate=replaceGeminiModel(url,model);
+    modelsTried.push(model);
     try{
       const response=await timedFetch(candidate,init,candidate,timeoutMs);
-      if(response.ok) return response;
+      if(response.ok){
+        if(!vision&&model!==GEMINI_MODEL) console.info('gemini_text_model_fallback',JSON.stringify({primaryModel:GEMINI_MODEL,model,attempt:attempt+1}));
+        return response;
+      }
       if(!(await isTransientGeminiFailure(response))) return response;
       lastResponse=response;
-      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision}));
+      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model,attempt:attempt+1,vision}));
     }catch(err){
       lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision}));
+      console.warn('gemini_transport_failure',JSON.stringify({model,error:err?.message||String(err),attempt:attempt+1,vision}));
     }
-    if(attempt<GEMINI_MAX_ATTEMPTS) await sleep(450*attempt);
+    if(attempt<models.length-1) await sleep(450*(attempt+1));
   }
   if(vision){
     if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status);
     return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503);
   }
-  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'));
+  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),modelsTried);
 }
 
 if(nativeFetch){

@@ -111,6 +111,7 @@
   function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
   (async()=>{
     try{
+      if(!window.AITCHardwareProfile)await loadScript('/hardware-profile.js');
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
       await loadScript('/analysis-hotfix.js');
       await loadScript('/book-fallback.js');

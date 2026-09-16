@@ -8,6 +8,7 @@ const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 const runtime=fs.readFileSync(new URL('../runtime-guard.mjs',import.meta.url),'utf8');
 const consultation=fs.readFileSync(new URL('../public/consultation.js',import.meta.url),'utf8');
+const app=fs.readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const index=fs.readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
 const academic=fs.readFileSync(new URL('../academic-server.mjs',import.meta.url),'utf8');
 
@@ -22,7 +23,7 @@ assert.match(source,/âm hư/);
 assert.match(source,/tĩnh mạch dưới lưỡi/);
 assert.ok(releaseUi.indexOf("/analysis-hotfix.js")<releaseUi.indexOf("/book-fallback.js"));
 assert.ok(releaseUi.indexOf("/book-fallback.js")<releaseUi.indexOf("/benchmark-telemetry.js"));
-assert.match(sw,/ai-thiet-chan-v2\.9\.11-thamvan-gemini/);
+assert.match(sw,/ai-thiet-chan-v2\.9\.12-vision-chat-score/);
 assert.match(sw,/book-fallback\.js/);
 assert.match(sw,/academic-source\.js/);
 
@@ -39,12 +40,20 @@ assert.match(runtime,/GROUNDING=IN/);
 
 assert.match(consultation,/Chatbot Gemini có thể được hỏi trực tiếp không giới hạn lượt ở tầng ứng dụng/);
 assert.doesNotMatch(consultation,/Bạn có thể bắt đầu Thập vấn hoặc chọn “Bỏ qua Thập vấn” để xem ngay nhận định hiện tại/);
+assert.match(app,/normalizeChatReferences/);
+assert.match(app,/Nguồn đối chiếu/);
+assert.match(app,/TC\\d\+\|DY\\d\+\|MC\\d\+\|AT\\d\+\|PSY\\d\+/);
+assert.match(app,/appendBubble\(normalizeChatReferences/);
 assert.match(index,/Tham Vấn · Gemini/);
 assert.match(index,/vòm miệng\/lưỡi gà dùng làm mốc định hướng phía sau/);
 assert.match(index,/Giữ trọn lưỡi từ đầu đến gốc trong khung/);
 
 assert.match(academic,/ATLAS_LANGUAGE_THRESHOLD=\.85/);
+assert.match(academic,/ATLAS_LANGUAGE_MAX_MATCHES=3/);
+assert.match(academic,/ATLAS_LANGUAGE_MAX_SNIPPETS=3/);
+assert.match(academic,/documentWordingForMatches/);
 assert.match(academic,/Tham Vấn: tương đồng atlas/);
-assert.match(academic,/Ngôn từ được giữ theo tài liệu khi đối chiếu hình ảnh đạt từ 85% trở lên/);
+assert.match(academic,/ưu tiên đúng thuật ngữ\/văn phong của mẫu tài liệu tương ứng/);
+assert.match(academic,/QC-qualified atlas matches >= 0\.85/);
 
-console.log('THAM VAN / GEMINI UPGRADE SMOKE PASS: backup-safe naming, unrestricted app-level chat, [A.I] grounding marker, full-tongue landmark guidance, and >=85% atlas wording gate are present.');
+console.log('THAM VAN / GEMINI UPGRADE SMOKE PASS: consolidated end references, unrestricted app-level chat, [A.I] grounding marker, full-tongue landmark guidance, and QC-qualified >=85% multi-atlas wording are present.');

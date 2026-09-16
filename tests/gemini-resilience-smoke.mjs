@@ -35,10 +35,10 @@ const visionPayload={
 };
 const visionResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(visionPayload)});
 assert.equal(visionResponse.status,503);
-assert.equal(calls.length,2);
+assert.equal(calls.length,1);
 assert.equal(visionResponse.headers.get('x-ai-vision-status'),'unavailable');
 const visionData=await visionResponse.json();
 assert.equal(visionData.visionStatus,'unavailable');
 assert.equal(visionData.error.message,'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE');
 
-console.log('GEMINI RESILIENCE SMOKE PASS: Gemini 3.8 Flash retries transient failures; text can use grounded local fallback, image analysis never fabricates visual findings.');
+console.log('GEMINI RESILIENCE SMOKE PASS: Gemini 3.8 Flash retries text transient failures, vision fails fast after one bounded attempt, and image analysis never fabricates visual findings.');

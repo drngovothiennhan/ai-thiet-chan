@@ -22,7 +22,7 @@ assert.match(calls[1],/gemini-3\.8-flash/);
 assert.doesNotMatch(calls.join('\n'),/gemini-2\.5/);
 assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');
 const data=await response.json();
-assert.match(data.candidates[0].content.parts[0].text,/suy luận nội bộ/i);
+assert.match(data.candidates[0].content.parts[0].text,/Tham Vấn từ kho tri thức/i);
 assert.match(data.candidates[0].content.parts[0].text,/TC1/);
 
 calls.length=0;

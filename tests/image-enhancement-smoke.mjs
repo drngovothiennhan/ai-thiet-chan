@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=p=>readFile(new URL(`../${p}`,import.meta.url),'utf8');
-const [enhancer,index,capture]=await Promise.all([
+const [enhancer,index,capture,sw]=await Promise.all([
   read('public/image-enhancement.js'),
   read('public/index.html'),
-  read('public/capture-metadata.js')
+  read('public/capture-metadata.js'),
+  read('public/sw.js')
 ]);
 
-// Enhancement must run before capture-metadata enriches the request, preserving the existing analysis/fusion path.
+// Enhancement must run before capture-metadata enriches the request, preserving the existing analysis path.
 const appAt=index.indexOf('<script src="/app.js" defer></script>');
 const enhanceAt=index.indexOf('<script src="/image-enhancement.js" defer></script>');
 const captureAt=index.indexOf('<script src="/capture-metadata.js" defer></script>');
@@ -43,8 +44,11 @@ assert.match(enhancer,/body\.topEnhancement=top\.meta/);
 assert.match(enhancer,/body\.bottomEnhancement=bottom\.meta/);
 assert.match(enhancer,/body\.imageEnhancement=\{version:VERSION,nonGenerative:true,colorIntegrityGuard:true\}/);
 
-// Existing capture metadata/fusion wrapper must remain present and unmodified in responsibility.
+// Existing capture + service-worker academic vision responsibilities remain present.
 assert.match(capture,/captureContext/);
-assert.match(capture,/academic/);
+assert.match(capture,/inspectView/);
+assert.match(capture,/nativeFetch/);
+assert.match(sw,/importScripts\('\/academic-vision\.js'\)/);
+assert.match(sw,/\/image-enhancement\.js/);
 
-console.log('IMAGE ENHANCEMENT SMOKE PASS: bounded multipass interpolation, luminance-only auto-brightening, color-integrity rollback and existing fusion path are preserved.');
+console.log('IMAGE ENHANCEMENT SMOKE PASS: bounded multipass interpolation, luminance-only auto-brightening, color-integrity rollback and existing capture/fusion path are preserved.');

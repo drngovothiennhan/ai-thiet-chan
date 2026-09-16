@@ -1,12 +1,11 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
-const CACHE='ai-thiet-chan-v2.9.15-operational-latency';
-// Only assets needed to render and operate the first screen are pre-cached.
-// Secondary/admin modules are fetched and cached on demand after window load.
-const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg'];
+const CACHE='ai-thiet-chan-v2.9.20-sustainable-core';
+// Keep the install shell small: first-screen assets plus lightweight stability/worker runtime only.
+const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js','/academic-vision.js','/academic-source.js','/runtime-stability.js','/diagnostic-worker-client.js','/vision-worker.js','/manifest.webmanifest','/icon.svg'];
 const NAV_TIMEOUT_MS=2500;
 
 try{importScripts('/academic-vision.js');}catch{}
-// Do not activate a new worker in the middle of an active Android/PWA session.
+// Never take over an already-open Android/PWA session. Activation waits for a normal client lifecycle.
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));});
 async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}}

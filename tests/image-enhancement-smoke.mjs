@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=p=>readFile(new URL(`../${p}`,import.meta.url),'utf8');
-const [enhancer,index,capture,sw,admin,app]=await Promise.all([
-  read('public/image-enhancement.js'),read('public/index.html'),read('public/capture-metadata.js'),read('public/sw.js'),read('public/admin-center.js'),read('public/app.js')
+const [enhancer,index,capture,sw,admin,app,academicVision]=await Promise.all([
+  read('public/image-enhancement.js'),read('public/index.html'),read('public/capture-metadata.js'),read('public/sw.js'),read('public/admin-center.js'),read('public/app.js'),read('public/academic-vision.js')
 ]);
 
 const appAt=index.indexOf('<script src="/app.js" defer></script>');
@@ -68,9 +68,19 @@ assert.match(admin,/rollback/);
 
 assert.match(capture,/captureContext/);
 assert.match(capture,/inspectView/);
+assert.match(capture,/prepareLocalImage/);
+assert.match(capture,/AITCImageEnhancement/);
+assert.match(capture,/imageEnhancementFallback/);
+assert.match(capture,/response\.status===502\|\|response\.status===503\|\|response\.status===504/);
+assert.match(capture,/x-aitc-image-enhanced/);
 assert.match(capture,/nativeFetch/);
+
+assert.match(academicVision,/adaptive-tongue-mask-v2/);
+assert.match(academicVision,/buildTongueMask/);
+assert.match(academicVision,/adaptive-low-saturation/);
+assert.match(academicVision,/hsv\.s>\.045/);
 assert.match(sw,/importScripts\('\/academic-vision\.js'\)/);
 assert.match(sw,/\/image-enhancement\.js/);
 assert.match(sw,/ai-thiet-chan-v2\.9\.12-vision-chat-score/);
 
-console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera autofocus/exposure hints, stable-frame capture, bounded non-generative restoration, and color/glare rollback are wired.');
+console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera autofocus/exposure hints, stable-frame capture, bounded non-generative restoration, enhanced local fallback, adaptive low-saturation segmentation, and color/glare rollback are wired.');

@@ -90,7 +90,7 @@ function enrichFallback(data,evidence){
   const signals=[...existing];
   for(const signal of bookSignals(assessment,evidence))addUnique(signals,signal);
   assessment.combined.generalSignals=signals;
-  const marker='Đã Tham Vấn kho tri thức trong chế độ dự phòng không dùng Gemini.';
+  const marker='Đã đối chiếu kho dữ liệu máy học.';
   const summary=clean(assessment.combined.summary||assessment?.top?.summary);
   if(!summary.includes(marker))assessment.combined.summary=[summary,marker].filter(Boolean).join(' ');
   assessment.combined.bookGrounding={active:true,knowledgeVersion:data?.knowledgeVersion||assessment?.knowledgeVersion||'thiet-chan-kb-2026-09-15.5doc',evidenceCount:signals.filter(x=>low(x?.label).startsWith('tham vấn:')).length,policy:'supplied-knowledge-paraphrase-no-citation-in-result'};

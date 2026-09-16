@@ -72,11 +72,12 @@ function localClinicalFallback(prompt){
   const assessment=extractAssessment(prompt);
   const question=extractedQuestion(prompt);
   const groundedKnowledge=extractGroundedKnowledge(prompt);
+  const groundingProtocol=/\[CHAT_GROUNDING_PROTOCOL\]/.test(prompt);
   if(!assessment){
-    const out=['Suy luận nội bộ từ kho dữ liệu đã nạp:'];
+    const out=['Tham Vấn từ kho tri thức:'];
     if(groundedKnowledge.length) out.push(...groundedKnowledge);
     out.push('Chưa có đủ kết quả quan sát của ca hiện tại để gắn các quy tắc trên vào hình lưỡi cụ thể. Hãy hoàn tất phân tích ảnh; hệ thống sẽ đối chiếu tiếp mà không tự tạo đặc điểm hình ảnh.');
-    return out.join('\n');
+    return groundingProtocol?`GROUNDING=IN\n${out.join('\n')}`:out.join('\n');
   }
   const top=assessment?.top||{};
   const bottom=assessment?.bottom||null;
@@ -119,7 +120,8 @@ function localClinicalFallback(prompt){
   if(skipped) out.push('• Do chưa bổ sung Thập vấn, mức biện chứng chỉ dựa trên thiệt tượng hiện có và cần xem là nhận định tham khảo.');
   if(limits.length) out.push(`• Chưa đủ căn cứ: ${limits.join(' | ')}.`);
   if(wantsDetail) out.push('Nếu cần tăng độ chắc chắn, lựa chọn Thập vấn sẽ giúp đối chiếu thêm các dữ kiện còn thiếu mà không thay đổi những gì đã quan sát từ ảnh.');
-  return out.join('\n');
+  const text=out.join('\n');
+  return groundingProtocol?`GROUNDING=IN\n${text}`:text;
 }
 function localJsonFallback(){
   return JSON.stringify({localKnowledgeOnly:true,combined:{confidence:0,summary:'Chưa có phản hồi thị giác mới; không tự tạo đặc điểm hình ảnh.'}});

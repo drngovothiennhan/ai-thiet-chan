@@ -1,12 +1,18 @@
 // Compatibility markers retained for existing production smoke gates:
 // ai-thiet-chan-v2.9.8-knowledge-5doc-complete
 // ai-thiet-chan-v2.9.16-admin-history-private
-const CACHE='ai-thiet-chan-v2.9.17-adaptive-local-primary';
+const CACHE='ai-thiet-chan-v2.9.18-pwa-stable';
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/analysis-hotfix.js','/local-primary.js','/adaptive-followup.js','/book-fallback.js','/benchmark-telemetry.js','/consultation.js','/consultation-lock.js','/admin-enhancement-collapse.js','/admin-history.js','/quality-grounding-v4.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;
 try{importScripts('/academic-vision.js');}catch{}
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
+// Deliberately do not call skipWaiting() here. The previous release used
+// skipWaiting()+clients.claim(), while index.html reloads on controllerchange.
+// On Android standalone/PWA that can replace the controller during an active
+// page lifecycle. Let the new worker activate only after existing clients close.
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));});
+// Do not claim already-open clients. A fresh navigation will be controlled by
+// this worker after normal activation, avoiding forced mid-session reloads.
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));});
 async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}}
 async function enrichAnalyzeRequest(request){try{const body=await request.clone().json(),image=body?.topImage||body?.image,vision=self.AITCAcademicVision;if(!image||!vision?.signatureFromDataUrl)return request;const signature=await vision.signatureFromDataUrl(image);if(!signature)return request;body.academicSignature=signature;body.academicSource=vision.source;const headers=new Headers(request.headers);headers.set('content-type','application/json');return new Request(request,{headers,body:JSON.stringify(body)});}catch{return request;}}
 self.addEventListener('fetch',event=>{const request=event.request,url=new URL(request.url);if(url.origin!==self.location.origin)return;if(request.method==='POST'&&url.pathname==='/api/analyze'){event.respondWith((async()=>{const forwarded=await enrichAnalyzeRequest(request),response=await fetch(forwarded);if(response.status!==429)return response;const body=await response.clone().text(),headers=new Headers(response.headers);headers.delete('retry-after');return new Response(body,{status:403,statusText:'Forbidden',headers});})());return;}if(request.method!=='GET')return;if(url.pathname.startsWith('/api/')){event.respondWith(fetch(request,{cache:'no-store'}));return;}if(request.mode==='navigate'){event.respondWith((async()=>{try{const response=await fetchWithTimeout(request);if(response.ok){const cache=await caches.open(CACHE);cache.put('/',response.clone());}return response;}catch{return(await caches.match('/'))||(await caches.match(request))||Response.error();}})());return;}event.respondWith((async()=>{const cached=await caches.match(request),refresh=fetch(request,{cache:'no-cache'}).then(async response=>{if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}return response;}).catch(()=>null);if(cached){event.waitUntil(refresh.then(()=>{}));return cached;}return(await refresh)||Response.error();})());});

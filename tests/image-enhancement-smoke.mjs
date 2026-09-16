@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 const read=p=>readFile(new URL(`../${p}`,import.meta.url),'utf8');
-const [enhancer,index,capture,sw,admin,app,academicVision]=await Promise.all([
-  read('public/image-enhancement.js'),read('public/index.html'),read('public/capture-metadata.js'),read('public/sw.js'),read('public/admin-center.js'),read('public/app.js'),read('public/academic-vision.js')
+const [enhancer,index,capture,sw,admin,app,academicVision,hardware]=await Promise.all([
+  read('public/image-enhancement.js'),read('public/index.html'),read('public/capture-metadata.js'),read('public/sw.js'),read('public/admin-center.js'),read('public/app.js'),read('public/academic-vision.js'),read('public/hardware-profile.js')
 ]);
 
 const appAt=index.indexOf('<script src="/app.js" defer></script>');
@@ -11,8 +11,12 @@ const enhanceAt=index.indexOf('<script src="/image-enhancement.js" defer></scrip
 const captureAt=index.indexOf('<script src="/capture-metadata.js" defer></script>');
 assert.ok(appAt>=0&&enhanceAt>appAt&&captureAt>enhanceAt,'image enhancement must load after app.js and before capture-metadata.js');
 
-assert.match(enhancer,/preanalysis-image-enhancement-v3-front-camera/);
+assert.match(enhancer,/preanalysis-image-enhancement-v4-hardware-adaptive/);
 assert.match(enhancer,/nonGenerative:true/);
+assert.match(enhancer,/hardwareAdaptive:true/);
+assert.match(enhancer,/activeImagePolicy/);
+assert.match(enhancer,/AITCHardwareProfile/);
+assert.match(enhancer,/bucketHardware/);
 assert.match(enhancer,/canvas-high-quality-multipass/);
 assert.match(enhancer,/hue-preserving-luminance-gamma/);
 assert.match(enhancer,/bounded-luminance-contrast/);
@@ -25,9 +29,11 @@ assert.match(enhancer,/MAX_UPSCALE=2\.2/);
 assert.match(enhancer,/STANDARD_MAX_UPSCALE=2\.0/);
 assert.match(enhancer,/imageSmoothingQuality='high'/);
 assert.match(enhancer,/resizeMultipass/);
+assert.match(enhancer,/multipassThreshold/);
 assert.match(enhancer,/frontCamera/);
 assert.match(enhancer,/recoverableBlur/);
 assert.match(enhancer,/applyLuminanceSharpen/);
+assert.match(enhancer,/sharpenScale/);
 assert.match(enhancer,/MAX_SHARPEN_DELTA=8/);
 
 assert.match(enhancer,/MAX_LUMA_GAIN=1\.28/);
@@ -50,6 +56,12 @@ assert.match(enhancer,/body\.topQc=\{/);
 assert.match(enhancer,/enhancement:top\.meta/);
 assert.match(enhancer,/frontCameraAware:true/);
 assert.match(enhancer,/body\.imageEnhancement=\{enabled:true,version:VERSION/);
+assert.match(enhancer,/window\.__aitcLastEnhancementMeta/);
+
+assert.match(hardware,/tier==='constrained'/);
+assert.match(hardware,/maxOutputPixels:2_000_000/);
+assert.match(hardware,/maxOutputPixels:2_600_000/);
+assert.match(hardware,/maxOutputPixels:3_200_000/);
 
 assert.match(app,/optimizeCameraTrack/);
 assert.match(app,/focusMode='continuous'/);
@@ -83,4 +95,4 @@ assert.match(sw,/importScripts\('\/academic-vision\.js'\)/);
 assert.match(sw,/\/image-enhancement\.js/);
 assert.match(sw,/ai-thiet-chan-v2\.9\.15-rollback-mobile-layout/);
 
-console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera autofocus/exposure hints, stable-frame capture, bounded non-generative restoration, enhanced local fallback, adaptive low-saturation segmentation, and color/glare rollback are wired.');
+console.log('IMAGE ENHANCEMENT SMOKE PASS: hardware-adaptive bounds preserve non-generative restoration, enhanced local fallback, adaptive segmentation, and color/glare rollback.');

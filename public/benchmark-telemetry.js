@@ -19,6 +19,20 @@ function deviceClass(){
 function modeFromBody(init){
   try{const b=JSON.parse(init?.body||'{}');return b.mode==='general'?'general':'normal';}catch{return'normal';}
 }
+function hardwareTelemetry(){
+  const profile=window.AITCHardwareProfile?.profile||null;
+  const meta=window.__aitcLastEnhancementMeta?.top||null;
+  const hardware=meta?.hardware||null;
+  return {
+    hardwareTier:String(profile?.tier||hardware?.tier||'unknown'),
+    hardwareCores:String(hardware?.cores||'unknown'),
+    hardwareMemory:String(hardware?.memory||'unknown'),
+    connectionClass:String(profile?.network||hardware?.network||'unknown'),
+    enhancementProfile:String(meta?.profile||''),
+    enhancementOutputPixels:Number(meta?.output?.pixels)||null,
+    enhancementElapsedMs:Number(meta?.elapsedMs)||null
+  };
+}
 async function captureAnalyze(response,startedAt,mode){
   let data={};try{data=await response.clone().json();}catch{}
   const timing=data?.timing||{};
@@ -63,7 +77,7 @@ function install(){
   if(button)button.addEventListener('click',()=>{clickStartedAt=now();lastRequest=null;},{capture:true});
   if(card)new MutationObserver(()=>{
     if(card.hidden||clickStartedAt===null)return;
-    const payload={...(lastRequest||{}),event:'analysis_render',clickToResultMs:Math.round(now()-clickStartedAt),deviceClass:deviceClass(),success:lastRequest?.success!==false};
+    const payload={...(lastRequest||{}),...hardwareTelemetry(),event:'analysis_render',clickToResultMs:Math.round(now()-clickStartedAt),deviceClass:deviceClass(),success:lastRequest?.success!==false};
     clickStartedAt=null;
     persist(payload);
   }).observe(card,{attributes:true,attributeFilter:['hidden']});

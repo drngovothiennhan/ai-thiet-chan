@@ -2,7 +2,7 @@
   'use strict';
 
   const nativeFetch=window.fetch.bind(window);
-  const VERSION='preanalysis-image-enhancement-v3-front-camera';
+  const VERSION='preanalysis-image-enhancement-v4-hardware-adaptive';
   const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
   const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
   const CONFIG_TTL_MS=30000;
@@ -40,10 +40,31 @@
     const ctx=target.getContext('2d',{alpha:false,willReadFrequently:true});
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(source,0,0,target.width,target.height);return target;
   }
-  function resizeMultipass(source,targetW,targetH){
+  function defaultImagePolicy(frontCamera=false){
+    return {tier:'legacy-safe',maxOutputSide:MAX_OUTPUT_SIDE,targetSide:frontCamera?MAX_OUTPUT_SIDE:1600,maxOutputPixels:MAX_OUTPUT_PIXELS,maxUpscale:frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE,multipassThreshold:1.45,allowRecoverableSharpen:true,sharpenScale:1};
+  }
+  function activeHardwareProfile(){return window.AITCHardwareProfile?.profile||null;}
+  function activeImagePolicy(frontCamera=false){
+    try{
+      const adapter=window.AITCHardwareProfile;
+      if(adapter?.imagePolicy)return adapter.imagePolicy(adapter.profile,{frontCamera});
+    }catch{}
+    return defaultImagePolicy(frontCamera);
+  }
+  function bucketHardware(profile){
+    if(!profile)return {tier:'legacy-safe',cores:'unknown',memory:'unknown',network:'unknown'};
+    const cores=Number(profile.logicalCores)||0,memory=Number(profile.deviceMemoryGb)||0;
+    return {
+      tier:String(profile.tier||'balanced'),
+      cores:cores?cores<=4?'<=4':cores>=8?'>=8':'5-7':'unknown',
+      memory:memory?memory<=4?'<=4gb':memory>=8?'>=8gb':'5-7gb':'unknown',
+      network:String(profile.network||'unknown')
+    };
+  }
+  function resizeMultipass(source,targetW,targetH,threshold=1.45){
     const sw=source.width||source.naturalWidth,sh=source.height||source.naturalHeight;
     const scale=Math.max(targetW/sw,targetH/sh);
-    if(scale<=1.45)return drawHighQuality(source,canvas(targetW,targetH));
+    if(scale<=threshold)return drawHighQuality(source,canvas(targetW,targetH));
     const midScale=Math.sqrt(scale),midW=Math.round(sw*midScale),midH=Math.round(sh*midScale);
     const mid=drawHighQuality(source,canvas(midW,midH));return drawHighQuality(mid,canvas(targetW,targetH));
   }
@@ -86,26 +107,27 @@
     }
     ctx.putImageData(img,0,0);return source;
   }
-  function outputSize(w,h,frontCamera=false){
-    const maxSide=Math.max(w,h),maxUpscale=frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE,targetSide=frontCamera?MAX_OUTPUT_SIDE:1600;let scale=1;
-    if(maxSide<800)scale=Math.min(maxUpscale,targetSide/maxSide);else if(maxSide<1280)scale=Math.min(frontCamera?1.65:1.5,targetSide/maxSide);else if(maxSide<targetSide)scale=targetSide/maxSide;
-    scale=Math.max(1,scale);if(w*h*scale*scale>MAX_OUTPUT_PIXELS)scale=Math.sqrt(MAX_OUTPUT_PIXELS/(w*h));scale=Math.max(1,Math.min(maxUpscale,scale));
-    return {width:Math.round(w*scale),height:Math.round(h*scale),scale};
+  function outputSize(w,h,frontCamera=false,policy=activeImagePolicy(frontCamera)){
+    const maxSide=Math.max(w,h),maxUpscale=Number(policy.maxUpscale)||1,targetSide=Number(policy.targetSide)||Math.max(w,h),maxPixels=Number(policy.maxOutputPixels)||MAX_OUTPUT_PIXELS;let scale=1;
+    if(maxSide<800)scale=Math.min(maxUpscale,targetSide/maxSide);else if(maxSide<1280)scale=Math.min(frontCamera?Math.min(1.65,maxUpscale):Math.min(1.5,maxUpscale),targetSide/maxSide);else if(maxSide<targetSide)scale=targetSide/maxSide;
+    scale=Math.max(1,scale);if(w*h*scale*scale>maxPixels)scale=Math.sqrt(maxPixels/(w*h));scale=Math.max(1,Math.min(maxUpscale,scale));
+    return {width:Math.round(w*scale),height:Math.round(h*scale),scale,policy};
   }
   function toJpeg(canvasEl,quality=.93){return canvasEl.toDataURL('image/jpeg',quality);}
 
   async function enhanceDataUrl(dataUrl,qc={}){
     const started=performance.now();const img=await loadImage(dataUrl),w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
-    const frontCamera=qc?.capture?.frontCamera===true||qc?.capture?.facingMode==='user';
+    const frontCamera=qc?.capture?.frontCamera===true||qc?.capture?.facingMode==='user',policy=activeImagePolicy(frontCamera),hardware=bucketHardware(activeHardwareProfile());
     const original=canvas(w,h);drawHighQuality(img,original);const before=sampleMetrics(original);
     const shouldBrighten=before.brightness<BRIGHTNESS_TRIGGER&&before.glare<.12&&qc?.checks?.clipping!==false;
     const gamma=shouldBrighten?gammaForMedian(before.median):1;
     const contrastGain=(frontCamera&&before.contrastSpread<78)?MAX_CONTRAST_GAIN:(!frontCamera&&before.contrastSpread<62?1.04:1);
     const corrected=canvas(w,h);drawHighQuality(original,corrected);applyLuminanceGamma(corrected,gamma);applyLuminanceContrast(corrected,contrastGain);
-    const target=outputSize(w,h,frontCamera);let enhanced=resizeMultipass(corrected,target.width,target.height);
+    const target=outputSize(w,h,frontCamera,policy);let enhanced=resizeMultipass(corrected,target.width,target.height,Number(policy.multipassThreshold)||1.45);
     const blurMetric=Number(qc?.laplacianVariance)||0,focusFailed=qc?.checks?.focus===false;
     const recoverableBlur=focusFailed&&blurMetric>=12;
-    const sharpenAmount=recoverableBlur?(frontCamera?.20:.12):0;
+    const baseSharpen=recoverableBlur?(frontCamera?.20:.12):0;
+    const sharpenAmount=policy.allowRecoverableSharpen===false?0:baseSharpen*(Number(policy.sharpenScale)||1);
     if(sharpenAmount)applyLuminanceSharpen(enhanced,sharpenAmount);
     let after=sampleMetrics(enhanced);
     let drift=colorDrift(before.chroma,after.chroma),guard='pass',brightnessApplied=gamma<.999,contrastApplied=contrastGain>1.001,sharpenApplied=sharpenAmount>0,rollback=false,rollbackReason=[];
@@ -115,9 +137,9 @@
     if(after.brightness>205)rollbackReason.push('brightness');
     if(after.contrastSpread>Math.max(150,before.contrastSpread+55))rollbackReason.push('contrast');
     if(rollbackReason.length){
-      enhanced=resizeMultipass(original,target.width,target.height);after=sampleMetrics(enhanced);drift=colorDrift(before.chroma,after.chroma);guard='resample-only';brightnessApplied=false;contrastApplied=false;sharpenApplied=false;rollback=true;
+      enhanced=resizeMultipass(original,target.width,target.height,Number(policy.multipassThreshold)||1.45);after=sampleMetrics(enhanced);drift=colorDrift(before.chroma,after.chroma);guard='resample-only';brightnessApplied=false;contrastApplied=false;sharpenApplied=false;rollback=true;
     }
-    return {dataUrl:toJpeg(enhanced),meta:{version:VERSION,enabled:true,nonGenerative:true,profile:frontCamera?'front-camera-recovery':'standard',frontCamera,resampler:'canvas-high-quality-multipass',brightness:'hue-preserving-luminance-gamma',contrast:'bounded-luminance-contrast',sharpen:'bounded-luminance-unsharp',source:{width:w,height:h},output:{width:enhanced.width,height:enhanced.height,scale:Number(target.scale.toFixed(3))},brightnessApplied,contrastApplied,contrastGain:Number(contrastGain.toFixed(3)),sharpenApplied,sharpenAmount:Number(sharpenAmount.toFixed(3)),recoverableBlur,gamma:Number(gamma.toFixed(3)),guard,rollback,rollbackReason,before:{brightness:Number(before.brightness.toFixed(1)),median:before.median,contrastSpread:before.contrastSpread,darkPct:Number((before.dark*100).toFixed(1)),glarePct:Number((before.glare*100).toFixed(1))},after:{brightness:Number(after.brightness.toFixed(1)),median:after.median,contrastSpread:after.contrastSpread,darkPct:Number((after.dark*100).toFixed(1)),glarePct:Number((after.glare*100).toFixed(1))},colorDrift:Number(drift.toFixed(4)),glareDeltaPct:Number(((after.glare-before.glare)*100).toFixed(2)),capture:qc?.capture||null,limits:{maxOutputSide:MAX_OUTPUT_SIDE,maxUpscale:frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE,maxColorDrift:MAX_COLOR_DRIFT,maxGlareIncrease:MAX_GLARE_INCREASE,maxContrastGain:MAX_CONTRAST_GAIN,maxSharpenDelta:MAX_SHARPEN_DELTA,minGamma:MIN_GAMMA},elapsedMs:Math.round(performance.now()-started)}};
+    return {dataUrl:toJpeg(enhanced),meta:{version:VERSION,enabled:true,nonGenerative:true,profile:frontCamera?'front-camera-recovery':'standard',frontCamera,hardware,resampler:'canvas-high-quality-multipass',brightness:'hue-preserving-luminance-gamma',contrast:'bounded-luminance-contrast',sharpen:'bounded-luminance-unsharp',source:{width:w,height:h},output:{width:enhanced.width,height:enhanced.height,scale:Number(target.scale.toFixed(3)),pixels:enhanced.width*enhanced.height},brightnessApplied,contrastApplied,contrastGain:Number(contrastGain.toFixed(3)),sharpenApplied,sharpenAmount:Number(sharpenAmount.toFixed(3)),recoverableBlur,gamma:Number(gamma.toFixed(3)),guard,rollback,rollbackReason,before:{brightness:Number(before.brightness.toFixed(1)),median:before.median,contrastSpread:before.contrastSpread,darkPct:Number((before.dark*100).toFixed(1)),glarePct:Number((before.glare*100).toFixed(1))},after:{brightness:Number(after.brightness.toFixed(1)),median:after.median,contrastSpread:after.contrastSpread,darkPct:Number((after.dark*100).toFixed(1)),glarePct:Number((after.glare*100).toFixed(1))},colorDrift:Number(drift.toFixed(4)),glareDeltaPct:Number(((after.glare-before.glare)*100).toFixed(2)),capture:qc?.capture||null,limits:{maxOutputSide:Number(policy.maxOutputSide)||MAX_OUTPUT_SIDE,maxOutputPixels:Number(policy.maxOutputPixels)||MAX_OUTPUT_PIXELS,maxUpscale:Number(policy.maxUpscale)||(frontCamera?MAX_UPSCALE:STANDARD_MAX_UPSCALE),multipassThreshold:Number(policy.multipassThreshold)||1.45,maxColorDrift:MAX_COLOR_DRIFT,maxGlareIncrease:MAX_GLARE_INCREASE,maxContrastGain:MAX_CONTRAST_GAIN,maxSharpenDelta:MAX_SHARPEN_DELTA,minGamma:MIN_GAMMA},elapsedMs:Math.round(performance.now()-started)}};
   }
 
   async function rewriteAnalyzeRequest(input,init){
@@ -132,18 +154,20 @@
       const top=await enhanceDataUrl(originalTop,body.topQc||body.qc||{});
       body.topOriginalImage=originalTop;body.topImage=top.dataUrl;body.topEnhancement=top.meta;
       body.topQc={...(body.topQc||body.qc||{}),enhancement:top.meta};
+      let bottom=null;
       if(body.mode==='general'&&originalBottom){
-        const bottom=await enhanceDataUrl(originalBottom,body.bottomQc||{});
+        bottom=await enhanceDataUrl(originalBottom,body.bottomQc||{});
         body.bottomOriginalImage=originalBottom;body.bottomImage=bottom.dataUrl;body.bottomEnhancement=bottom.meta;
         body.bottomQc={...(body.bottomQc||{}),enhancement:bottom.meta};
       }
-      body.imageEnhancement={enabled:true,version:VERSION,configuredVersion:config.version,nonGenerative:true,colorIntegrityGuard:true,frontCameraAware:true};
+      body.imageEnhancement={enabled:true,version:VERSION,configuredVersion:config.version,nonGenerative:true,colorIntegrityGuard:true,frontCameraAware:true,hardwareAdaptive:true,hardwareTier:top.meta?.hardware?.tier||'legacy-safe'};
+      window.__aitcLastEnhancementMeta={at:Date.now(),top:top.meta,bottom:bottom?.meta||null,hardware:top.meta?.hardware||null};
     }catch(err){console.warn('image_enhancement_bypass',String(err?.message||err));return request;}
     const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     return new Request(request,{headers,body:JSON.stringify(body)});
   }
 
-  window.AITCImageEnhancement=Object.freeze({version:VERSION,enhanceDataUrl,config:enhancementConfig});
+  window.AITCImageEnhancement=Object.freeze({version:VERSION,enhanceDataUrl,config:enhancementConfig,outputSize,activeImagePolicy});
   window.fetch=async(input,init)=>{
     const url=input instanceof Request?input.url:String(input||''),method=(input instanceof Request?input.method:init?.method||'GET').toUpperCase();
     if(!isAnalyzeRequest(url,method))return nativeFetch(input,init);

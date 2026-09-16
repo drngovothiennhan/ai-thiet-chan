@@ -9,7 +9,6 @@
   const FOLLOW_UP_MARKER='[FOLLOW_UP_QUESTION]';
   const OLD_FALLBACK='Đã Tham Vấn kho tri thức trong chế độ dự phòng không dùng Gemini.';
   const NEW_FALLBACK='Đã đối chiếu kho dữ liệu máy học.';
-  const REMOVED_FOLLOWUP_SENTENCE='Từ câu hỏi tiếp theo, Trợ lý tham vấn sẽ xử lý đúng câu hỏi mới và không lặp lại toàn bộ kết quả trên, trừ khi bạn yêu cầu.';
 
   function isSameOriginApi(input,path){
     try{
@@ -24,7 +23,7 @@
   function replaceRequestedCopy(value){
     return String(value||'')
       .replaceAll(OLD_FALLBACK,NEW_FALLBACK)
-      .replaceAll(REMOVED_FOLLOWUP_SENTENCE,'')
+      .replace(/\s*Từ câu hỏi tiếp theo,[^\n]*/gi,'')
       .replace(/Chatbot\s+Gemini/gi,'Trợ lý tham vấn')
       .replace(/Chatbot/gi,'Trợ lý tham vấn')
       .replace(/Gemini/gi,'Trợ lý tham vấn')

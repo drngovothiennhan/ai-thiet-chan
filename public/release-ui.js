@@ -17,4 +17,16 @@
   function markEvidenceFirst(){result.classList.add('evidence-first-result');$('#theoryBox')?.classList.add('evidence-first-theory');$('#summaryText')?.closest('.summary-box')?.classList.add('evidence-summary');}
   installStepper();installBottomNav();installNewCaseButton();markEvidenceFirst();observeReferenceBoundary();updateStepper();const stateObserver=new MutationObserver(updateStepper);['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});document.addEventListener('change',()=>queueMicrotask(updateStepper));document.addEventListener('click',()=>setTimeout(updateStepper,0));
 })();
-(()=>{function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}(async()=>{try{if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');await loadScript('/analysis-hotfix.js');await loadScript('/book-fallback.js');await loadScript('/benchmark-telemetry.js');await loadScript('/consultation-lock.js');await loadScript('/local-primary.js');await loadScript('/adaptive-followup.js');await loadScript('/admin-enhancement-collapse.js');await loadScript('/admin-history.js');}catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}})();})();
+(()=>{
+  function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+  function afterWindowLoad(fn){if(document.readyState==='complete')setTimeout(fn,0);else window.addEventListener('load',()=>setTimeout(fn,0),{once:true});}
+  function whenIdle(fn){if(typeof requestIdleCallback==='function')requestIdleCallback(fn,{timeout:2500});else setTimeout(fn,900);}
+  async function loadOperationalRuntime(){
+    try{
+      if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
+      for(const src of ['/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/local-primary.js','/adaptive-followup.js'])await loadScript(src);
+      whenIdle(async()=>{for(const src of ['/admin-enhancement-collapse.js','/admin-history.js']){try{await loadScript(src);}catch(err){console.warn('admin_runtime_loader_failed',src,err?.message||err);}}});
+    }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
+  }
+  afterWindowLoad(loadOperationalRuntime);
+})();

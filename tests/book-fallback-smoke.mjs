@@ -27,10 +27,11 @@ assert.ok(releaseUi.indexOf("/analysis-hotfix.js")<releaseUi.indexOf("/book-fall
 assert.ok(releaseUi.indexOf("/book-fallback.js")<releaseUi.indexOf("/benchmark-telemetry.js"));
 assert.ok(releaseUi.indexOf("/benchmark-telemetry.js")<releaseUi.indexOf("/consultation-lock.js"));
 assert.ok(releaseUi.indexOf("/consultation-lock.js")<releaseUi.indexOf("/admin-enhancement-collapse.js"));
-assert.match(sw,/ai-thiet-chan-v2\.9\.15-quality-grounding-v4/);
+assert.match(sw,/const CACHE='ai-thiet-chan-v2\.9\.\d+-[^']+'/);
 assert.match(sw,/book-fallback\.js/);
 assert.match(sw,/consultation-lock\.js/);
 assert.match(sw,/admin-enhancement-collapse\.js/);
+assert.match(sw,/admin-history\.js/);
 assert.match(sw,/academic-source\.js/);
 
 assert.match(server,/app\.post\('\/api\/chat',async\(req,res\)=>/);

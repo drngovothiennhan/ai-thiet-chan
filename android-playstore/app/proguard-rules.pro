@@ -1,0 +1,2 @@
+-keep class com.hiu.yhct.aithietchan.MainActivity { *; }
+-dontwarn android.webkit.**

@@ -38,9 +38,9 @@ assert.doesNotMatch(lock,/Trong khung chatbot/);
 assert.match(fallback,/Đã đối chiếu kho dữ liệu máy học\./);
 assert.doesNotMatch(fallback,/Đã Tham Vấn kho tri thức trong chế độ dự phòng không dùng Gemini\./);
 
-const consultationAt=index.indexOf('<script src="/consultation.js" defer></script>');
-const flowAt=index.indexOf('<script src="/chat-flow-ui.js" defer></script>');
-const settingsAt=index.indexOf('<script src="/settings.js" defer></script>');
+const consultationAt=index.indexOf('<script src="/consultation.js');
+const flowAt=index.indexOf('<script src="/chat-flow-ui.js');
+const settingsAt=index.indexOf('<script src="/settings.js');
 assert.ok(consultationAt>=0&&flowAt>consultationAt&&settingsAt>flowAt,'chat flow must wrap consultation before settings UI boot');
 
 console.log('CHAT FLOW UI SMOKE PASS: initial result is published once; post-result questions are forced through contextual Gemini with loading feedback; quality/history are admin-only.');

@@ -42,8 +42,11 @@ assert.match(enhancer,/glareDeltaPct/);
 
 assert.match(enhancer,/ai_thiet_chan_image_enhancement_config_v1/);
 assert.match(enhancer,/if\(!config\.enabled\)return request/);
-assert.match(enhancer,/body\.topOriginalImage=originalTop/);
-assert.match(enhancer,/body\.bottomOriginalImage=originalBottom/);
+assert.doesNotMatch(enhancer,/body\.topOriginalImage\s*=/);
+assert.doesNotMatch(enhancer,/body\.bottomOriginalImage\s*=/);
+assert.match(enhancer,/function releaseCanvas/);
+assert.match(enhancer,/const before=sampleMetrics\(img\)/);
+assert.doesNotMatch(enhancer,/const original=canvas\(w,h\)/);
 assert.match(enhancer,/body\.topEnhancement=top\.meta/);
 assert.match(enhancer,/body\.bottomEnhancement=bottom\.meta/);
 assert.match(enhancer,/body\.topQc=\{/);
@@ -84,4 +87,4 @@ assert.match(sw,/\/image-enhancement\.js/);
 assert.match(sw,/const CACHE='ai-thiet-chan-v2\.9\.\d+-[^']+'/);
 assert.match(sw,/\/quality-grounding-v4\.js/);
 
-console.log('IMAGE ENHANCEMENT SMOKE PASS: front-camera autofocus/exposure hints, stable-frame capture, bounded non-generative restoration, enhanced local fallback, adaptive low-saturation segmentation, and color/glare rollback are wired.');
+console.log('IMAGE ENHANCEMENT SMOKE PASS: mobile memory pressure is bounded, front-camera autofocus/exposure hints, bounded non-generative restoration, adaptive low-saturation segmentation, and color/glare rollback are wired.');

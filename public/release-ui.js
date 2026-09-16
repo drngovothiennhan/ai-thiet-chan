@@ -117,6 +117,7 @@
       await loadScript('/benchmark-telemetry.js');
       await loadScript('/consultation-lock.js');
       await loadScript('/admin-enhancement-collapse.js');
+      await loadScript('/admin-history.js');
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();
 })();

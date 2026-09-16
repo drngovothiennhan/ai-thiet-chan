@@ -11,7 +11,7 @@
   <main class="card">
     <div class="spin" aria-hidden="true"></div>
     <h1>Đang cập nhật A.I Thiệt Chẩn</h1>
-    <p id="status">Đang loại bỏ cache/PWA cũ và tải bản production mới nhất…</p>
+    <p id="status">Đang ngắt PWA cũ và mở production mới nhất…</p>
   </main>
   <script>
     (async()=>{
@@ -19,17 +19,17 @@
       try{
         if('serviceWorker' in navigator){
           const regs=await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(reg=>reg.unregister()));
+          await Promise.allSettled(regs.map(reg=>reg.unregister()));
         }
-        if('caches' in window){
-          const keys=await caches.keys();
-          await Promise.all(keys.map(key=>caches.delete(key)));
-        }
-        status.textContent='Đã xóa bản cũ. Đang mở production mới…';
+        status.textContent='PWA cũ đã được ngắt. Đang mở production mới…';
       }catch{
         status.textContent='Đang mở production mới…';
       }
-      setTimeout(()=>location.replace('/?release=20260915-fastfix'),250);
+      if('caches' in window){
+        caches.keys().then(keys=>Promise.allSettled(keys.filter(key=>key.startsWith('ai-thiet-chan-')).map(key=>caches.delete(key)))).catch(()=>{});
+      }
+      const next=`/?release=20260916-rollback-operational-latency&t=${Date.now()}`;
+      requestAnimationFrame(()=>setTimeout(()=>location.replace(next),60));
     })();
   </script>
 </body>

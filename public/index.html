@@ -135,6 +135,7 @@
   </dialog>
 
   <canvas id="workCanvas" hidden></canvas>
+  <script src="/release-meta.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/image-enhancement.js" defer></script>
   <script src="/capture-metadata.js" defer></script>
@@ -145,12 +146,25 @@
   <script>
     if('serviceWorker' in navigator){
       window.addEventListener('load',async()=>{
+        const pwaState={registration:null,updateReady:false,controllerChanged:false,releaseId:globalThis.AITC_RELEASE_ID||'unknown'};
+        const publish=()=>window.dispatchEvent(new CustomEvent('aitc:pwa-state',{detail:{updateReady:pwaState.updateReady,controllerChanged:pwaState.controllerChanged,releaseId:pwaState.releaseId}}));
         try{
           const reg=await navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'});
+          pwaState.registration=reg;
+          const markWaiting=()=>{if(reg.waiting){pwaState.updateReady=true;publish();}};
+          markWaiting();
+          reg.addEventListener('updatefound',()=>{
+            const worker=reg.installing;if(!worker)return;
+            worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)markWaiting();});
+          });
+          navigator.serviceWorker.addEventListener('controllerchange',()=>{pwaState.controllerChanged=true;pwaState.updateReady=false;publish();});
           await reg.update();
-          let refreshing=false;
-          navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!refreshing){refreshing=true;location.reload();}});
-        }catch{}
+          window.AITCPWAUpdate=Object.freeze({
+            snapshot:()=>Object.freeze({updateReady:pwaState.updateReady,controllerChanged:pwaState.controllerChanged,releaseId:pwaState.releaseId}),
+            activate:()=>{const waiting=reg.waiting;if(!waiting)return false;waiting.postMessage({type:'AITC_ACTIVATE_UPDATE'});return true;}
+          });
+          publish();
+        }catch{publish();}
       });
     }
   </script>

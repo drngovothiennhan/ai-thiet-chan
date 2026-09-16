@@ -46,6 +46,9 @@ function hasInlineMedia(payload={}){
   }
   return false;
 }
+function requiresExternalGemini(payload={}){
+  return /\[TRO_LY_THAM_VAN_EXTERNAL\]/.test(promptFromPayload(payload));
+}
 function extractedQuestion(prompt){
   const match=prompt.match(/Câu hỏi người dùng:\s*([\s\S]*?)(?:\nTrả lời|$)/i);
   return String(match?.[1]||'').trim().slice(0,1200);
@@ -137,6 +140,12 @@ function localKnowledgeResponse(init,reason,elapsedMs){
     localFallback:{active:true,reason,model:GEMINI_MODEL,elapsedMs}
   }),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'local-knowledge','x-ai-upstream-ms':String(elapsedMs||0)}});
 }
+function unavailableTextResponse(reason,status=503,elapsedMs=0){
+  console.warn('gemini_consultation_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status,elapsedMs}));
+  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'CONSULTATION_GEMINI_TEMPORARILY_UNAVAILABLE'},consultationStatus:'unavailable',reason,elapsedMs}),{
+    status,headers:{'content-type':'application/json','x-ai-consultation-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
+  });
+}
 function unavailableVisionResponse(reason,status=503,elapsedMs=0){
   console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status,elapsedMs}));
   return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,elapsedMs}),{
@@ -163,6 +172,7 @@ async function geminiResilientFetch(input,init,url){
   const candidate=replaceGeminiModel(url,GEMINI_MODEL);
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
+  const externalGeminiRequired=!vision&&requiresExternalGemini(payload);
   const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
   const maxAttempts=vision?GEMINI_VISION_MAX_ATTEMPTS:GEMINI_TEXT_MAX_ATTEMPTS;
   let lastResponse=null;
@@ -193,6 +203,10 @@ async function geminiResilientFetch(input,init,url){
   if(vision){
     if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
     return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
+  }
+  if(externalGeminiRequired){
+    if(lastResponse)return unavailableTextResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
+    return unavailableTextResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
   }
   return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),elapsedMs);
 }

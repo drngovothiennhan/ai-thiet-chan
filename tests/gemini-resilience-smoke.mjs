@@ -26,6 +26,20 @@ assert.match(data.candidates[0].content.parts[0].text,/Tham Vấn từ kho tri t
 assert.match(data.candidates[0].content.parts[0].text,/TC1/);
 
 calls.length=0;
+const consultationPayload={
+  contents:[{role:'user',parts:[{text:'[CHAT_GROUNDING_PROTOCOL]\nCâu hỏi người dùng: [TRO_LY_THAM_VAN_EXTERNAL] Hãy giải thích thêm bằng năng lực suy luận của Gemini.\nTrả lời bằng tiếng Việt.'}]}],
+  generationConfig:{temperature:0.15}
+};
+const consultationResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(consultationPayload)});
+assert.equal(consultationResponse.status,503);
+assert.equal(calls.length,2);
+assert.equal(consultationResponse.headers.get('x-ai-consultation-status'),'unavailable');
+assert.equal(consultationResponse.headers.get('x-ai-fallback'),null,'Gemini-required consultation must never masquerade as local fallback');
+const consultationData=await consultationResponse.json();
+assert.equal(consultationData.consultationStatus,'unavailable');
+assert.equal(consultationData.error.message,'CONSULTATION_GEMINI_TEMPORARILY_UNAVAILABLE');
+
+calls.length=0;
 const visionPayload={
   contents:[{role:'user',parts:[
     {text:'Phân tích ảnh và trả JSON.'},
@@ -43,4 +57,4 @@ const visionData=await visionResponse.json();
 assert.equal(visionData.visionStatus,'unavailable');
 assert.equal(visionData.error.message,'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE');
 
-console.log('GEMINI RESILIENCE SMOKE PASS: Gemini 3.8 Flash retries transient text and fast transient vision failures twice, keeps hard vision timeouts single-attempt, and never fabricates visual findings.');
+console.log('GEMINI RESILIENCE SMOKE PASS: grounded non-vision work may use an explicit local fallback, Gemini-required consultation fails visibly instead of being silently substituted, and vision never fabricates findings.');

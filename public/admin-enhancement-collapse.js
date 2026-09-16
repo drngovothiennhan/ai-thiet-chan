@@ -59,6 +59,20 @@
     observer.observe(document.body,{childList:true,subtree:true});
   }
 
+  function loadRuntime(src){
+    return new Promise((resolve,reject)=>{
+      if(document.querySelector(`script[data-aitc-quality-runtime="${src}"]`))return resolve();
+      const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcQualityRuntime=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
+    });
+  }
+  async function installQualityRuntime(){
+    try{
+      await loadRuntime('/clinical-learning.js');
+      await loadRuntime('/quality-grounding-v4.js');
+    }catch(err){console.warn('quality_grounding_loader_failed',err?.message||err);}
+  }
+
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
+  installQualityRuntime();
 })();

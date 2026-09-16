@@ -10,7 +10,7 @@ const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 
 assert.match(runtime,/GEMINI_VISION_TIMEOUT_MS=8_000/);
 assert.match(runtime,/GEMINI_VISION_MAX_ATTEMPTS=2/);
-assert.match(runtime,/vision&&err\?\.message==='UPSTREAM_TIMEOUT'\) break/);
+assert.match(runtime,/vision&&err\?\.message==='UPSTREAM_TIMEOUT'\)\s*break/);
 assert.match(runtime,/gemini_attempt_complete/);
 assert.match(hotfix,/FALLBACK_DEADLINE_MS=8_500/);
 assert.match(hotfix,/LOCAL_PERSIST_DEADLINE_MS=3_500/);

@@ -37,6 +37,12 @@
     });
   }
 
+  let stepperFrame=0;
+  function scheduleStepper(){
+    if(stepperFrame)return;
+    stepperFrame=requestAnimationFrame(()=>{stepperFrame=0;updateStepper();});
+  }
+
   function installBottomNav(){
     if($('#aitcBottomNav'))return;
     const nav=document.createElement('nav');nav.id='aitcBottomNav';nav.className='aitc-bottom-nav';nav.setAttribute('aria-label','Điều hướng chính');
@@ -90,7 +96,9 @@
   }
   function observeReferenceBoundary(){
     const targets=[result,$('#reportBox')].filter(Boolean);
-    const observer=new MutationObserver(()=>targets.forEach(sanitizeNonChatReferences));
+    let pending=false;
+    const sanitize=()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;targets.forEach(sanitizeNonChatReferences);});};
+    const observer=new MutationObserver(sanitize);
     targets.forEach(el=>observer.observe(el,{subtree:true,childList:true,characterData:true}));
   }
 
@@ -101,22 +109,44 @@
   }
 
   installStepper();installBottomNav();installNewCaseButton();markEvidenceFirst();observeReferenceBoundary();updateStepper();
-  const stateObserver=new MutationObserver(updateStepper);
+  const stateObserver=new MutationObserver(scheduleStepper);
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});
-  document.addEventListener('change',()=>queueMicrotask(updateStepper));
-  document.addEventListener('click',()=>setTimeout(updateStepper,0));
+  document.addEventListener('change',scheduleStepper,{passive:true});
 })();
 
 (()=>{
   function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
   function afterWindowLoad(fn){if(document.readyState==='complete')setTimeout(fn,0);else window.addEventListener('load',()=>setTimeout(fn,0),{once:true});}
-  function whenIdle(fn){if(typeof requestIdleCallback==='function')requestIdleCallback(fn,{timeout:2500});else setTimeout(fn,900);}
+  function whenIdle(fn,timeout=2500){if(window.AITCRuntime?.whenIdle)return window.AITCRuntime.whenIdle(fn,timeout);if(typeof requestIdleCallback==='function')return requestIdleCallback(fn,{timeout});return setTimeout(fn,Math.min(900,timeout));}
+  let operationalPromise=null;
   async function loadOperationalRuntime(){
-    try{
-      if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
-      for(const src of ['/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js'])await loadScript(src);
-      whenIdle(()=>loadScript('/admin-enhancement-collapse.js').catch(err=>console.warn('admin_runtime_loader_failed',err?.message||err)));
-    }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
+    if(operationalPromise)return operationalPromise;
+    operationalPromise=(async()=>{
+      try{
+        if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
+        for(const src of ['/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js'])await loadScript(src);
+      }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
+    })();
+    return operationalPromise;
   }
-  afterWindowLoad(loadOperationalRuntime);
+  async function warmVisionEvidence(){
+    const worker=window.AITCVisionWorker;if(!worker?.analyze)return;
+    const top=document.getElementById('topPreview'),bottom=document.getElementById('bottomPreview');
+    const jobs=[];
+    if(top?.src&&!top.hidden)jobs.push(worker.analyze(top.src,'top'));
+    if(bottom?.src&&!bottom.hidden)jobs.push(worker.analyze(bottom.src,'bottom'));
+    if(!jobs.length)return;
+    const values=await Promise.all(jobs);
+    window.AITCLastVisionEvidence={version:worker.version,createdAt:Date.now(),views:values};
+    window.dispatchEvent(new CustomEvent('aitc:vision-evidence',{detail:window.AITCLastVisionEvidence}));
+  }
+  window.AITCLoadOperationalRuntime=loadOperationalRuntime;
+  afterWindowLoad(async()=>{
+    try{await loadScript('/runtime-stability.js');}catch(err){console.warn('runtime_stability_load_failed',err?.message||err);}
+    try{await loadScript('/diagnostic-worker-client.js');}catch(err){console.warn('vision_worker_client_load_failed',err?.message||err);}
+    const analyze=document.getElementById('analyzeBtn');
+    analyze?.addEventListener('pointerdown',()=>{loadOperationalRuntime();warmVisionEvidence();},{passive:true});
+    whenIdle(()=>loadOperationalRuntime(),2200);
+    whenIdle(()=>loadScript('/admin-enhancement-collapse.js').catch(err=>console.warn('admin_runtime_loader_failed',err?.message||err)),4200);
+  });
 })();

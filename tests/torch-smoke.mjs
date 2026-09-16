@@ -8,7 +8,7 @@ const [settings,torch,sw]=await Promise.all([
   readFile(path.join(root,'public/sw.js'),'utf8')
 ]);
 
-for(const marker of ["load('/torch.js','rearTorch')","const RELEASE='2.9.0'"]) if(!settings.includes(marker)) throw new Error(`torch loader missing: ${marker}`);
+for(const marker of ["'/torch.js','rearTorch'","const RELEASE='2.9.0'",'afterWindowLoad(async()=>']) if(!settings.includes(marker)) throw new Error(`torch loader missing: ${marker}`);
 for(const marker of ['toggleTorchBtn','Bật đèn','Tắt đèn','getCapabilities','applyConstraints','torch','environment','closeCameraBtn','captureBtn','switchCameraBtn','visibilitychange']) if(!torch.includes(marker)) throw new Error(`torch behavior missing: ${marker}`);
-if(!sw.includes('/torch.js')) throw new Error('torch asset missing from service worker shell');
-console.log('TORCH SMOKE PASS: rear-camera flash control is capability-gated, dynamically loaded and reset on camera lifecycle events');
+if(sw.includes("'/torch.js'")) throw new Error('torch asset must not block service-worker installation');
+console.log('TORCH SMOKE PASS: rear-camera flash control is capability-gated, dynamically loaded after window load and reset on camera lifecycle events');

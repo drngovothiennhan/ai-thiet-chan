@@ -1,6 +1,8 @@
 (()=>{
   'use strict';
   const TOKEN_KEY='aitcClinicalAdminToken';
+  const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
+  const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=v=>{try{return new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short'}).format(new Date(v));}catch{return String(v||'');}};
@@ -42,17 +44,24 @@
     }).join('');
   }
 
+  async function adminCases(token){
+    const response=await fetch(`${SUPABASE_URL}/rest/v1/rpc/ai_thiet_chan_admin_list_cases_v1`,{
+      method:'POST',cache:'no-store',
+      headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':`Bearer ${SUPABASE_KEY}`},
+      body:JSON.stringify({p_admin_token:token,p_limit:100})
+    });
+    const data=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error(data?.message||data?.error||`HTTP ${response.status}`);
+    return Array.isArray(data)?data:[];
+  }
+
   async function loadAdminHistory(){
     const list=$('adminHistoryList'),stats=$('adminHistoryStats');if(!list||!stats)return;
     const token=sessionStorage.getItem(TOKEN_KEY)||'';
     if(!token){stats.textContent='Cần đăng nhập Admin Center.';stats.className='admin-center-status warn';list.innerHTML='';return;}
     stats.textContent='Đang tải lịch sử…';stats.className='admin-center-status';
-    try{
-      const response=await fetch('/api/cases?limit=100',{cache:'no-store',headers:{'x-admin-token':token}});
-      const data=await response.json().catch(()=>null);
-      if(!response.ok)throw new Error(data?.error||`HTTP ${response.status}`);
-      render(data?.cases||[]);
-    }catch(err){stats.textContent=`Không tải được lịch sử: ${err.message}`;stats.className='admin-center-status warn';list.innerHTML='';}
+    try{render(await adminCases(token));}
+    catch(err){stats.textContent=`Không tải được lịch sử: ${err.message}`;stats.className='admin-center-status warn';list.innerHTML='';}
   }
 
   function install(){lockPublicCaseViews();ensureAdminUi();}

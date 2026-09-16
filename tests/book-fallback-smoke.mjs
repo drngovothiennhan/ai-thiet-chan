@@ -27,10 +27,11 @@ assert.ok(releaseUi.indexOf("/analysis-hotfix.js")<releaseUi.indexOf("/book-fall
 assert.ok(releaseUi.indexOf("/book-fallback.js")<releaseUi.indexOf("/benchmark-telemetry.js"));
 assert.ok(releaseUi.indexOf("/benchmark-telemetry.js")<releaseUi.indexOf("/consultation-lock.js"));
 assert.ok(releaseUi.indexOf("/consultation-lock.js")<releaseUi.indexOf("/admin-enhancement-collapse.js"));
-assert.match(sw,/ai-thiet-chan-v2\.9\.14-admin-enhancement-collapse/);
-assert.match(sw,/book-fallback\.js/);
-assert.match(sw,/consultation-lock\.js/);
-assert.match(sw,/admin-enhancement-collapse\.js/);
+assert.match(releaseUi,/afterWindowLoad\(loadOperationalRuntime\)/);
+assert.match(sw,/ai-thiet-chan-v2\.9\.15-operational-latency/);
+assert.doesNotMatch(sw,/book-fallback\.js/);
+assert.doesNotMatch(sw,/consultation-lock\.js/);
+assert.doesNotMatch(sw,/admin-enhancement-collapse\.js/);
 assert.match(sw,/academic-source\.js/);
 
 assert.match(server,/app\.post\('\/api\/chat',async\(req,res\)=>/);
@@ -74,4 +75,4 @@ assert.match(academic,/Tham Vấn: tương đồng atlas/);
 assert.match(academic,/ưu tiên đúng thuật ngữ\/văn phong của mẫu tài liệu tương ứng/);
 assert.match(academic,/QC-qualified atlas matches >= 0\.85/);
 
-console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, camera shutdown, compact enhancement audit, full-tongue landmark guidance, and QC-qualified >=85% multi-atlas wording are present.');
+console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, camera shutdown, lazy operational runtime, full-tongue landmark guidance, and QC-qualified >=85% multi-atlas wording are present.');

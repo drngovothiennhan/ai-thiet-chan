@@ -108,15 +108,15 @@
 })();
 
 (()=>{
-  function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
-  (async()=>{
+  function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+  function afterWindowLoad(fn){if(document.readyState==='complete')setTimeout(fn,0);else window.addEventListener('load',()=>setTimeout(fn,0),{once:true});}
+  function whenIdle(fn){if(typeof requestIdleCallback==='function')requestIdleCallback(fn,{timeout:2500});else setTimeout(fn,900);}
+  async function loadOperationalRuntime(){
     try{
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
-      await loadScript('/analysis-hotfix.js');
-      await loadScript('/book-fallback.js');
-      await loadScript('/benchmark-telemetry.js');
-      await loadScript('/consultation-lock.js');
-      await loadScript('/admin-enhancement-collapse.js');
+      for(const src of ['/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js'])await loadScript(src);
+      whenIdle(()=>loadScript('/admin-enhancement-collapse.js').catch(err=>console.warn('admin_runtime_loader_failed',err?.message||err)));
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
-  })();
+  }
+  afterWindowLoad(loadOperationalRuntime);
 })();

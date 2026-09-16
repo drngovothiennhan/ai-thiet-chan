@@ -59,13 +59,26 @@
 (()=>{
   const RELEASE='2.9.0';
   const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
-  function load(src,key){const attr=attrName(key);if(document.querySelector(`script[${attr}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
-  load('/torch.js','rearTorch');
-  load('/ui-controls.js','aitcUiControls');
-  load('/access-control.js','aitcAccessControl');
-  load('/admin-center.js','aitcAdminCenter');
-  load('/user-admin.js','aitcUserAdmin');
-  load('/admin-credentials.js','aitcAdminCredentials');
-  load('/feedback-lifecycle.js','aitcFeedbackLifecycle');
-  load('/upload-controls.js','aitcUploadControls');
+  function load(src,key){
+    const attr=attrName(key);if(document.querySelector(`script[${attr}]`))return Promise.resolve();
+    return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});
+  }
+  async function loadOrdered(items){for(const [src,key] of items){try{await load(src,key);}catch(err){console.warn('settings_module_load_failed',src,String(err?.message||err));}}}
+  function afterWindowLoad(fn){if(document.readyState==='complete')setTimeout(fn,0);else window.addEventListener('load',()=>setTimeout(fn,0),{once:true});}
+  function whenIdle(fn){if(typeof requestIdleCallback==='function')requestIdleCallback(fn,{timeout:2500});else setTimeout(fn,900);}
+
+  afterWindowLoad(async()=>{
+    await loadOrdered([
+      ['/access-control.js','aitcAccessControl'],
+      ['/ui-controls.js','aitcUiControls'],
+      ['/torch.js','rearTorch'],
+      ['/feedback-lifecycle.js','aitcFeedbackLifecycle']
+    ]);
+    whenIdle(()=>loadOrdered([
+      ['/admin-center.js','aitcAdminCenter'],
+      ['/user-admin.js','aitcUserAdmin'],
+      ['/admin-credentials.js','aitcAdminCredentials'],
+      ['/upload-controls.js','aitcUploadControls']
+    ]));
+  });
 })();

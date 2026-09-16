@@ -25,6 +25,7 @@ assert.match(telemetry,/requestToResultMs/);
 assert.match(telemetry,/fallbackReason/);
 assert.match(releaseUi,/analysis-hotfix\.js/);
 assert.match(releaseUi,/benchmark-telemetry\.js/);
-assert.match(sw,/benchmark-telemetry\.js/);
+assert.match(releaseUi,/afterWindowLoad\(loadOperationalRuntime\)/);
+assert.doesNotMatch(sw,/benchmark-telemetry\.js/);
 
-console.log('ANALYSIS HOTFIX SMOKE PASS: vision uses one bounded fast transient retry, hard timeout stays single-pass, local CV runs in parallel, fallback is provenance-tagged/capped, and exact client benchmark telemetry is persisted.');
+console.log('ANALYSIS HOTFIX SMOKE PASS: analysis fallback and telemetry remain wired but load after the critical render path.');

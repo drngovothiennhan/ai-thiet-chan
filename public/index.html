@@ -48,7 +48,7 @@
 
         <div id="generalGuide" class="capture-guide" hidden>
           <strong>Chế độ tổng quát</strong>
-          <span>Mặt trên: chụp toàn bộ lưỡi, cố gắng thấy rõ phần sau/gốc lưỡi. Khuyến khích camera sau, đủ sáng; có thể dùng đèn flash của thiết bị khi cần để thấy rõ vùng trong và toàn bộ lưỡi.</span>
+          <span>Mặt trên: chụp trọn lưỡi từ đầu lưỡi đến vùng gốc lưỡi. Vùng vòm miệng/lưỡi gà dùng làm mốc định hướng phía sau; khi thấy mặt lưng lưỡi liên tục đến vùng gốc lưỡi ngay phía trước mốc này, không bị môi/răng che đáng kể, hệ thống xem là đã bộc lộ đủ toàn bộ lưỡi. Khuyến khích camera sau, đủ sáng; có thể dùng đèn flash khi vùng phía trong thiếu sáng.</span>
           <span>Mặt dưới: nâng đầu lưỡi để thấy rõ mặt dưới và các mạch máu/tĩnh mạch dưới lưỡi.</span>
         </div>
 
@@ -70,7 +70,7 @@
 
         <div id="cameraPanel" class="camera-panel" hidden>
           <div class="camera-panel-head"><strong id="cameraTargetLabel">Đang chụp</strong><button id="closeCameraBtn" class="btn ghost compact" type="button">Đóng</button></div>
-          <div class="camera-stage"><video id="video" playsinline autoplay muted></video><div class="capture-frame-guide" aria-hidden="true"><span>Đưa toàn bộ lưỡi vào khung · giữ máy ổn định · tránh ám màu</span></div></div>
+          <div class="camera-stage"><video id="video" playsinline autoplay muted></video><div class="capture-frame-guide" aria-hidden="true"><span>Giữ trọn lưỡi từ đầu đến gốc trong khung · vòm miệng/lưỡi gà là mốc phía sau · tránh ám màu</span></div></div>
           <div class="action-grid camera-actions"><button id="switchCameraBtn" class="btn" type="button">↻ Đổi camera</button><button id="captureBtn" class="btn primary" type="button">Chụp ảnh</button></div>
           <p class="camera-note">Camera sau được ưu tiên để hình rõ hơn. Nếu thiết bị có đèn flash, có thể bật khi vùng lưỡi phía trong thiếu sáng.</p>
         </div>
@@ -116,11 +116,11 @@
       </section>
 
       <section class="card chat-card">
-        <div class="section-head"><div><h2>Vấn chẩn · Thập vấn</h2><p>Đối chiếu câu trả lời với kết quả thiệt chẩn hiện tại để tạo nhận định biện chứng tham khảo.</p></div></div>
+        <div class="section-head"><div><h2>Tham Vấn · Gemini</h2><p>Hỏi trực tiếp Gemini hoặc dùng Thập vấn để bổ sung dữ kiện cho ca thiệt chẩn hiện tại.</p></div></div>
         <div class="inquiry-controls"><button id="startInquiryBtn" class="btn primary compact" type="button">Bắt đầu Thập vấn</button><span id="inquiryProgress" class="inquiry-progress">Chưa bắt đầu</span></div>
-        <p class="inquiry-note">Thập vấn gồm 10 nhóm hỏi tuần tự. Kết quả cuối chỉ có tính chất học tập/tham khảo, không phải chẩn đoán xác định và không thay thế tứ chẩn trực tiếp. Câu trả lời Vấn chẩn không được đưa vào kho train trong phiên bản này.</p>
-        <div id="chatLog" class="chat-log"><div class="bubble bot">Sau khi phân tích ảnh lưỡi, nhấn “Bắt đầu Thập vấn”. Tôi sẽ hỏi lần lượt 10 nhóm triệu chứng rồi mới đưa ra nhận định biện chứng có tính chất tham khảo.</div></div>
-        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Nhập câu trả lời…" /><button class="btn primary" type="submit">Gửi</button></form>
+        <p class="inquiry-note">Chatbot Gemini có thể được hỏi trực tiếp không giới hạn lượt ở tầng ứng dụng. Thập vấn gồm 10 nhóm hỏi là tùy chọn để bổ sung dữ kiện; kết quả vẫn chỉ phục vụ học tập/tham khảo, không thay thế tứ chẩn trực tiếp.</p>
+        <div id="chatLog" class="chat-log"><div class="bubble bot">Bạn có thể hỏi Gemini trực tiếp. Nếu cần tăng dữ kiện đối chiếu cho ca hiện tại, hãy chọn “Bắt đầu Thập vấn”.</div></div>
+        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Nhập câu hỏi hoặc câu trả lời…" /><button class="btn primary" type="submit">Gửi</button></form>
       </section>
     </main>
   </div>

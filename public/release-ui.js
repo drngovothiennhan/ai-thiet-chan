@@ -108,16 +108,34 @@
 })();
 
 (()=>{
-  function loadScript(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-aitc-hotfix="${src}"]`))return resolve();const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcHotfix=src;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+  function loadScript(src){
+    return new Promise((resolve,reject)=>{
+      const existing=[...document.scripts].find(script=>{try{return new URL(script.src,location.href).pathname===src;}catch{return false;}});
+      if(existing){
+        if(existing.dataset.aitcLoaded==='true'||existing.readyState==='complete')return resolve();
+        const done=()=>{existing.dataset.aitcLoaded='true';resolve();};
+        existing.addEventListener('load',done,{once:true});existing.addEventListener('error',reject,{once:true});
+        setTimeout(()=>{if(document.contains(existing))resolve();},1500);
+        return;
+      }
+      const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.aitcHotfix=src;
+      s.onload=()=>{s.dataset.aitcLoaded='true';resolve();};s.onerror=reject;document.head.appendChild(s);
+    });
+  }
   (async()=>{
     try{
       if(!window.AITCHardwareProfile)await loadScript('/hardware-profile.js');
+      if(window.__aitcSettingsModulesReady)await window.__aitcSettingsModulesReady;
+      await import('/clinical-learning.js?v=2.9.0').catch(()=>{});
+      await import('/session-persistence.js?v=2.9.4').catch(()=>{});
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
       await loadScript('/analysis-hotfix.js');
       await loadScript('/book-fallback.js');
       await loadScript('/benchmark-telemetry.js');
       await loadScript('/consultation-lock.js');
       await loadScript('/admin-enhancement-collapse.js');
+      await loadScript('/request-integrity.js');
+      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity)}}));
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();
 })();

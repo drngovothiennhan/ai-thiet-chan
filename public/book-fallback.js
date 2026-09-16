@@ -50,35 +50,35 @@ function bookSignals(assessment,evidence){
 
   if(hasRed&&hasDry&&hasLittleCoat){
     rule=findRule(evidence,['âm hư','khô','tróc rêu']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: âm dịch/hư nhiệt cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.56));
+    addUnique(out,makeSignal('Tham Vấn: âm dịch/hư nhiệt cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.56));
   }
   if(hasRed&&hasYellow){
     rule=findRule(evidence,['nhiệt','rêu vàng']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: tín hiệu nhiệt cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.58));
+    addUnique(out,makeSignal('Tham Vấn: tín hiệu nhiệt cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.58));
   }
   if(hasPale&&hasWhite){
     rule=findRule(evidence,['hàn','rêu trắng','nhợt']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: tín hiệu hư/hàn cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.55));
+    addUnique(out,makeSignal('Tham Vấn: tín hiệu hư/hàn cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.55));
   }
   if(hasPale&&(hasTooth||hasBroad)){
     rule=findRule(evidence,['khí hư','dấu răng','bệu']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: Tỳ khí/Tỳ dương hư cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.54));
+    addUnique(out,makeSignal('Tham Vấn: Tỳ khí/Tỳ dương hư cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.54));
   }
   if(hasPurple){
     rule=findRule(evidence,['huyết ứ','tím']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: khí huyết ứ trệ cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.56));
+    addUnique(out,makeSignal('Tham Vấn: khí huyết ứ trệ cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.56));
   }
   if(hasThick){
     rule=findRule(evidence,['rêu dày','nhầy','thấp']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: thấp trọc/đàm hoặc tích trệ cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.53));
+    addUnique(out,makeSignal('Tham Vấn: thấp trọc/đàm hoặc tích trệ cần đối chiếu',`Ảnh hiện tại: ${observedTop(assessment)}.`,rule?.text||'',.53));
   }
   if(bottomStasis){
     rule=findRule(evidence,['tĩnh mạch dưới lưỡi','huyết ứ','giãn']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: mạch dưới lưỡi cần đối chiếu ứ trệ',`Mặt dưới hiện tại: ${observedBottom(assessment)}.`,rule?.text||'',.54));
+    addUnique(out,makeSignal('Tham Vấn: mạch dưới lưỡi cần đối chiếu ứ trệ',`Mặt dưới hiện tại: ${observedBottom(assessment)}.`,rule?.text||'',.54));
   }
   if(!out.length){
     rule=findRule(evidence,['chất lưỡi','rêu','kết hợp']);
-    addUnique(out,makeSignal('Tài liệu đã nạp: nguyên tắc đọc thiệt tượng','Chưa có tổ hợp dấu đủ mạnh; hệ thống vẫn đối chiếu đồng thời chất lưỡi, rêu, độ ẩm và hình thể.',rule?.text||'Chất lưỡi và rêu cần được đọc phối hợp, không tách một dấu riêng lẻ khỏi toàn cảnh.',.42));
+    addUnique(out,makeSignal('Tham Vấn: nguyên tắc đọc thiệt tượng','Chưa có tổ hợp dấu đủ mạnh; hệ thống vẫn đối chiếu đồng thời chất lưỡi, rêu, độ ẩm và hình thể.',rule?.text||'Chất lưỡi và rêu cần được đọc phối hợp, không tách một dấu riêng lẻ khỏi toàn cảnh.',.42));
   }
   return out.slice(0,4);
 }
@@ -90,10 +90,10 @@ function enrichFallback(data,evidence){
   const signals=[...existing];
   for(const signal of bookSignals(assessment,evidence))addUnique(signals,signal);
   assessment.combined.generalSignals=signals;
-  const marker='Đã đối chiếu kho tài liệu đã nạp trong chế độ dự phòng không dùng Gemini.';
+  const marker='Đã Tham Vấn kho tri thức trong chế độ dự phòng không dùng Gemini.';
   const summary=clean(assessment.combined.summary||assessment?.top?.summary);
   if(!summary.includes(marker))assessment.combined.summary=[summary,marker].filter(Boolean).join(' ');
-  assessment.combined.bookGrounding={active:true,knowledgeVersion:data?.knowledgeVersion||assessment?.knowledgeVersion||'thiet-chan-kb-2026-09-15.5doc',evidenceCount:signals.filter(x=>low(x?.label).startsWith('tài liệu đã nạp:')).length,policy:'supplied-knowledge-paraphrase-no-citation-in-result'};
+  assessment.combined.bookGrounding={active:true,knowledgeVersion:data?.knowledgeVersion||assessment?.knowledgeVersion||'thiet-chan-kb-2026-09-15.5doc',evidenceCount:signals.filter(x=>low(x?.label).startsWith('tham vấn:')).length,policy:'supplied-knowledge-paraphrase-no-citation-in-result'};
   assessment.ml=assessment.ml||{};
   assessment.ml.bookGrounding={...assessment.combined.bookGrounding,sourceCount:5,noGeminiFallback:true};
   data.assessment=assessment;data.analysis=assessment;data.bookGroundedFallback=true;

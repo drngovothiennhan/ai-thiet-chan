@@ -1,11 +1,14 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
-const CACHE='ai-thiet-chan-v2.9.14-admin-enhancement-collapse';
-const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation.js','/consultation-lock.js','/admin-enhancement-collapse.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
+const CACHE='ai-thiet-chan-v2.9.15-operational-latency';
+// Only assets needed to render and operate the first screen are pre-cached.
+// Secondary/admin modules are fetched and cached on demand after window load.
+const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg'];
 const NAV_TIMEOUT_MS=2500;
 
 try{importScripts('/academic-vision.js');}catch{}
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
+// Do not activate a new worker in the middle of an active Android/PWA session.
+self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)));});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));});
 async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}}
 async function enrichAnalyzeRequest(request){
   try{

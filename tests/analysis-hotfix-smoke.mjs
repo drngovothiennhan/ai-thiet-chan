@@ -3,9 +3,9 @@ import fs from 'node:fs';
 
 const runtime=fs.readFileSync(new URL('../runtime-guard.mjs',import.meta.url),'utf8');
 const hotfix=fs.readFileSync(new URL('../public/analysis-hotfix.js',import.meta.url),'utf8');
+const telemetry=fs.readFileSync(new URL('../public/benchmark-telemetry.js',import.meta.url),'utf8');
 const releaseUi=fs.readFileSync(new URL('../public/release-ui.js',import.meta.url),'utf8');
-const fusion=fs.readFileSync(new URL('../api/local-fusion.mjs',import.meta.url),'utf8');
-const benchmark=fs.readFileSync(new URL('../api/benchmark.mjs',import.meta.url),'utf8');
+const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
 assert.match(runtime,/GEMINI_VISION_TIMEOUT_MS=8_000/);
 assert.match(runtime,/GEMINI_VISION_MAX_ATTEMPTS=1/);
@@ -17,12 +17,13 @@ assert.match(hotfix,/fallback:true/);
 assert.match(hotfix,/local-open-source-vision-v1/);
 assert.match(hotfix,/FALLBACK_CONFIDENCE_CAP=\.62/);
 assert.match(hotfix,/academicSignature/);
-assert.match(hotfix,/\/api\/local-fusion/);
-assert.match(hotfix,/analysis_render/);
 assert.match(hotfix,/clickToResultMs/);
+assert.match(telemetry,/ai_thiet_chan_benchmark_record_v1/);
+assert.match(telemetry,/clickToResultMs/);
+assert.match(telemetry,/requestToResultMs/);
+assert.match(telemetry,/fallbackReason/);
 assert.match(releaseUi,/analysis-hotfix\.js/);
-assert.match(fusion,/applyAcademicFusion/);
-assert.match(fusion,/model-observation-not-ground-truth/);
-assert.match(benchmark,/analysis_benchmark/);
+assert.match(releaseUi,/benchmark-telemetry\.js/);
+assert.match(sw,/benchmark-telemetry\.js/);
 
-console.log('ANALYSIS HOTFIX SMOKE PASS: vision is bounded, local CV runs in parallel, fallback is provenance-tagged/capped, academic fusion is available, and click-to-result telemetry is emitted.');
+console.log('ANALYSIS HOTFIX SMOKE PASS: vision is bounded, local CV runs in parallel, fallback is provenance-tagged/capped, and exact client benchmark telemetry is persisted without shadowing Express API routes.');

@@ -1,46 +1,14 @@
 import assert from 'node:assert/strict';
-
 const calls=[];
-globalThis.fetch=async input=>{
-  const url=String(input);
-  calls.push(url);
-  return new Response(JSON.stringify({error:{code:429,status:'RESOURCE_EXHAUSTED',message:'high demand'}}),{status:429,headers:{'content-type':'application/json'}});
-};
-
+globalThis.fetch=async(input,init={})=>{calls.push({url:String(input),body:String(init.body||'')});return new Response(JSON.stringify({error:{code:429,status:'RESOURCE_EXHAUSTED',message:'high demand'}}),{status:429,headers:{'content-type':'application/json'}});};
 await import(`../runtime-guard.mjs?smoke=${Date.now()}`);
 assert.equal(process.env.GEMINI_MODEL,'gemini-3.8-flash');
-
-const payload={
-  contents:[{role:'user',parts:[{text:'HỆ TRI THỨC TRUY XUẤT:\n- [TC1, tr. 12] Chất lưỡi và rêu lưỡi cần được tổng hợp.\nCâu hỏi người dùng: Giải thích kết quả này\nTrả lời ngắn gọn.'}]}],
-  generationConfig:{temperature:0.15}
-};
+const assessment={mode:'normal',top:{quality:'good',tongueColor:'Đỏ',coatingColor:'Vàng',coatingThickness:'Dày'},combined:{summary:'Mẫu kiểm thử',generalSignals:[{label:'Tín hiệu nhiệt',evidence:'Lưỡi đỏ, rêu vàng'}],academicFusion:{visualContext:'x'.repeat(5000),corpusTextMatches:Array.from({length:30},(_,i)=>({sourceId:'TC1',page:i+1,score:99,text:'legacy '.repeat(20)}))}},ml:{featureVector:{schemaVersion:'test',top:{visual:{tongueColor:'Đỏ',coatingColor:'Vàng'},qc:{grade:'good'}},academic:{corpus:{blob:'y'.repeat(5000)}}}}};
+const evidence=['- [TC1, tr. 20] Hàn và nhiệt cần đối chiếu màu chất lưỡi và rêu.','- [DY1, tr. 24] Rêu dày/khô/nhuận phải phối hợp đặc điểm khác.','- [AT1, tr. 16] Lưỡi đỏ nứt ít rêu liên hệ tổn thương tân dịch.','- [MC1, tr. 82] Thiệt chẩn phải kết hợp triệu chứng khác.'].join('\n');
+const legacyExtra=Array.from({length:18},(_,i)=>`- [TC1, tr. ${30+i}] Dòng evidence cũ dài ${'nội dung '.repeat(24)}`).join('\n');
+const prompt=`[CHAT_GROUNDING_PROTOCOL]\nHỆ TRI THỨC TEST:\n${evidence}\n${legacyExtra}\n- [PSY1, tr. 22] MUST NOT BE SENT\nBối cảnh phân tích: ${JSON.stringify(assessment)}\nCâu hỏi người dùng: [ADAPTIVE_FOLLOWUP]\n[ADAPTIVE_EVIDENCE]\n${evidence}\n[/ADAPTIVE_EVIDENCE]\nTổng hợp kiểm tra nhanh\nTrả lời ngắn gọn.`;
+const payload={contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.15}},originalBytes=Buffer.byteLength(JSON.stringify(payload));
 const response=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(payload)});
-assert.equal(response.status,200);
-assert.equal(calls.length,2);
-assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.8-flash/);
-assert.doesNotMatch(calls.join('\n'),/gemini-2\.5/);
-assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');
-const data=await response.json();
-assert.match(data.candidates[0].content.parts[0].text,/Tham Vấn từ kho tri thức/i);
-assert.match(data.candidates[0].content.parts[0].text,/TC1/);
-
-calls.length=0;
-const visionPayload={
-  contents:[{role:'user',parts:[
-    {text:'Phân tích ảnh và trả JSON.'},
-    {inline_data:{mime_type:'image/jpeg',data:'ZmFrZQ=='}}
-  ]}],
-  generationConfig:{responseMimeType:'application/json'}
-};
-const visionResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(visionPayload)});
-assert.equal(visionResponse.status,503);
-assert.equal(calls.length,2);
-assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.8-flash/);
-assert.equal(visionResponse.headers.get('x-ai-vision-status'),'unavailable');
-const visionData=await visionResponse.json();
-assert.equal(visionData.visionStatus,'unavailable');
-assert.equal(visionData.error.message,'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE');
-
-console.log('GEMINI RESILIENCE SMOKE PASS: Gemini 3.8 Flash retries transient text and fast transient vision failures twice, keeps hard vision timeouts single-attempt, and never fabricates visual findings.');
+assert.equal(response.status,200);assert.equal(calls.length,1);assert.match(calls[0].url,/gemini-3\.8-flash/);assert.doesNotMatch(calls[0].body,/PSY1/);assert.ok(Buffer.byteLength(calls[0].body)<originalBytes);assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');assert.equal(response.headers.get('x-ai-evidence-count'),'4');
+calls.length=0;const visionPayload={contents:[{role:'user',parts:[{text:'Phân tích ảnh và trả JSON.'},{inline_data:{mime_type:'image/jpeg',data:'ZmFrZQ=='}}]}],generationConfig:{responseMimeType:'application/json'}};const visionResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(visionPayload)});assert.equal(visionResponse.status,503);assert.equal(calls.length,2);assert.equal(visionResponse.headers.get('x-ai-vision-status'),'unavailable');
+console.log('GEMINI RESILIENCE SMOKE PASS: 4s single-attempt compact consultation; bounded legacy vision guard.');

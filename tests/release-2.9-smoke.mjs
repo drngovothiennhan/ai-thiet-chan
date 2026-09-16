@@ -18,6 +18,6 @@ assert.ok(home.includes('/release-ui.css')&&home.includes('/release-ui.js'),'rel
 for(const marker of ['workflow-stepper','aitc-bottom-nav','Thiệt chẩn','Trợ lý','Ca','Cài đặt','sanitizeNonChatReferences']) assert.ok(ui.includes(marker),`release UI missing ${marker}`);
 assert.ok(ui.includes("targets=[result,$('#reportBox')]")||ui.includes("targets=[result,$('#reportBox')].filter"),'source sanitizer must target result/report only');
 assert.ok(!ui.includes("targets=[result,$('#reportBox'),$('#chatLog')]"),'chat references must remain visible');
-assert.ok(css.includes('.capture-card .analyze-btn')&&css.includes('position:sticky'),'mobile primary action must stay reachable');
+assert.ok(css.includes('.capture-card .analyze-btn')&&css.includes('position:static')&&css.includes('bottom:auto'),'mobile primary action must remain in normal flow without covering image controls');
 assert.ok(sw.includes('ai-thiet-chan-v2.9.8-knowledge-5doc-complete')&&sw.includes("'/release-ui.js'")&&sw.includes("'/release-ui.css'"),'PWA shell release gate failed');
 console.log('RELEASE 2.9.2 SMOKE PASS: five-document RAG boundary, streamlined UI, Tham Van Gemini policy and PWA release wiring are enforced');

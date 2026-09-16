@@ -1,12 +1,58 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
-const CACHE='ai-thiet-chan-v2.9.15-rollback-mobile-layout';
-const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation.js','/consultation-lock.js','/admin-enhancement-collapse.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
+// Previous cache marker retained for regression compatibility: ai-thiet-chan-v2.9.15-rollback-mobile-layout
+let RELEASE_ID='2026.09.17-hardening-r1';
+try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
+const CACHE_PREFIX='ai-thiet-chan-shell-';
+const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
+const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/manifest.webmanifest','/icon.svg'];
+const OPTIONAL_SHELL=[
+  '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
+  '/hardware-profile.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
+  '/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
+  '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/access-control.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
+  '/academic-vision.js','/academic-source.js','/open-source.html'
+];
 const NAV_TIMEOUT_MS=2500;
 
 try{importScripts('/academic-vision.js');}catch{}
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
-async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}}
+
+async function fetchFresh(path){
+  const response=await fetch(path,{cache:'no-cache'});
+  if(!response.ok)throw new Error(`SW_ASSET_${response.status}`);
+  return response;
+}
+async function cacheRequired(cache){
+  for(const path of REQUIRED_SHELL){const response=await fetchFresh(path);await cache.put(path,response.clone());}
+}
+async function cacheOptional(cache){
+  await Promise.allSettled(OPTIONAL_SHELL.map(async path=>{const response=await fetchFresh(path);await cache.put(path,response.clone());}));
+}
+
+self.addEventListener('install',event=>{
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    await cacheRequired(cache);
+    await cacheOptional(cache);
+    // Intentionally do not call skipWaiting here. A newly installed worker waits
+    // until the current app session is closed or the client explicitly activates it.
+  })());
+});
+self.addEventListener('activate',event=>{
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(key=>key.startsWith(CACHE_PREFIX)&&key!==CACHE).map(key=>caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+self.addEventListener('message',event=>{
+  if(event?.data?.type==='AITC_ACTIVATE_UPDATE')self.skipWaiting();
+  if(event?.data?.type==='AITC_RELEASE_STATUS')event.source?.postMessage?.({type:'AITC_RELEASE_STATUS',releaseId:RELEASE_ID,cache:CACHE});
+});
+
+async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}
+}
 async function enrichAnalyzeRequest(request){
   try{
     const body=await request.clone().json();const image=body?.topImage||body?.image;const vision=self.AITCAcademicVision;
@@ -19,12 +65,31 @@ async function enrichAnalyzeRequest(request){
 self.addEventListener('fetch',event=>{
   const request=event.request,url=new URL(request.url);if(url.origin!==self.location.origin)return;
   if(request.method==='POST'&&url.pathname==='/api/analyze'){
-    event.respondWith((async()=>{const forwarded=await enrichAnalyzeRequest(request);const response=await fetch(forwarded);if(response.status!==429)return response;const body=await response.clone().text();const headers=new Headers(response.headers);headers.delete('retry-after');return new Response(body,{status:403,statusText:'Forbidden',headers});})());return;
+    event.respondWith((async()=>{
+      const forwarded=await enrichAnalyzeRequest(request);const response=await fetch(forwarded);
+      if(response.status!==429)return response;
+      const body=await response.clone().text();const headers=new Headers(response.headers);headers.delete('retry-after');
+      return new Response(body,{status:403,statusText:'Forbidden',headers});
+    })());return;
   }
   if(request.method!=='GET')return;
   if(url.pathname.startsWith('/api/')){event.respondWith(fetch(request,{cache:'no-store'}));return;}
   if(request.mode==='navigate'){
-    event.respondWith((async()=>{try{const response=await fetchWithTimeout(request);if(response.ok){const cache=await caches.open(CACHE);cache.put('/',response.clone());}return response;}catch{return (await caches.match('/'))||(await caches.match(request))||Response.error();}})());return;
+    event.respondWith((async()=>{
+      try{
+        const response=await fetchWithTimeout(request);
+        if(response.ok){const cache=await caches.open(CACHE);await cache.put('/',response.clone());}
+        return response;
+      }catch{return (await caches.match('/'))||(await caches.match(request))||Response.error();}
+    })());return;
   }
-  event.respondWith((async()=>{const cached=await caches.match(request);const refresh=fetch(request,{cache:'no-cache'}).then(async response=>{if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}return response;}).catch(()=>null);if(cached){event.waitUntil(refresh.then(()=>{}));return cached;}return (await refresh)||Response.error();})());
+  event.respondWith((async()=>{
+    const cached=await caches.match(request);
+    const refresh=fetch(request,{cache:'no-cache'}).then(async response=>{
+      if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}
+      return response;
+    }).catch(()=>null);
+    if(cached){event.waitUntil(refresh.then(()=>{}));return cached;}
+    return (await refresh)||Response.error();
+  })());
 });

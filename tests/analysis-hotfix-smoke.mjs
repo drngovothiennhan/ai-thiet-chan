@@ -32,6 +32,7 @@ assert.match(telemetry,/requestToResultMs/);
 assert.match(telemetry,/fallbackReason/);
 assert.match(releaseUi,/analysis-hotfix\.js/);
 assert.match(releaseUi,/benchmark-telemetry\.js/);
-assert.match(sw,/benchmark-telemetry\.js/);
+assert.match(releaseUi,/afterWindowLoad\(loadOperationalRuntime\)/);
+assert.doesNotMatch(sw,/benchmark-telemetry\.js/);
 
-console.log('ANALYSIS HOTFIX SMOKE PASS: local CV fallback is bounded, academically fused, provenance-tagged/capped, and durably persisted before the UI reports data collection success.');
+console.log('ANALYSIS HOTFIX SMOKE PASS: local CV fallback stays bounded and is loaded after the critical render path; telemetry remains durable without blocking service-worker installation.');

@@ -42,7 +42,7 @@ assert.match(server,/GROUNDING\\s\*=\\s\*\(IN\|OUT\)/);
 assert.match(server,/applicationRateLimit:false/);
 assert.match(server,/Không coi lưỡi gà là một phần của lưỡi/);
 assert.match(server,/atlasLanguageThreshold/);
-assert.match(runtime,/groundingProtocol/);
+assert.match(runtime,/\[CHAT_GROUNDING_PROTOCOL\]/);
 assert.match(runtime,/GROUNDING=IN/);
 
 assert.match(consultation,/Chatbot Gemini có thể được hỏi trực tiếp không giới hạn lượt ở tầng ứng dụng/);

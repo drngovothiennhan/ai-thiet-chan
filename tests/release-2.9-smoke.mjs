@@ -8,8 +8,8 @@ const css=fs.readFileSync(new URL('../public/release-ui.css',import.meta.url),'u
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
 
-assert.equal(pkg.version,'2.9.1');
-assert.ok(server.includes("const VERSION = '2.9.1'"),'server release metadata must be 2.9.1');
+assert.equal(pkg.version,'2.9.2');
+assert.ok(server.includes("const VERSION = '2.9.2'"),'server release metadata must be 2.9.2');
 assert.ok(server.includes('knowledgeForQuery'),'chat must use grounded retrieval');
 assert.ok(server.includes('retrievedKnowledge'),'chat retrieval context missing');
 assert.ok(!server.includes('knowledgeVersion:KNOWLEDGE_VERSION,knowledgeSources:KNOWLEDGE_SOURCES'),'analysis payload must not expose knowledge sources');
@@ -20,4 +20,4 @@ assert.ok(ui.includes("targets=[result,$('#reportBox')]")||ui.includes("targets=
 assert.ok(!ui.includes("targets=[result,$('#reportBox'),$('#chatLog')]"),'chat references must remain visible');
 assert.ok(css.includes('.capture-card .analyze-btn')&&css.includes('position:sticky'),'mobile primary action must stay reachable');
 assert.ok(sw.includes('ai-thiet-chan-v2.9.8-knowledge-5doc-complete')&&sw.includes("'/release-ui.js'")&&sw.includes("'/release-ui.css'"),'PWA shell release gate failed');
-console.log('RELEASE 2.9 SMOKE PASS: five-document RAG boundary, streamlined UI and PWA release wiring are enforced');
+console.log('RELEASE 2.9.2 SMOKE PASS: five-document RAG boundary, streamlined UI, Tham Van Gemini policy and PWA release wiring are enforced');

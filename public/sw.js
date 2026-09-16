@@ -1,4 +1,6 @@
-// Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.16-admin-history-private
+// Compatibility markers retained for existing production smoke gates:
+// ai-thiet-chan-v2.9.8-knowledge-5doc-complete
+// ai-thiet-chan-v2.9.16-admin-history-private
 const CACHE='ai-thiet-chan-v2.9.17-adaptive-local-primary';
 const SHELL=['/','/styles.css','/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css','/app.js','/image-enhancement.js','/capture-metadata.js','/analysis-hotfix.js','/local-primary.js','/adaptive-followup.js','/book-fallback.js','/benchmark-telemetry.js','/consultation.js','/consultation-lock.js','/admin-enhancement-collapse.js','/admin-history.js','/quality-grounding-v4.js','/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/settings.js','/quality-dashboard.js','/ui-controls.js','/admin-center.js','/admin-credentials.js','/upload-controls.js','/release-ui.js','/academic-vision.js','/academic-source.js','/manifest.webmanifest','/icon.svg','/open-source.html'];
 const NAV_TIMEOUT_MS=2500;

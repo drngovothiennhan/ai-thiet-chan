@@ -59,13 +59,24 @@
 (()=>{
   const RELEASE='2.9.0';
   const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
-  function load(src,key){const attr=attrName(key);if(document.querySelector(`script[${attr}]`))return;const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';document.head.appendChild(script);}
-  load('/torch.js','rearTorch');
-  load('/ui-controls.js','aitcUiControls');
-  load('/access-control.js','aitcAccessControl');
-  load('/admin-center.js','aitcAdminCenter');
-  load('/user-admin.js','aitcUserAdmin');
-  load('/admin-credentials.js','aitcAdminCredentials');
-  load('/feedback-lifecycle.js','aitcFeedbackLifecycle');
-  load('/upload-controls.js','aitcUploadControls');
+  function load(src,key){
+    const attr=attrName(key),existing=document.querySelector(`script[${attr}]`);
+    if(existing&&existing.dataset.aitcLoaded==='true')return Promise.resolve();
+    if(existing)return new Promise((resolve,reject)=>{existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});});
+    return new Promise((resolve,reject)=>{
+      const script=document.createElement('script');script.src=`${src}?v=${RELEASE}`;script.async=false;script.dataset[key]='true';
+      script.addEventListener('load',()=>{script.dataset.aitcLoaded='true';resolve();},{once:true});script.addEventListener('error',reject,{once:true});document.head.appendChild(script);
+    });
+  }
+  window.__aitcSettingsModulesReady=(async()=>{
+    await load('/torch.js','rearTorch');
+    await load('/ui-controls.js','aitcUiControls');
+    await load('/access-control.js','aitcAccessControl');
+    await load('/admin-center.js','aitcAdminCenter');
+    await load('/user-admin.js','aitcUserAdmin');
+    await load('/admin-credentials.js','aitcAdminCredentials');
+    await load('/feedback-lifecycle.js','aitcFeedbackLifecycle');
+    await load('/upload-controls.js','aitcUploadControls');
+    return true;
+  })().catch(err=>{console.warn('settings_module_boot_failed',err?.message||err);return false;});
 })();

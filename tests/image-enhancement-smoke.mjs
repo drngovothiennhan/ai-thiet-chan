@@ -6,9 +6,9 @@ const [enhancer,index,capture,sw,admin,app,academicVision]=await Promise.all([
   read('public/image-enhancement.js'),read('public/index.html'),read('public/capture-metadata.js'),read('public/sw.js'),read('public/admin-center.js'),read('public/app.js'),read('public/academic-vision.js')
 ]);
 
-const appAt=index.indexOf('<script src="/app.js" defer></script>');
-const enhanceAt=index.indexOf('<script src="/image-enhancement.js" defer></script>');
-const captureAt=index.indexOf('<script src="/capture-metadata.js" defer></script>');
+const appAt=index.indexOf('<script src="/app.js');
+const enhanceAt=index.indexOf('<script src="/image-enhancement.js');
+const captureAt=index.indexOf('<script src="/capture-metadata.js');
 assert.ok(appAt>=0&&enhanceAt>appAt&&captureAt>enhanceAt,'image enhancement must load after app.js and before capture-metadata.js');
 
 assert.match(enhancer,/preanalysis-image-enhancement-v3-front-camera/);

@@ -113,6 +113,7 @@
     try{
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
       await loadScript('/analysis-hotfix.js');
+      await loadScript('/book-fallback.js');
       await loadScript('/benchmark-telemetry.js');
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();

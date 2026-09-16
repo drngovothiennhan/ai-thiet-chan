@@ -18,7 +18,8 @@ assert.match(fallback,/import\('\/academic-source\.js'\)/);
 assert.match(fallback,/data\?\.fallback\|\|data\?\.localVision/);
 assert.match(fallback,/Tham Vấn: âm dịch\/hư nhiệt cần đối chiếu/);
 assert.match(fallback,/Tham Vấn: nguyên tắc đọc thiệt tượng/);
-assert.match(fallback,/Đã Tham Vấn kho tri thức/);
+assert.match(fallback,/Đã đối chiếu kho dữ liệu máy học\./);
+assert.doesNotMatch(fallback,/Đã Tham Vấn kho tri thức trong chế độ dự phòng không dùng Gemini\./);
 assert.doesNotMatch(fallback,/Tài liệu đã nạp:/);
 assert.match(fallback,/x-aitc-book-grounding/);
 assert.match(source,/âm hư/);
@@ -28,7 +29,8 @@ assert.ok(releaseUi.indexOf("/book-fallback.js")<releaseUi.indexOf("/benchmark-t
 assert.ok(releaseUi.indexOf("/benchmark-telemetry.js")<releaseUi.indexOf("/consultation-lock.js"));
 assert.ok(releaseUi.indexOf("/consultation-lock.js")<releaseUi.indexOf("/admin-enhancement-collapse.js"));
 assert.match(releaseUi,/whenIdle\(\(\)=>loadOperationalRuntime\(\),2200\)/);
-assert.match(sw,/ai-thiet-chan-v2\.9\.20-sustainable-core/);
+assert.match(sw,/ai-thiet-chan-v2\.9\.21-chat-gemini-admin/);
+assert.match(sw,/\/chat-flow-ui\.js/);
 assert.doesNotMatch(sw,/book-fallback\.js/);
 assert.doesNotMatch(sw,/consultation-lock\.js/);
 assert.doesNotMatch(sw,/admin-enhancement-collapse\.js/);
@@ -75,4 +77,4 @@ assert.match(academic,/Tham Vấn: tương đồng atlas/);
 assert.match(academic,/ưu tiên đúng thuật ngữ\/văn phong của mẫu tài liệu tương ứng/);
 assert.match(academic,/QC-qualified atlas matches >= 0\.85/);
 
-console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, camera shutdown, sustainable lazy runtime, full-tongue landmark guidance, and QC-qualified >=85% multi-atlas wording are present.');
+console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, contextual Gemini follow-up, camera shutdown, machine-learning fallback wording and QC-qualified >=85% multi-atlas wording are present.');

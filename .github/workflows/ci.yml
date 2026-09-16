@@ -31,3 +31,12 @@ jobs:
           node-version: '24'
       - run: npm install
       - run: npm run check
+      - name: Build source bundle for Vercel connector
+        run: tar --exclude='.git' --exclude='node_modules' -czf /tmp/ai-thiet-chan-source.tgz .
+      - name: Upload source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-thiet-chan-source
+          path: /tmp/ai-thiet-chan-source.tgz
+          if-no-files-found: error
+          compression-level: 0

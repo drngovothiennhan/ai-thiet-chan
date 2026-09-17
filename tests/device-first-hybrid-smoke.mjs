@@ -69,6 +69,7 @@ const sealLoaderIndex=releaseUi.indexOf("loadScript('/request-integrity.js')");
 assert.ok(deviceLoaderIndex>=0&&sealLoaderIndex>deviceLoaderIndex,'device runtime must load before request-integrity seals the pipeline');
 assert.ok(academicLoaderIndex>deviceLoaderIndex&&settingsWaitIndex>academicLoaderIndex,'academic runtime must not be blocked behind settings module boot');
 assert.ok(sealLoaderIndex>settingsWaitIndex,'request-integrity must still wait for settings request layers before sealing');
+assert.match(releaseUi,/requestIntegrity:Boolean\(window\.AITCRequestIntegrity\),deviceRuntime:Boolean\(window\.AITCDeviceRuntime\)/);
 const accessLoaderIndex=settings.indexOf("load('/access-control.js'");
 const firstOptionalSettingsIndex=settings.indexOf("load('/torch.js'");
 assert.ok(accessLoaderIndex>=0&&firstOptionalSettingsIndex>accessLoaderIndex,'access-control must register before optional settings modules can delay startup');

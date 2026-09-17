@@ -27,13 +27,17 @@ async function digestText(value){
     return [...new Uint8Array(out)].map(v=>v.toString(16).padStart(2,'0')).join('');
   }catch{return '';}
 }
+function base64Payload(dataUrl){
+  const text=String(dataUrl||'');
+  return text.includes(',')?text.slice(text.indexOf(',')+1):text;
+}
 async function analyze(dataUrl,role){
   if(typeof dataUrl!=='string'||dataUrl.length<100)throw new Error('DEVICE_IMAGE_REQUIRED');
   const started=performance.now();
   const signature=await self.AITCAcademicVision?.signatureFromDataUrl?.(dataUrl);
   const matches=signature?matchAtlas(signature).map(compactMatch):[];
   const coarseVisual=signature?coarse(signature):null;
-  const imageDigest=await digestText(dataUrl);
+  const imageDigest=await digestText(base64Payload(dataUrl));
   return {
     workerVersion:VERSION,
     role:role==='bottom'?'bottom':'top',

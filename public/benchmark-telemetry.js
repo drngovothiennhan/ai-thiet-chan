@@ -90,6 +90,25 @@ async function persist(payload){
 }
 function install(){
   const button=document.getElementById('analyzeBtn'),card=document.getElementById('resultCard');
+  window.addEventListener('aitc:vision-shadow',event=>{
+    const shadow=event?.detail||{};
+    persist({
+      event:'vision_shadow',
+      modelId:String(shadow.modelId||'aitc-tongue-roi-mlp-bootstrap-v1'),
+      modelSha256:String(shadow.modelSha256||''),
+      shadowStatus:String(shadow.status||'unknown'),
+      shadowLatencyMs:Number(shadow.latencyMs)||null,
+      shadowCoverage:Number.isFinite(Number(shadow.coverage))?Number(shadow.coverage):null,
+      baselineCoverage:Number.isFinite(Number(shadow.baselineCoverage))?Number(shadow.baselineCoverage):null,
+      coverageDelta:Number.isFinite(Number(shadow.coverageDelta))?Number(shadow.coverageDelta):null,
+      shadowPresence:typeof shadow.presence==='boolean'?shadow.presence:null,
+      clinicalGold:false,
+      productionEligible:false,
+      pipelineImpact:String(shadow.pipelineImpact||'none'),
+      deviceClass:deviceClass(),
+      ...hardwareTelemetry()
+    });
+  });
   if(button)button.addEventListener('click',()=>{clickStartedAt=now();lastRequest=null;},{capture:true});
   if(card)new MutationObserver(()=>{
     if(card.hidden||clickStartedAt===null)return;

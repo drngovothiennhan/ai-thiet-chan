@@ -25,6 +25,7 @@
     return invoke(chain,index+1,input,init);
   }
   function register(name,handler,priority){
+    if(sealed)throw new Error('AITC_REQUEST_PIPELINE_SEALED');
     const key=String(name||'').trim();
     if(!key||typeof handler!=='function'||!Number.isFinite(Number(priority)))throw new TypeError('AITC_REQUEST_LAYER_INVALID');
     if(layers.has(key))throw new Error(`AITC_REQUEST_LAYER_DUPLICATE:${key}`);

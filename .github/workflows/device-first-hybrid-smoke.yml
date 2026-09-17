@@ -6,8 +6,11 @@ on:
     paths:
       - 'public/device-runtime.js'
       - 'public/device-analysis-worker.js'
+      - 'public/ground-truth-profile.js'
       - 'public/release-meta.js'
+      - 'public/sw.js'
       - 'public/academic-*.js'
+      - 'academic-server.mjs'
       - 'tests/device-first-hybrid-smoke.mjs'
       - 'docs/DEVICE-FIRST-HYBRID-V1.md'
       - '.github/workflows/device-first-hybrid-smoke.yml'
@@ -26,5 +29,5 @@ jobs:
           node-version: '24'
       - run: npm install
       - run: npm run check
-      - run: node --check public/device-runtime.js && node --check public/device-analysis-worker.js
+      - run: node --check public/device-runtime.js && node --check public/device-analysis-worker.js && node --check public/ground-truth-profile.js && node --check public/sw.js && node --check academic-server.mjs
       - run: node tests/device-first-hybrid-smoke.mjs

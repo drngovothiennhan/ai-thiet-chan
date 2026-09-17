@@ -1,0 +1,29 @@
+name: Device First Hybrid Smoke
+
+on:
+  push:
+    branches: [device-first-hybrid-v1]
+    paths:
+      - 'public/device-runtime.js'
+      - 'public/device-analysis-worker.js'
+      - 'public/release-meta.js'
+      - 'public/academic-*.js'
+      - 'tests/device-first-hybrid-smoke.mjs'
+      - 'docs/DEVICE-FIRST-HYBRID-V1.md'
+      - '.github/workflows/device-first-hybrid-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm install
+      - run: npm run check
+      - run: node tests/device-first-hybrid-smoke.mjs

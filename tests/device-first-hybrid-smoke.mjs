@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const read=p=>fs.readFileSync(p,'utf8');
 const runtime=read('public/device-runtime.js');
 const worker=read('public/device-analysis-worker.js');
+const enhancement=read('public/image-enhancement.js');
 const release=read('public/release-meta.js');
 const source=read('public/academic-source.js');
 const vision=read('public/academic-vision.js');
@@ -11,6 +12,8 @@ const serverFusion=read('academic-server.mjs');
 const doc=read('docs/DEVICE-FIRST-HYBRID-V1.md');
 
 assert.match(runtime,/device-runtime-v1/);
+assert.match(runtime,/const DEVICE_COMPUTE_PRIORITY=90/);
+assert.match(enhancement,/register\('image-enhancement',[\s\S]*,100\)/);
 assert.match(runtime,/workerCount/);
 assert.match(runtime,/parallelViews/);
 assert.match(runtime,/preferredAccelerator:webgpu\?'webgpu':wasm\?'wasm':'cpu'/);

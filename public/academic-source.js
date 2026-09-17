@@ -8,8 +8,14 @@ export const SOURCE=Object.freeze({
   sourceCount:5,
   indexedPages:1157,
   indexedImageOccurrences:1027,
+  ownerDesignatedGroundTruthSamples:1027,
+  globalVisualVectors:1027,
+  diagnosticTongueSignatures:298,
+  contextOrNegativeSamples:729,
   pageVisualSignatures:298,
   imageVisualSignatures:298,
+  groundTruthDesignation:'owner-designated-ground-truth-v1',
+  groundTruthProfileVersion:'owner-ground-truth-profile-v1',
   noSilentOmission:true
 });
 export const WEIGHTS=Object.freeze({directImage:.45,atlasSimilarity:.35,geminiAcademic:.20});

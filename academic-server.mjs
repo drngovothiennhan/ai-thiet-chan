@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {matchAtlas,ACADEMIC_PAGE_CORPUS,corpusContext,searchTextCorpus,TEXT_CORPUS} from './knowledge-corpus.mjs';
 import {directPatterns,evidenceFor,fuse} from './public/academic-fusion-core.js';
 import {FUSION_VERSION,SOURCE,WEIGHTS} from './public/academic-source.js';
@@ -6,6 +7,11 @@ import {groundTongueMorphology,MORPHOLOGY_POLICY_VERSION} from './morphology-ref
 const ATLAS_LANGUAGE_THRESHOLD=.85;
 const ATLAS_LANGUAGE_MAX_MATCHES=3;
 const ATLAS_LANGUAGE_MAX_SNIPPETS=3;
+const DEVICE_VERIFY_VERSION='device-payload-verify-v1';
+const DEVICE_RUNTIME_VERSION='device-runtime-v2';
+const DEVICE_SCHEMA='device-analysis-payload-v2';
+const DEVICE_WORKER_VERSION='device-analysis-worker-v2';
+const SIG_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
   const arrays=[assessment?.combined?.generalSignals,assessment?.combined?.stomachPatternSignals,assessment?.top?.theoryAssessment?.generalSignals,assessment?.top?.theoryAssessment?.stomachPatternSignals].filter(Array.isArray);
@@ -43,10 +49,63 @@ function documentWordingForMatches(matches,assessment,body={}){
   const wording=snippets.map(x=>x.text).join(' ').slice(0,980);
   return {wording,snippets,matches:strong.map(m=>({sourceId:m.sourceId,page:m.page,kind:m.kind,similarity:Number(m.similarity)}))};
 }
+function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
+function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
+function saneSignature(raw){
+  if(!raw||typeof raw!=='object')return null;
+  const out={};
+  for(const key of SIG_KEYS){const n=Number(raw[key]);if(!Number.isFinite(n))return null;out[key]=n;}
+  for(const key of ['r','g','b','s','v','purple','white','yellow','dark','spot','coverage'])if(out[key]<0||out[key]>1.05)return null;
+  if(out.aspect<=0||out.aspect>5)return null;
+  if(raw.segmentationMode)out.segmentationMode=String(raw.segmentationMode).slice(0,60);
+  return out;
+}
+function saneBottomFeatures(raw){
+  if(!raw||typeof raw!=='object'||raw.schemaVersion!=='bottom-device-feature-v1')return null;
+  const keys=['vesselCandidateRatio','darkPurpleRatio','meanCentralLuminance','redBlueMinusGreen'];const out={schemaVersion:'bottom-device-feature-v1'};
+  for(const key of keys){const n=Number(raw[key]);if(!Number.isFinite(n))return null;out[key]=n;}
+  if(out.vesselCandidateRatio<0||out.vesselCandidateRatio>1||out.darkPurpleRatio<0||out.darkPurpleRatio>1||out.meanCentralLuminance<0||out.meanCentralLuminance>1||Math.abs(out.redBlueMinusGreen)>1)return null;
+  out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
+  return out;
+}
+function verifyClientVisualPayload(body={}){
+  const signature=saneSignature(body?.academicSignature);if(!signature)return {verified:false,reason:'signature-missing-or-invalid'};
+  const source=body?.academicSource&&typeof body.academicSource==='object'?body.academicSource:{};
+  const topImage=body?.topImage||body?.image||'';if(!topImage)return {verified:false,reason:'top-image-missing'};
+  const expectedTop=imageDigest(topImage),claimedTop=String(source.topImageDigest||'');
+  if(!claimedTop||claimedTop!==expectedTop)return {verified:false,reason:'top-image-digest-mismatch'};
+  if(source.execution==='service-worker-fallback'){
+    return {verified:true,mode:'service-worker-fallback',signature,clientSource:{execution:'service-worker-fallback',runtimeVersion:String(source.runtimeVersion||''),schemaVersion:String(source.schemaVersion||''),topImageDigest:claimedTop,source:String(source.id||source.source||SOURCE.id)},deviceCompute:null};
+  }
+  const runtime=body?.deviceRuntime||{},analysis=body?.deviceAnalysis||{},top=analysis?.top||{};
+  if(source.execution!=='device-worker')return {verified:false,reason:'execution-not-device-worker'};
+  if(runtime.status!=='complete'||runtime.version!==DEVICE_RUNTIME_VERSION||runtime.schemaVersion!==DEVICE_SCHEMA)return {verified:false,reason:'runtime-version-or-status-invalid'};
+  if(analysis.runtimeVersion!==DEVICE_RUNTIME_VERSION||analysis.schemaVersion!==DEVICE_SCHEMA)return {verified:false,reason:'analysis-schema-invalid'};
+  if(top.workerVersion!==DEVICE_WORKER_VERSION||String(top.imageDigest||'')!==expectedTop)return {verified:false,reason:'worker-version-or-top-digest-invalid'};
+  const gt=analysis.groundTruth||source;
+  if(Number(gt.ownerDesignatedTrainingSamples)!==1027||Number(gt.globalVisualVectors)!==1027||Number(gt.diagnosticTongueSignatures)!==298||Number(gt.contextOrNegativeSamples)!==729)return {verified:false,reason:'ground-truth-profile-invalid'};
+  let bottomVerified=false,bottomFeatures=null;
+  if(body?.mode==='general'&&body?.bottomImage){
+    const expectedBottom=imageDigest(body.bottomImage),claimedBottom=String(source.bottomImageDigest||'');
+    bottomVerified=Boolean(claimedBottom&&claimedBottom===expectedBottom&&String(analysis?.bottom?.imageDigest||'')===expectedBottom);
+    if(bottomVerified)bottomFeatures=saneBottomFeatures(analysis?.bottom?.bottomFeatures);
+  }
+  const context=top?.groundTruthContext&&typeof top.groundTruthContext==='object'?top.groundTruthContext:null;
+  const safeContext=context&&context.available===true?{
+    available:true,profileVersion:String(context.profileVersion||'').slice(0,80),trainingSamples:Number(context.trainingSamples)||0,diagnosticSamples:Number(context.diagnosticSamples)||0,contextSamples:Number(context.contextSamples)||0,
+    diagnosticDistance:Number(context.diagnosticDistance)||0,contextDistance:Number(context.contextDistance)||0,margin:Number(context.margin)||0,referenceRegion:String(context.referenceRegion||'').slice(0,60)
+  }:{available:false};
+  return {
+    verified:true,mode:'device-worker',signature,
+    clientSource:{execution:'device-worker',runtimeVersion:runtime.version,schemaVersion:runtime.schemaVersion,workerVersion:top.workerVersion,topImageDigest:expectedTop,bottomImageDigest:bottomVerified?String(source.bottomImageDigest||''):''},
+    deviceCompute:{verifyVersion:DEVICE_VERIFY_VERSION,verified:true,tier:String(analysis?.profile?.tier||runtime?.profile?.tier||'unknown').slice(0,30),activeBackend:String(analysis?.profile?.plan?.activeBackend||runtime?.profile?.plan?.activeBackend||'').slice(0,60),trainingVectorCoverage:1,diagnosticSignatureCoverage:Number((298/1027).toFixed(6)),groundTruthContext:safeContext,bottomVerified,bottomFeatures}
+  };
+}
 export function applyAcademicFusion(assessment,body={}){
   assessment=groundTongueMorphology(assessment,body);
-  const signature=body?.academicSignature&&typeof body.academicSignature==='object'?body.academicSignature:null;
-  if(!signature)return assessment;
+  const verification=verifyClientVisualPayload(body);
+  if(!verification.verified)return assessment;
+  const signature=verification.signature;
   const matches=matchAtlas(signature);
   const direct=directPatterns(assessment);
   const evidence=evidenceFor(direct);
@@ -70,6 +129,7 @@ export function applyAcademicFusion(assessment,body={}){
   }
   fused.ml=fused.ml||{};
   fused.ml.featureVector=fused.ml.featureVector||{};
+  if(verification.deviceCompute)fused.ml.featureVector.deviceCompute=verification.deviceCompute;
   fused.ml.featureVector.academic=fused.ml.featureVector.academic||{};
   fused.ml.featureVector.academic.corpus={
     id:ACADEMIC_PAGE_CORPUS.id,
@@ -79,7 +139,8 @@ export function applyAcademicFusion(assessment,body={}){
     totals:ACADEMIC_PAGE_CORPUS.totals,
     policies:ACADEMIC_PAGE_CORPUS.policies,
     sourceDocument:SOURCE,
-    clientSource:body?.academicSource||null,
+    clientSource:verification.clientSource,
+    clientVerification:{version:DEVICE_VERIFY_VERSION,verified:true,mode:verification.mode},
     fusionVersion:FUSION_VERSION,
     weights:WEIGHTS,
     morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
@@ -93,6 +154,7 @@ export function applyAcademicFusion(assessment,body={}){
     fused.combined.academicFusion.corpusTextMatches=textMatches.map(x=>({sourceId:x.sourceId,page:x.page,score:x.score}));
     fused.combined.academicFusion.visualContext=visualContext;
     fused.combined.academicFusion.morphologyPolicyVersion=MORPHOLOGY_POLICY_VERSION;
+    fused.combined.academicFusion.clientVerification={version:DEVICE_VERIFY_VERSION,verified:true,mode:verification.mode};
     fused.combined.academicFusion.atlasLanguage={
       applied:Boolean(strongAtlas&&atlasLanguage.wording),threshold:ATLAS_LANGUAGE_THRESHOLD,
       sourceId:strongAtlas?.sourceId||null,page:strongAtlas?.page||null,similarity:strongAtlas?.similarity||0,
@@ -107,11 +169,18 @@ export const ACADEMIC_HEALTH=Object.freeze({
   source:'KNOWLEDGE-5DOC',
   fusionVersion:FUSION_VERSION,
   morphologyPolicyVersion:MORPHOLOGY_POLICY_VERSION,
+  devicePayloadVerificationVersion:DEVICE_VERIFY_VERSION,
+  acceptedDeviceRuntime:DEVICE_RUNTIME_VERSION,
+  acceptedDeviceSchema:DEVICE_SCHEMA,
   atlasLanguageThreshold:ATLAS_LANGUAGE_THRESHOLD,
   atlasLanguageMaxMatches:ATLAS_LANGUAGE_MAX_MATCHES,
   sourceCount:ACADEMIC_PAGE_CORPUS.sourceCount,
   indexedPages:ACADEMIC_PAGE_CORPUS.totals.indexedPages,
   indexedImageOccurrences:ACADEMIC_PAGE_CORPUS.totals.indexedImageOccurrences,
+  ownerDesignatedGroundTruthSamples:1027,
+  globalVisualVectors:1027,
+  diagnosticTongueSignatures:298,
+  contextOrNegativeSamples:729,
   pageVisualSignatures:ACADEMIC_PAGE_CORPUS.totals.pageVisualSignatures,
   imageVisualSignatures:ACADEMIC_PAGE_CORPUS.totals.imageVisualSignatures,
   extractableTextChars:ACADEMIC_PAGE_CORPUS.totals.extractableTextChars,

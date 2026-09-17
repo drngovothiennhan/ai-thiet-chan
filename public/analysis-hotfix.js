@@ -1,6 +1,7 @@
 (()=>{
 'use strict';
-const priorFetch=window.fetch.bind(window);
+const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+const priorFetch=(input,init)=>requestClient.fetchAfter('analysis-hotfix',input,init);
 const FALLBACK_DEADLINE_MS=8_500;
 const FALLBACK_CONFIDENCE_CAP=.62;
 let clickStartedAt=null;
@@ -125,7 +126,7 @@ async function inspectResponseMetrics(response,requestStarted,mode){
   }catch{}
 }
 
-window.fetch=async(input,init={})=>{
+const __aitcStage3bFetch=async(input,init={})=>{
   const url=typeof input==='string'?input:input?.url||'';
   if(!url.includes('/api/analyze')||String(init?.method||'GET').toUpperCase()!=='POST'||typeof init?.body!=='string')return priorFetch(input,init);
   const requestStarted=now();
@@ -151,6 +152,7 @@ window.fetch=async(input,init={})=>{
   lastMetrics={requestToResultMs:Math.round(now()-requestStarted),fallback:false,fallbackReason:'local_vision_not_confirmed',inferenceSource:'none',mode,success:false};
   return new Response(JSON.stringify(failure),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}});
 };
+requestClient.register('analysis-hotfix',__aitcStage3bFetch,800);
 
 function emitBenchmark(){
   if(clickStartedAt===null)return;

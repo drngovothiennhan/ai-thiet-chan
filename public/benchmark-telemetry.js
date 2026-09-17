@@ -2,7 +2,8 @@
 'use strict';
 const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
 const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
-const priorFetch=window.fetch.bind(window);
+const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+const priorFetch=(input,init)=>requestClient.fetchAfter('benchmark-telemetry',input,init);
 const now=()=>performance?.now?.()??Date.now();
 let clickStartedAt=null;
 let lastRequest=null;
@@ -49,7 +50,7 @@ async function captureAnalyze(response,startedAt,mode){
     success:Boolean(response.ok)
   };
 }
-window.fetch=async(input,init={})=>{
+const __aitcStage3bFetch=async(input,init={})=>{
   const url=typeof input==='string'?input:input?.url||'';
   if(!url.includes('/api/analyze'))return priorFetch(input,init);
   const startedAt=now(),mode=modeFromBody(init);
@@ -62,6 +63,7 @@ window.fetch=async(input,init={})=>{
     throw err;
   }
 };
+requestClient.register('benchmark-telemetry',__aitcStage3bFetch,1000);
 async function persist(payload){
   try{
     await priorFetch(`${SUPABASE_URL}/rest/v1/rpc/ai_thiet_chan_benchmark_record_v1`,{

@@ -1,7 +1,8 @@
 (()=>{
   'use strict';
 
-  const nativeFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const nativeFetch=(input,init)=>requestClient.fetchAfter('image-enhancement',input,init);
   const VERSION='preanalysis-image-enhancement-v4-hardware-adaptive';
   const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
   const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
@@ -168,9 +169,10 @@
   }
 
   window.AITCImageEnhancement=Object.freeze({version:VERSION,enhanceDataUrl,config:enhancementConfig,outputSize,activeImagePolicy});
-  window.fetch=async(input,init)=>{
+  const __aitcStage3bFetch=async(input,init)=>{
     const url=input instanceof Request?input.url:String(input||''),method=(input instanceof Request?input.method:init?.method||'GET').toUpperCase();
     if(!isAnalyzeRequest(url,method))return nativeFetch(input,init);
     const rewritten=await rewriteAnalyzeRequest(input,init);return nativeFetch(rewritten);
   };
+  requestClient.register('image-enhancement',__aitcStage3bFetch,100);
 })();

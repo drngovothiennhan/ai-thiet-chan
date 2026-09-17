@@ -1,5 +1,6 @@
 (()=>{
-  const nativeFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const nativeFetch=(input,init)=>requestClient.fetchAfter('capture-metadata',input,init);
   const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
   const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
 
@@ -220,7 +221,7 @@
     }catch{return serverResponse;}
   }
 
-  window.fetch=async(input,init={})=>{
+  const __aitcStage3bFetch=async(input,init={})=>{
     try{
       const url=typeof input==='string'?input:input?.url||'';
       if(url.includes('/api/analyze')&&String(init?.method||'GET').toUpperCase()==='POST'&&typeof init?.body==='string'){
@@ -237,6 +238,7 @@
     }catch{}
     return nativeFetch(input,init);
   };
+  requestClient.register('capture-metadata',__aitcStage3bFetch,200);
 
   const chatLog=document.getElementById('chatLog');
   if(chatLog){

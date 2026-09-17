@@ -1,6 +1,7 @@
 (()=>{
 'use strict';
-const priorFetch=window.fetch.bind(window);
+const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+const priorFetch=(input,init)=>requestClient.fetchAfter('book-fallback',input,init);
 const MAX_CONFIDENCE=.62;
 let evidenceModulePromise=null;
 
@@ -100,7 +101,7 @@ function enrichFallback(data,evidence){
   return data;
 }
 
-window.fetch=async(input,init={})=>{
+const __aitcStage3bFetch=async(input,init={})=>{
   const url=typeof input==='string'?input:input?.url||'';
   const response=await priorFetch(input,init);
   if(!url.includes('/api/analyze')||String(init?.method||'GET').toUpperCase()!=='POST'||!response.ok)return response;
@@ -115,4 +116,5 @@ window.fetch=async(input,init={})=>{
   headers.set('content-type','application/json; charset=utf-8');headers.set('x-aitc-book-grounding','supplied-knowledge');
   return new Response(JSON.stringify(data),{status:response.status,statusText:response.statusText,headers});
 };
+requestClient.register('book-fallback',__aitcStage3bFetch,900);
 })();

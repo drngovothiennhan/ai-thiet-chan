@@ -108,6 +108,19 @@
 })();
 
 (()=>{
+  if(window.AITCPipelineContract)return;
+  const version='pipeline-contract-v1';
+  const layers=Object.freeze([
+    Object.freeze({id:'capture-qc',order:1,runtime:'browser',authority:'input-quality',fallback:'reject-or-degrade-confidence'}),
+    Object.freeze({id:'device-vision',order:2,runtime:'browser-worker',authority:'feature-extraction-only',fallback:'existing-server-pipeline'}),
+    Object.freeze({id:'server-fusion',order:3,runtime:'server',authority:'assessment-synthesis',fallback:'fail-closed-on-provider-error'}),
+    Object.freeze({id:'learning-store',order:4,runtime:'supabase',authority:'approved-case-memory',fallback:'analysis-without-learning-retrieval'}),
+    Object.freeze({id:'consultation',order:5,runtime:'server-provider',authority:'post-result-reasoning',fallback:'explicit-provider-error'})
+  ]);
+  window.AITCPipelineContract=Object.freeze({version,layers});
+})();
+
+(()=>{
   function loadScript(src){
     return new Promise((resolve,reject)=>{
       const existing=[...document.scripts].find(script=>{try{return new URL(script.src,location.href).pathname===src;}catch{return false;}});
@@ -137,7 +150,7 @@
       await loadScript('/admin-enhancement-collapse.js');
       if(settingsModulesReady)await settingsModulesReady;
       await loadScript('/request-integrity.js');
-      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity),deviceRuntime:Boolean(window.AITCDeviceRuntime)}}));
+      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity),deviceRuntime:Boolean(window.AITCDeviceRuntime),pipelineContract:window.AITCPipelineContract?.version||null,pipelineLayers:window.AITCPipelineContract?.layers?.map(layer=>layer.id)||[]}}));
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();
 })();

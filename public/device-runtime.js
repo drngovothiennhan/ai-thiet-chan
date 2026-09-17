@@ -2,14 +2,26 @@
   'use strict';
   if(window.AITCDeviceRuntime)return;
 
-  const VERSION='device-runtime-v1';
-  const SCHEMA='device-analysis-payload-v1';
+  const VERSION='device-runtime-v2';
+  const SCHEMA='device-analysis-payload-v2';
   const WORKER_URL='/device-analysis-worker.js';
   const DEVICE_COMPUTE_PRIORITY=90;
-  const GROUND_TRUTH=Object.freeze({source:'KNOWLEDGE-5DOC',designation:'owner-designated-ground-truth-v1',indexedImageOccurrences:1027,vectorizedVisualSignatures:298});
+  const GROUND_TRUTH=Object.freeze({
+    source:'KNOWLEDGE-5DOC',
+    designation:'owner-designated-ground-truth-v1',
+    profileVersion:'owner-ground-truth-profile-v1',
+    indexedImageOccurrences:1027,
+    ownerDesignatedTrainingSamples:1027,
+    globalVisualVectors:1027,
+    diagnosticTongueSignatures:298,
+    contextOrNegativeSamples:729,
+    trainingVectorCoverage:1,
+    diagnosticSignatureCoverage:Number((298/1027).toFixed(6))
+  });
   let seq=0;
   let registered=false;
   let registrationAttempts=0;
+  let idleTimer=null;
 
   function n(value){const x=Number(value);return Number.isFinite(x)&&x>0?x:null;}
   function connectionClass(){
@@ -31,15 +43,26 @@
     const createImageBitmap=typeof window.createImageBitmap==='function';
     const wasm=typeof WebAssembly!=='undefined';
     const webgpu=Boolean(navigator.gpu);
+    const localVisionReady=webWorker&&offscreenCanvas&&createImageBitmap;
     let score=1;
     const reasons=[];
     if(cores!==null){if(cores<=4){score-=1;reasons.push('cores<=4');}else if(cores>=8){score+=1;reasons.push('cores>=8');}}
     if(memory!==null){if(memory<=4){score-=1;reasons.push('memory<=4gb');}else if(memory>=8){score+=1;reasons.push('memory>=8gb');}}
     if(network==='slow'||network==='save-data'){score-=1;reasons.push(network);}
-    if(!webWorker||!offscreenCanvas){score-=2;reasons.push('worker-path-limited');}
+    if(!localVisionReady){score-=3;reasons.push('local-worker-vision-unavailable');}
     const tier=score<=0?'constrained':score>=3?'high':'balanced';
-    const workerCount=!webWorker?0:tier==='high'?Math.min(3,Math.max(1,cores||2)):tier==='balanced'?Math.min(2,Math.max(1,cores||2)):1;
-    return Object.freeze({version:VERSION,tier,reasons:Object.freeze(reasons),logicalCores:cores,deviceMemoryGb:memory,network,capabilities:Object.freeze({webWorker,offscreenCanvas,createImageBitmap,wasm,webgpu}),plan:Object.freeze({workerCount,parallelViews:workerCount>=2,preferredAccelerator:webgpu?'webgpu':wasm?'wasm':'cpu',fallback:'existing-server-pipeline'})});
+    const workerCount=!localVisionReady?0:tier==='high'?Math.min(3,Math.max(1,cores||2)):tier==='balanced'?Math.min(2,Math.max(1,cores||2)):1;
+    return Object.freeze({
+      version:VERSION,tier,reasons:Object.freeze(reasons),logicalCores:cores,deviceMemoryGb:memory,network,
+      capabilities:Object.freeze({webWorker,offscreenCanvas,createImageBitmap,wasm,webgpu,localVisionReady}),
+      plan:Object.freeze({
+        workerCount,parallelViews:workerCount>=2,
+        activeBackend:localVisionReady?'worker-canvas-cpu':'server-fallback',
+        availableAccelerator:webgpu?'webgpu':wasm?'wasm':'cpu',
+        acceleratorUsed:false,
+        fallback:'existing-server-pipeline'
+      })
+    });
   }
 
   const profile=detect();
@@ -55,6 +78,18 @@
     script.dataset.aitcHardwareProfile='1';
     document.head.appendChild(script);
   }
+  function clearIdleTimer(){if(idleTimer){clearTimeout(idleTimer);idleTimer=null;}}
+  function terminateWorkers(){
+    clearIdleTimer();
+    while(workers.length){try{workers.pop()?.terminate?.();}catch{}}
+    cursor=0;
+  }
+  function armIdleCleanup(){
+    clearIdleTimer();
+    if(pending.size||!workers.length)return;
+    const idleMs=profile.tier==='constrained'?30_000:profile.tier==='balanced'?45_000:60_000;
+    idleTimer=setTimeout(()=>{if(!pending.size)terminateWorkers();},idleMs);
+  }
   function makeWorker(index){
     try{
       const worker=new Worker(WORKER_URL,{type:'module',name:`aitc-device-${index+1}`});
@@ -63,25 +98,27 @@
         const task=pending.get(id);if(!task)return;
         pending.delete(id);clearTimeout(task.timer);
         ok?task.resolve(result):task.reject(new Error(error||'DEVICE_WORKER_FAILED'));
+        armIdleCleanup();
       };
       worker.onerror=()=>{};
       return worker;
     }catch{return null;}
   }
   function ensureWorkers(){
+    clearIdleTimer();
     if(workers.length||profile.plan.workerCount<1)return workers;
     for(let i=0;i<profile.plan.workerCount;i++){const w=makeWorker(i);if(w)workers.push(w);}
     return workers;
   }
-  function runWorker(dataUrl,role,timeoutMs=12000){
+  function runWorker(dataUrl,role,timeoutMs=12_000){
     const pool=ensureWorkers();
     if(!pool.length)return Promise.reject(new Error('DEVICE_WORKER_UNAVAILABLE'));
     const worker=pool[cursor++%pool.length];
     const id=`d${Date.now().toString(36)}-${++seq}`;
     return new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{pending.delete(id);reject(new Error('DEVICE_WORKER_TIMEOUT'));},timeoutMs);
+      const timer=setTimeout(()=>{pending.delete(id);reject(new Error('DEVICE_WORKER_TIMEOUT'));armIdleCleanup();},timeoutMs);
       pending.set(id,{resolve,reject,timer});
-      worker.postMessage({id,dataUrl,role});
+      worker.postMessage({id,dataUrl,role,tier:profile.tier});
     });
   }
   async function analyzeViews(body){
@@ -95,7 +132,11 @@
       topResult=await runWorker(top,'top');
       if(bottom)bottomResult=await runWorker(bottom,'bottom');
     }
-    return {schemaVersion:SCHEMA,runtimeVersion:VERSION,profile:{tier:profile.tier,logicalCores:profile.logicalCores,deviceMemoryGb:profile.deviceMemoryGb,network:profile.network,capabilities:profile.capabilities,plan:profile.plan},groundTruth:GROUND_TRUTH,top:topResult,bottom:bottomResult};
+    return {
+      schemaVersion:SCHEMA,runtimeVersion:VERSION,
+      profile:{tier:profile.tier,logicalCores:profile.logicalCores,deviceMemoryGb:profile.deviceMemoryGb,network:profile.network,capabilities:profile.capabilities,plan:profile.plan},
+      groundTruth:GROUND_TRUTH,top:topResult,bottom:bottomResult
+    };
   }
   function isAnalyze(url,method){
     try{const u=new URL(url,location.href);return method==='POST'&&u.origin===location.origin&&u.pathname==='/api/analyze';}
@@ -114,13 +155,19 @@
       body.deviceAnalysis=deviceAnalysis;
       if(deviceAnalysis?.top?.signature){
         body.academicSignature=deviceAnalysis.top.signature;
-        body.academicSource={...GROUND_TRUTH,execution:'device-worker',runtimeVersion:VERSION,schemaVersion:SCHEMA,topImageDigest:deviceAnalysis.top.imageDigest||''};
+        body.academicSource={
+          ...GROUND_TRUTH,
+          execution:'device-worker',runtimeVersion:VERSION,schemaVersion:SCHEMA,
+          workerVersion:deviceAnalysis.top.workerVersion||'',
+          topImageDigest:deviceAnalysis.top.imageDigest||'',
+          bottomImageDigest:deviceAnalysis.bottom?.imageDigest||''
+        };
       }
       body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'complete',elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan}};
     }catch(error){
       body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'fallback',reason:String(error?.message||error),elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan},groundTruth:GROUND_TRUTH};
     }
-    const headers=new Headers(request.headers);headers.set('content-type','application/json');
+    const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     const rewritten=new Request(request,{headers,body:JSON.stringify(body)});
     return client.fetchAfter('device-compute',rewritten);
   }
@@ -144,6 +191,6 @@
   ensureHardwareProfile();
   ensureWorkers();
   tryRegister();
-  window.AITCDeviceRuntime=Object.freeze({version:VERSION,schemaVersion:SCHEMA,profile,groundTruth:GROUND_TRUTH,analyzeViews,snapshot});
+  window.AITCDeviceRuntime=Object.freeze({version:VERSION,schemaVersion:SCHEMA,profile,groundTruth:GROUND_TRUTH,analyzeViews,snapshot,terminateWorkers});
   window.dispatchEvent(new CustomEvent('aitc:device-runtime',{detail:snapshot()}));
 })();

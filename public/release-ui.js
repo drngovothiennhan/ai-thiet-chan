@@ -150,6 +150,6 @@
       if(settingsModulesReady)await settingsModulesReady;
       await loadScript('/request-integrity.js');
       window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity),deviceRuntime:Boolean(window.AITCDeviceRuntime),pipelineContract:window.AITCPipelineContract?.version||null,pipelineLayers:window.AITCPipelineContract?.layers?.map(layer=>layer.id)||[]}}));
-    }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
+    }catch(err){console.warn('runtime_loader_failed',err?.message||err);}
   })();
 })();

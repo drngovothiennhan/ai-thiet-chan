@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "aitc-stage2-dataset-manifest-v1",
+  "datasetId": "aitc-stage2-bootstrap-479-v1",
+  "purpose": "bootstrap tongue ROI segmentation candidate; weak supervision only",
+  "clinicalGold": false,
+  "productionEligible": false,
+  "labelPolicy": "weak-supervision from existing runtime mask-v2; source-role negatives; no model output is treated as clinician truth",
+  "sourcePolicy": {
+    "includedDiagnosticSources": [
+      "TC1",
+      "DY1",
+      "MC1",
+      "AT1"
+    ],
+    "excludedFromPositiveTraining": [
+      "PSY1"
+    ],
+    "rawImagesCommittedToGit": false,
+    "rawSourceLocation": "owner-controlled Drive knowledge folder",
+    "sourcePdfSha256": {
+      "TC1": "72afb5595e20e0f6311b2166ad8103129cf42a1299528b58bfea09892d49218e",
+      "DY1": "802d949b0e512fbe3ab34f699b9a1e73a75fc2679f282b98ab33b55736511c22",
+      "MC1": "336de613f28b26b3122ccee33d395bd57ed91ee3342df42fd84a99d0eadf3dea",
+      "AT1": "2105100126eba2fb7ea59ad7a048a1fdd269caed8d7de243ff8001617df4fc3f"
+    }
+  },
+  "splitPolicy": {
+    "unit": "near-duplicate group",
+    "sameSourcePageGrouped": true,
+    "exactSourceImageShaGrouped": true,
+    "derivedNearDuplicateHash": "dHash-256",
+    "maxHammingDistance": 8,
+    "deterministic": true,
+    "randomResplitOnRerun": false,
+    "AT1ExternalHoldout": true,
+    "rule": "AT1 groups => test; remaining groups stable SHA256 group bucket: <78 train, 78-89 validation, >=90 internal test"
+  },
+  "counts": {
+    "total": {
+      "n": 479,
+      "positive": 298,
+      "negative": 181,
+      "groups": 460
+    },
+    "train": {
+      "n": 337,
+      "positive": 198,
+      "negative": 139,
+      "groups": 327,
+      "sources": {
+        "DY1": 231,
+        "MC1": 75,
+        "TC1": 31
+      }
+    },
+    "validation": {
+      "n": 60,
+      "positive": 36,
+      "negative": 24,
+      "groups": 53,
+      "sources": {
+        "DY1": 40,
+        "MC1": 9,
+        "TC1": 11
+      }
+    },
+    "test": {
+      "n": 82,
+      "positive": 64,
+      "negative": 18,
+      "groups": 80,
+      "sources": {
+        "AT1": 41,
+        "DY1": 31,
+        "MC1": 8,
+        "TC1": 2
+      }
+    }
+  },
+  "leakageAudit": {
+    "groupCrossSplit": 0,
+    "exactDerivedShaCrossSplit": 0,
+    "AT1ExternalHoldout": true
+  },
+  "reproducibility": {
+    "fullPrivateManifestSha256": "8673fef2eafbaecce8bf73b419eec262eca575032341484ed77e47b5d8da3947",
+    "statsSha256": "a81ed87d1f64e4cc8cf38a34354750253f94a6530fe97e27404ebe7393428e5c",
+    "rawPrivateManifestCommitted": false,
+    "reason": "do not commit source-derived image inventory or raw images to public repository"
+  },
+  "restrictions": [
+    "Metrics against this dataset are weak-label agreement, not clinical accuracy.",
+    "No production activation before an independent clinician-approved gold holdout exists.",
+    "Do not use PSY1 as tongue-positive evidence.",
+    "Do not treat 729 context/negative occurrences as tongue-positive samples."
+  ]
+}

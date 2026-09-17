@@ -16,6 +16,8 @@ try{
   if(!health.ok||health.app!=='A.I Thiệt Chẩn')throw new Error('health gate failed');
   if(health.architecture!=='independent-web'||health.legacyPlatform!==false)throw new Error('architecture gate failed');
   if(health.sharedProvider!==true||health.clientSuppliedKeyAccepted!==false)throw new Error('provider boundary failed');
+  if(health.vision?.provider!=='local'||health.vision?.geminiVision!==false||health.vision?.analysisRequiresProvider!==false)throw new Error('local vision boundary failed');
+  if(health.consultation?.provider!=='Gemini'||health.consultation?.role!=='post-analysis-reasoning-only')throw new Error('consultation boundary failed');
   if(health.caseCollection?.mode!=='automatic'||health.caseCollection?.history!==true||health.caseCollection?.deduplicate!=='sha256-composite')throw new Error('automatic case collection gate failed');
   if(!Array.isArray(health.assessmentModes)||!health.assessmentModes.includes('normal')||!health.assessmentModes.includes('general'))throw new Error('assessment mode gate failed');
 
@@ -59,7 +61,12 @@ try{
   requireMarkers(sw,['ai-thiet-chan-v2.9.8-knowledge-5doc-complete',"url.pathname.startsWith('/api/')",'/admin-center.js','/admin-credentials.js','/ui-controls.js','/feedback-lifecycle.js','/upload-controls.js'],'service worker');
 
   const noKey=await fetch(`http://127.0.0.1:${port}/api/analyze`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode:'normal',topImage:'data:image/jpeg;base64,'+'a'.repeat(200)})});
-  if(noKey.status!==428)throw new Error(`expected analyze 428 without shared key, got ${noKey.status}`);
+  if(noKey.status!==422)throw new Error(`expected analyze 422 without verified local vision payload, got ${noKey.status}`);
+  const noKeyBody=await noKey.json();
+  if(noKeyBody.error!=='LOCAL_VISION_INPUT_UNVERIFIED'||noKeyBody.geminiVision!==false)throw new Error('analyze must fail closed on unverified local vision without invoking Gemini');
+
+  const noKeyChat=await fetch(`http://127.0.0.1:${port}/api/chat`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message:'test'})});
+  if(noKeyChat.status!==428)throw new Error(`expected chat 428 without Gemini key, got ${noKeyChat.status}`);
 
   const manifest=JSON.parse(await text('/manifest.webmanifest'));
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||!manifest.icons.length)throw new Error('PWA manifest gate failed');

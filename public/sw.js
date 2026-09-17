@@ -9,7 +9,7 @@ const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
   '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
-  '/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
+  '/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
   '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/access-control.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
   '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
 ];

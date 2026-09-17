@@ -62,6 +62,15 @@ assert.match(worker,/digestText\(base64Payload\(dataUrl\)\)/);
 
 assert.match(release,/device-runtime-v2/);
 assert.match(release,/device-analysis-payload-v2/);
+assert.match(releaseUi,/pipeline-contract-v1/);
+for(const id of ['capture-qc','device-vision','server-fusion','learning-store','consultation'])assert.match(releaseUi,new RegExp(`id:'${id}'`));
+assert.match(releaseUi,/authority:'input-quality'/);
+assert.match(releaseUi,/authority:'feature-extraction-only'/);
+assert.match(releaseUi,/authority:'assessment-synthesis'/);
+assert.match(releaseUi,/authority:'approved-case-memory'/);
+assert.match(releaseUi,/authority:'post-result-reasoning'/);
+assert.match(releaseUi,/pipelineContract:window\.AITCPipelineContract\?\.version\|\|null/);
+assert.match(releaseUi,/pipelineLayers:window\.AITCPipelineContract\?\.layers\?\.map\(layer=>layer\.id\)\|\|\[\]/);
 const deviceLoaderIndex=releaseUi.indexOf("loadScript('/device-runtime.js')");
 const academicLoaderIndex=releaseUi.indexOf("loadScript('/academic-vision.js')");
 const settingsWaitIndex=releaseUi.indexOf('if(settingsModulesReady)await settingsModulesReady;');

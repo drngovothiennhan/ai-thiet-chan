@@ -19,8 +19,8 @@ function collectSignals(assessment){
   for(const list of arrays)for(const signal of list){if(!signal||typeof signal!=='object')continue;const label=String(signal.label||'').trim();if(!label)continue;const key=label.toLowerCase(),prev=byLabel.get(key);if(!prev||scoreOf(signal)>scoreOf(prev))byLabel.set(key,signal);}
   return [...byLabel.values()];
 }
-function geminiLayer(assessment){
-  const patternCandidates=collectSignals(assessment).map(signal=>({label:String(signal.label||'').trim(),directEvidence:String(signal.evidence||''),academicEvidence:String(signal.rule||signal.missingForConclusion||'Đối chiếu học thuật từ tầng Gemini trong phân tích hiện tại.'),missing:String(signal.missingForConclusion||''),score:scoreOf(signal)}));
+function reasoningLayer(assessment){
+  const patternCandidates=collectSignals(assessment).map(signal=>({label:String(signal.label||'').trim(),directEvidence:String(signal.evidence||''),academicEvidence:String(signal.rule||signal.missingForConclusion||'Đối chiếu học thuật từ tầng phân tích hiện tại.'),missing:String(signal.missingForConclusion||''),score:scoreOf(signal)}));
   const cannotConclude=[...(Array.isArray(assessment?.combined?.cannotConclude)?assessment.combined.cannotConclude:[]),...(Array.isArray(assessment?.top?.theoryAssessment?.cannotConclude)?assessment.top.theoryAssessment.cannotConclude:[])].map(String).filter(Boolean);
   return {academicSummary:String(assessment?.combined?.summary||''),patternCandidates,cannotConclude:[...new Set(cannotConclude)]};
 }
@@ -68,7 +68,7 @@ function saneBottomFeatures(raw){
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
   return out;
 }
-function verifyClientVisualPayload(body={}){
+export function verifyClientVisualPayload(body={}){
   const signature=saneSignature(body?.academicSignature);if(!signature)return {verified:false,reason:'signature-missing-or-invalid'};
   const source=body?.academicSource&&typeof body.academicSource==='object'?body.academicSource:{};
   const topImage=body?.topImage||body?.image||'';if(!topImage)return {verified:false,reason:'top-image-missing'};
@@ -112,7 +112,7 @@ export function applyAcademicFusion(assessment,body={}){
   const query=[assessment?.combined?.summary,...direct.map(x=>x.label),...(assessment?.combined?.generalSignals||[]).map(x=>x?.label||'')].filter(Boolean).join(' ');
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
-  const fused=fuse(assessment,signature,matches,geminiLayer(assessment),evidence);
+  const fused=fuse(assessment,signature,matches,reasoningLayer(assessment),evidence);
   const atlasLanguage=documentWordingForMatches(matches,fused,body);
   const strongAtlas=atlasLanguage.matches[0]||null;
   if(strongAtlas&&atlasLanguage.wording){

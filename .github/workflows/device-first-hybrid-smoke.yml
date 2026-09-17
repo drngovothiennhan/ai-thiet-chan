@@ -26,4 +26,5 @@ jobs:
           node-version: '24'
       - run: npm install
       - run: npm run check
+      - run: node --check public/device-runtime.js && node --check public/device-analysis-worker.js
       - run: node tests/device-first-hybrid-smoke.mjs

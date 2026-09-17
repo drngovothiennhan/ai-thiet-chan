@@ -4,7 +4,8 @@
   const VERSION='request-integrity-v1';
   const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
   const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
-  const priorFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const priorFetch=(input,init)=>requestClient.fetchAfter('request-integrity',input,init);
   const state={active:0,total:0,failed:0,lastRequest:null,sealed:false};
   const recentFaults=new Map();
   const MAX_FAULTS_PER_MINUTE=8;
@@ -93,11 +94,8 @@
   window.addEventListener('error',event=>{recordFault('error',event?.error||{name:'WindowError'},sourceBucket(event?.filename));});
   window.addEventListener('unhandledrejection',event=>{recordFault('rejection',(event?.reason&&typeof event.reason==='object')?event.reason:{name:'UnhandledRejection'},'app');});
 
-  window.fetch=guardedFetch;
-  try{
-    const descriptor=Object.getOwnPropertyDescriptor(window,'fetch');
-    if(!descriptor||descriptor.configurable!==false){Object.defineProperty(window,'fetch',{value:guardedFetch,writable:false,configurable:false,enumerable:true});state.sealed=true;}
-  }catch{state.sealed=false;}
+  requestClient.register('request-integrity',guardedFetch,1200);
+  state.sealed=requestClient.seal();
 
   window.AITCRequestIntegrity=Object.freeze({
     version:VERSION,

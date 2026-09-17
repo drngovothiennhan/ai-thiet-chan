@@ -1,4 +1,3 @@
-window.__aitcRawFetch=window.__aitcRawFetch||window.fetch.bind(window);
 import('/clinical-learning.js?v=2.9.0').catch(()=>{});
 import('/session-persistence.js?v=2.9.4').catch(()=>{});
 
@@ -47,7 +46,8 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
   let pendingPromptKind='';
   let showDetailsAfterNextBot=false;
   let detailChoicePending=false;
-  const nativeFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const nativeFetch=(input,init)=>requestClient.fetchAfter('consultation',input,init);
 
   function savedMessages(){
     return [...log.querySelectorAll('.bubble')]
@@ -207,7 +207,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     inquiry.transcript=transcriptText();inquiry.active=false;inquiry.completed=true;inquiry.skipped=false;pendingFinalPrompt=finalPrompt();pendingPromptKind='thap-final';startBtn.textContent='Vấn chẩn lại';setProgress();saveSessionState();
   },true);
 
-  window.fetch=async(inputArg,init={})=>{
+  const __aitcStage3bFetch=async(inputArg,init={})=>{
     const url=typeof inputArg==='string'?inputArg:inputArg?.url||'';
     const method=String(init?.method||'GET').toUpperCase();
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
@@ -234,6 +234,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     }
     return nativeFetch(inputArg,init);
   };
+  requestClient.register('consultation',__aitcStage3bFetch,300);
 
   if(!loadSessionState()) resetInquiry(true);
 })();

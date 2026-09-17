@@ -8,7 +8,7 @@ const lifecycle=fs.readFileSync(new URL('../public/feedback-lifecycle.js',import
 const source=fs.readFileSync(new URL('../public/open-source.html',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
 
-assert.ok(consultation.includes("window.__aitcRawFetch=window.__aitcRawFetch||window.fetch.bind(window);"),'missing raw fetch bootstrap');
+assert.ok(consultation.includes("requestClient.fetchAfter('consultation'"),'consultation must use the shared request client');
 assert.ok(consultation.includes("import('/clinical-learning.js?v=2.9.0')"),'missing versioned clinical learning bootstrap');
 
 for(const marker of [

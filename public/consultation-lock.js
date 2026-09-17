@@ -66,8 +66,9 @@ function installCameraShutdown(){
 }
 
 function installConsultationGeminiLock(){
-  const priorFetch=window.fetch.bind(window);
-  window.fetch=async(input,init={})=>{
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const priorFetch=(input,init)=>requestClient.fetchAfter('consultation-lock',input,init);
+  const __aitcStage3bFetch=async(input,init={})=>{
     const url=typeof input==='string'?input:input?.url||'';
     const method=String(init?.method||'GET').toUpperCase();
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
@@ -85,6 +86,7 @@ function installConsultationGeminiLock(){
     }
     return priorFetch(input,init);
   };
+  requestClient.register('consultation-lock',__aitcStage3bFetch,1100);
 }
 
 replaceVisibleName();

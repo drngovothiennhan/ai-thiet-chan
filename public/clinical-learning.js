@@ -4,8 +4,9 @@
   const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
   const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
   const LEARNING_THRESHOLD=0.55;
-  const previousFetch=window.fetch.bind(window);
-  const rawFetch=window.__aitcRawFetch||previousFetch;
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const previousFetch=(input,init)=>requestClient.fetchAfter('clinical-learning',input,init);
+  const rawFetch=(input,init)=>requestClient.fetchAfter('consultation',input,init);
   const learning={caseId:null,caseHash:'',topHash:'',bottomHash:'',assessment:null,featureVector:null,matches:[]};
 
   const subtitle=document.querySelector('.subtitle');
@@ -97,7 +98,7 @@
   createClinicalUi();
   if(resultCard)new MutationObserver(setFeedbackState).observe(resultCard,{attributes:true,attributeFilter:['hidden']});
 
-  window.fetch=async(inputArg,init={})=>{
+  const __aitcStage3bFetch=async(inputArg,init={})=>{
     const url=typeof inputArg==='string'?inputArg:inputArg?.url||'',method=String(init?.method||'GET').toUpperCase();
     if(url.includes('/api/analyze')&&method==='POST'&&typeof init?.body==='string'){
       resetLearningContext();let requestBody={};try{requestBody=JSON.parse(init.body)||{};}catch{}
@@ -114,4 +115,5 @@
     }
     return previousFetch(inputArg,init);
   };
+  requestClient.register('clinical-learning',__aitcStage3bFetch,600);
 })();

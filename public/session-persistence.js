@@ -1,7 +1,8 @@
 (()=>{
   const KEY='aitc-current-session-v1';
   const MAX_AGE_MS=12*60*60*1000;
-  const rawFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const rawFetch=(input,init)=>requestClient.fetchAfter('session-persistence',input,init);
   let restoring=false;
   let cached=null;
 
@@ -29,7 +30,7 @@
     if(bottom&&body.bottomImage){bottom.src=body.bottomImage;bottom.hidden=false;if(bottomEmpty)bottomEmpty.hidden=true;}
   }
 
-  window.fetch=async(input,init={})=>{
+  const __aitcStage3bFetch=async(input,init={})=>{
     const url=typeof input==='string'?input:input?.url||'';
     const method=String(init?.method||'GET').toUpperCase();
     if(url.includes('/api/analyze')&&method==='POST'){
@@ -46,6 +47,7 @@
     }
     return rawFetch(input,init);
   };
+  requestClient.register('session-persistence',__aitcStage3bFetch,700);
 
   async function restore(){
     cached=read();

@@ -3,7 +3,8 @@
   const TOKEN_KEY='aitcStudentSessionV1';
   const ADMIN_TOKEN_KEY='aitcClinicalAdminToken';
   const $=id=>document.getElementById(id);
-  const nativeFetch=window.fetch.bind(window);
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const nativeFetch=(input,init)=>requestClient.fetchAfter('access-control',input,init);
   const state={access:null};
 
   function token(){try{return localStorage.getItem(TOKEN_KEY)||'';}catch{return '';}}
@@ -22,7 +23,7 @@
     if(a&&!headers.has('x-aitc-admin-token'))headers.set('x-aitc-admin-token',a);
     return headers;
   }
-  window.fetch=(input,init={})=>{
+  const __aitcStage3bFetch=(input,init={})=>{
     const path=apiPath(input);
     if(!path)return nativeFetch(input,init);
     const headers=accessHeaders(init.headers||(input instanceof Request?input.headers:undefined));
@@ -31,6 +32,7 @@
       return response;
     });
   };
+  requestClient.register('access-control',__aitcStage3bFetch,400);
 
   function ensureUi(){
     const actions=document.querySelector('.topbar-actions');

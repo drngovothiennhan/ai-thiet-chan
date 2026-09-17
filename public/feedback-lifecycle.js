@@ -45,8 +45,9 @@
   domObserver.observe(document.body,{childList:true,subtree:true});
   bindStatusObserver();
 
-  const previousFetch=window.fetch.bind(window);
-  window.fetch=async(input,init={})=>{
+  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const previousFetch=(input,init)=>requestClient.fetchAfter('feedback-lifecycle',input,init);
+  const __aitcStage3bFetch=async(input,init={})=>{
     const url=typeof input==='string'?input:input?.url||'';
     const method=String(init?.method||input?.method||'GET').toUpperCase();
     const response=await previousFetch(input,init);
@@ -55,4 +56,5 @@
     }
     return response;
   };
+  requestClient.register('feedback-lifecycle',__aitcStage3bFetch,500);
 })();

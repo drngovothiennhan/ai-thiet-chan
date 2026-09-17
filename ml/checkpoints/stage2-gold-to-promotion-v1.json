@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "aitc-execution-checkpoint-v1",
+  "project": "A.I Thiệt Chẩn",
+  "stage": "stage2-gold-to-promotion",
+  "branch": "restructure-local-vision-v1",
+  "startedFrom": "26ed3f45fb26a8f8dfc9b4920c7b13021da5ce80",
+  "observedAt": "2026-09-17T23:56:33Z",
+  "productionMain": "07ec84ddaa677c6695a2f1112b44baf37bbf9668",
+  "liveFacts": {
+    "cases": 22,
+    "topImages": 22,
+    "bottomImages": 14,
+    "mlSamples": 22,
+    "modelGeneratedUnverified": 22,
+    "trainingReadyGold": 0,
+    "approvedFeedback": 0
+  },
+  "lockedOrder": [
+    "independent_gold_annotation",
+    "immutable_gold_holdout",
+    "gold_holdout_metrics",
+    "physical_device_shadow",
+    "manual_promotion_review"
+  ],
+  "gates": {
+    "independent_gold_annotation": {
+      "status": "BLOCKED_INPUT_REQUIRED",
+      "reason": "No independent clinician-approved gold annotations exist yet."
+    },
+    "immutable_gold_holdout": {
+      "status": "BLOCKED_BY_PREVIOUS_GATE"
+    },
+    "gold_holdout_metrics": {
+      "status": "BLOCKED_BY_PREVIOUS_GATE"
+    },
+    "physical_device_shadow": {
+      "status": "BUILD_HARNESS_ONLY_UNTIL_GOLD_METRICS"
+    },
+    "manual_promotion_review": {
+      "status": "BLOCKED_BY_PREVIOUS_GATES"
+    }
+  },
+  "safety": {
+    "productionDeploy": false,
+    "productionMerge": false,
+    "providerVision": false,
+    "syntheticGoldLabels": false,
+    "fabricatedMetrics": false,
+    "autoPromotion": false
+  },
+  "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate."
+}

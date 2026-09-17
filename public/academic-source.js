@@ -1,4 +1,4 @@
-export const FUSION_VERSION='academic-fusion-v1.2-knowledge-5doc-complete';
+export const FUSION_VERSION='academic-fusion-v2-local-vision';
 export const KNOWLEDGE_VERSION='thiet-chan-kb-2026-09-15.5doc';
 export const SOURCE=Object.freeze({
   id:'KNOWLEDGE-5DOC',
@@ -18,7 +18,7 @@ export const SOURCE=Object.freeze({
   groundTruthProfileVersion:'owner-ground-truth-profile-v1',
   noSilentOmission:true
 });
-export const WEIGHTS=Object.freeze({directImage:.45,atlasSimilarity:.35,geminiAcademic:.20});
+export const WEIGHTS=Object.freeze({directImage:.45,atlasSimilarity:.35,academicReasoning:.20});
 export const MODERN_EVIDENCE=[
   {source:'TC1',page:5,topics:['qc','ánh sáng','tư thế','nhiễm màu'],text:'Khám lưỡi cần ánh sáng phù hợp, tư thế tự nhiên và kiểm soát yếu tố làm sai lệch màu/rêu; ảnh không đạt điều kiện phải hạ độ tin cậy.'},
   {source:'TC1',page:20,topics:['hàn','nhiệt','rêu trắng','rêu vàng','nhợt','đỏ'],text:'Hàn thường đi với chất lưỡi nhạt, rêu trắng và ẩm; nhiệt thường đi với chất lưỡi đỏ/đỏ sẫm và khô, thực nhiệt thường có rêu vàng còn hư nhiệt có thể ít hoặc không rêu.'},
@@ -42,7 +42,7 @@ export const MODERN_EVIDENCE=[
   {source:'AT1',page:22,topics:['mặt dưới','tĩnh mạch dưới lưỡi','tím','giãn','huyết ứ'],text:'Mạch dưới lưỡi xanh tím và giãn là ví dụ hỗ trợ mô tả ứ trệ trong YHCT, không phải chẩn đoán bệnh hiện đại.'}
 ];
 export const SUPER_PROMPT=`[ACADEMIC_FUSION_KNOWLEDGE_5DOC]
-Tổng hợp đúng 3 lớp bằng chứng: ảnh thực tế 45%, atlas hình ảnh 35%, học thuật Gemini 20%.
+Tổng hợp đúng 3 lớp bằng chứng: quan sát thị giác cục bộ 45%, atlas hình ảnh 35%, đối chiếu học thuật cấu trúc 20%.
 Chỉ giữ tín hiệu khi ít nhất 2/3 lớp đồng thuận.
 Toàn bộ dữ liệu trong A.I Thiệt Chẩn/Knowledge được giữ trong corpus: mọi trang và mọi ảnh nhúng đều phải có bản ghi chỉ mục. Hình không đủ đặc trưng lưỡi vẫn được giữ làm dữ liệu nền/ngữ cảnh và không được ép thành mẫu dương tính.
 PSY1 (Tâm bệnh học) chỉ là bối cảnh tâm lý sau khi người dùng chủ động cung cấp dữ kiện; tuyệt đối không dùng ảnh lưỡi để suy stress, lo âu, trầm cảm, bệnh tâm thần hay nguy cơ tự hại.

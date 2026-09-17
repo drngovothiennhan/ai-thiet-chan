@@ -1,0 +1,37 @@
+(function(scope){
+'use strict';
+const manifest=Object.freeze({
+  schemaVersion:'aitc-local-vision-model-manifest-v1',
+  pipelineVersion:'local-vision-model-pipeline-v1',
+  status:'awaiting-trained-artifacts',
+  activation:'shadow-only',
+  runtime:Object.freeze({
+    preferred:'onnxruntime-web',
+    baselineProvider:'wasm',
+    optionalProvider:'webgpu',
+    webgpuRequiresParityGate:true
+  }),
+  provenance:Object.freeze({
+    trainingDatasetVersion:null,
+    evaluationDatasetVersion:null,
+    trainedAt:null,
+    codeCommit:null,
+    license:null
+  }),
+  artifacts:Object.freeze([]),
+  tasks:Object.freeze([
+    Object.freeze({id:'tongue-presence',kind:'classification',required:true,artifactId:null,labels:Object.freeze(['not-tongue','tongue']),threshold:null}),
+    Object.freeze({id:'tongue-roi',kind:'segmentation',required:true,artifactId:null,labels:Object.freeze(['background','tongue']),threshold:null}),
+    Object.freeze({id:'top-features',kind:'multi-label-classification',required:true,artifactId:null,labels:Object.freeze(['tongue-color','coating-color','coating-thickness','fissure','toothmark','spot']),threshold:null}),
+    Object.freeze({id:'bottom-features',kind:'multi-label-classification',required:false,artifactId:null,labels:Object.freeze(['vessel-visible','vessel-color','vessel-prominence']),threshold:null})
+  ]),
+  safety:Object.freeze({
+    noProviderVision:true,
+    noSyntheticObservation:true,
+    unknownOnUnsupportedFeature:true,
+    noDiseaseDiagnosis:true,
+    noTreatmentRecommendation:true
+  })
+});
+scope.AITCLocalVisionModelManifest=manifest;
+})(globalThis);

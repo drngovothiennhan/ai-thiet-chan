@@ -13,7 +13,7 @@ function manifest(){
 }
 function readyManifest(){
   const m=manifest();
-  if(m.status!=='ready'||m.activation==='off')throw new Error('LOCAL_VISION_MODEL_NOT_READY');
+  if(!['ready','candidate-shadow'].includes(m.status)||m.activation==='off')throw new Error('LOCAL_VISION_MODEL_NOT_READY');
   if(!Array.isArray(m.artifacts)||!m.artifacts.length)throw new Error('LOCAL_VISION_MODEL_ARTIFACTS_MISSING');
   return m;
 }
@@ -33,6 +33,7 @@ const sessions=new Map();
 async function sessionFor(taskId){
   if(sessions.has(taskId))return sessions.get(taskId);
   const {m,artifact}=artifactFor(taskId);
+  if(artifact.kind!=='onnx')throw new Error('LOCAL_VISION_ONNX_ARTIFACT_REQUIRED');
   const response=await fetch(artifact.url,{cache:'force-cache',credentials:'same-origin'});
   if(!response.ok)throw new Error('LOCAL_VISION_MODEL_FETCH_FAILED');
   const bytes=await response.arrayBuffer();
@@ -49,9 +50,15 @@ async function sessionFor(taskId){
   return entry;
 }
 async function run(taskId,feeds){
-  const {m,task}=artifactFor(taskId);
+  const {m,task,artifact}=artifactFor(taskId);
   if(m.activation!=='shadow-only'&&m.activation!=='active')throw new Error('LOCAL_VISION_MODEL_ACTIVATION_INVALID');
   if(!feeds||typeof feeds!=='object')throw new Error('LOCAL_VISION_MODEL_INPUT_REQUIRED');
+  if(artifact.kind==='pixel-mlp-json'){
+    if(m.activation!=='shadow-only'||artifact.productionEligible!==false||artifact.clinicalGold!==false)throw new Error('LOCAL_VISION_SHADOW_POLICY_REQUIRED');
+    if(!scope.AITCLocalVisionShadow?.analyzeDataUrl)throw new Error('LOCAL_VISION_SHADOW_ADAPTER_NOT_LOADED');
+    if(typeof feeds.dataUrl!=='string')throw new Error('LOCAL_VISION_SHADOW_IMAGE_REQUIRED');
+    return scope.AITCLocalVisionShadow.analyzeDataUrl(feeds.dataUrl,feeds.role||'top');
+  }
   const entry=await sessionFor(taskId);
   const outputs=await entry.session.run(feeds);
   return Object.freeze({

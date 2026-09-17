@@ -5,6 +5,7 @@
   const VERSION='device-runtime-v1';
   const SCHEMA='device-analysis-payload-v1';
   const WORKER_URL='/device-analysis-worker.js';
+  const DEVICE_COMPUTE_PRIORITY=90;
   const GROUND_TRUTH=Object.freeze({source:'KNOWLEDGE-5DOC',designation:'owner-designated-ground-truth-v1',indexedImageOccurrences:1027,vectorizedVisualSignatures:298});
   let seq=0;
   let registered=false;
@@ -129,7 +130,7 @@
     if(!client){if(registrationAttempts++<200)setTimeout(tryRegister,10);return false;}
     try{
       if(client.snapshot?.().sealed)return false;
-      client.register('device-compute',deviceLayer,120);
+      client.register('device-compute',deviceLayer,DEVICE_COMPUTE_PRIORITY);
       registered=true;
       return true;
     }catch(error){
@@ -138,7 +139,7 @@
       return false;
     }
   }
-  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,groundTruth:GROUND_TRUTH});}
+  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
 
   ensureHardwareProfile();
   ensureWorkers();

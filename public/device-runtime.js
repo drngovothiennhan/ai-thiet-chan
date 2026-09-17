@@ -23,6 +23,12 @@
   let registrationAttempts=0;
   let idleTimer=null;
   let lastRun=null;
+  let shadowWorker=null;
+  let shadowBusy=false;
+  let shadowSeq=0;
+  let shadowTimer=null;
+  let shadowContext=null;
+  let lastShadow=null;
 
   function n(value){const x=Number(value);return Number.isFinite(x)&&x>0?x:null;}
   function connectionClass(){
@@ -89,6 +95,9 @@
   function terminateWorkers(){
     clearIdleTimer();
     while(workers.length){try{workers.pop()?.terminate?.();}catch{}}
+    if(shadowTimer){clearTimeout(shadowTimer);shadowTimer=null;}
+    if(shadowWorker){try{shadowWorker.terminate();}catch{}shadowWorker=null;}
+    shadowBusy=false;shadowContext=null;
     cursor=0;
   }
   function armIdleCleanup(){
@@ -116,6 +125,59 @@
     if(workers.length||profile.plan.workerCount<1)return workers;
     for(let i=0;i<profile.plan.workerCount;i++){const w=makeWorker(i);if(w)workers.push(w);}
     return workers;
+  }
+  function publishShadow(detail){
+    lastShadow=Object.freeze({...detail,recordedAt:Date.now()});
+    window.__aitcLastVisionShadow=lastShadow;
+    window.dispatchEvent(new CustomEvent('aitc:vision-shadow',{detail:lastShadow}));
+    return lastShadow;
+  }
+  function ensureShadowWorker(){
+    if(shadowWorker||!profile.capabilities.webWorker)return shadowWorker;
+    try{
+      shadowWorker=new Worker('/local-vision/shadow-worker.js',{type:'module',name:'aitc-shadow-vision'});
+      shadowWorker.onmessage=event=>{
+        const data=event.data||{};
+        if(!shadowContext||data.id!==shadowContext.id)return;
+        if(shadowTimer){clearTimeout(shadowTimer);shadowTimer=null;}
+        const context=shadowContext;shadowContext=null;shadowBusy=false;
+        if(data.ok&&data.result){
+          const coverage=Number(data.result.coverage),baseline=Number(context.baselineCoverage);
+          publishShadow({
+            ...data.result,
+            workerVersion:String(data.workerVersion||''),
+            mode:context.mode,
+            tier:profile.tier,
+            baselineCoverage:Number.isFinite(baseline)?baseline:null,
+            coverageDelta:Number.isFinite(coverage)&&Number.isFinite(baseline)?Number((coverage-baseline).toFixed(6)):null,
+            pipelineImpact:'none-fire-and-forget-after-response'
+          });
+        }else{
+          publishShadow({status:'error',error:String(data.error||'SHADOW_MODEL_FAILED'),mode:context.mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
+        }
+      };
+      shadowWorker.onerror=()=>{};
+      return shadowWorker;
+    }catch{return null;}
+  }
+  function queueShadow(dataUrl,{mode='normal',baselineCoverage=null}={}){
+    if(typeof dataUrl!=='string'||dataUrl.length<100)return false;
+    if(shadowBusy){
+      publishShadow({status:'skipped-busy',mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
+      return false;
+    }
+    const worker=ensureShadowWorker();
+    if(!worker)return false;
+    const id=`s${Date.now().toString(36)}-${++shadowSeq}`;
+    shadowBusy=true;shadowContext={id,mode,baselineCoverage};
+    shadowTimer=setTimeout(()=>{
+      if(!shadowContext||shadowContext.id!==id)return;
+      try{shadowWorker?.terminate?.();}catch{}
+      shadowWorker=null;shadowBusy=false;shadowContext=null;shadowTimer=null;
+      publishShadow({status:'timeout',mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
+    },5000);
+    worker.postMessage({id,dataUrl,role:'top'});
+    return true;
   }
   function runWorker(dataUrl,role,timeoutMs=12_000){
     const pool=ensureWorkers();
@@ -157,8 +219,9 @@
     let body=null;
     try{body=await request.clone().json();}catch{return client.fetchAfter('device-compute',input,init);}
     const started=performance.now();
+    let deviceAnalysis=null;
     try{
-      const deviceAnalysis=await analyzeViews(body);
+      deviceAnalysis=await analyzeViews(body);
       const elapsedMs=Math.round(performance.now()-started);
       publishLastRun({
         status:'complete',mode:body?.mode==='general'?'general':'normal',elapsedMs,
@@ -188,7 +251,9 @@
     }
     const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     const rewritten=new Request(request,{headers,body:JSON.stringify(body)});
-    return client.fetchAfter('device-compute',rewritten);
+    const response=await client.fetchAfter('device-compute',rewritten);
+    queueShadow(top,{mode:body?.mode==='general'?'general':'normal',baselineCoverage:Number(deviceAnalysis?.top?.signature?.coverage)});
+    return response;
   }
   function tryRegister(){
     if(registered)return true;
@@ -205,7 +270,7 @@
       return false;
     }
   }
-  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,lastRun,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
+  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,lastRun,lastShadow,shadowBusy,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
 
   ensureHardwareProfile();
   tryRegister();

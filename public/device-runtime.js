@@ -111,7 +111,11 @@
     try{
       const deviceAnalysis=await analyzeViews(body);
       body.deviceAnalysis=deviceAnalysis;
-      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'complete',elapsedMs:Math.round(performance.now()-started)};
+      if(deviceAnalysis?.top?.signature){
+        body.academicSignature=deviceAnalysis.top.signature;
+        body.academicSource={...GROUND_TRUTH,execution:'device-worker',runtimeVersion:VERSION,schemaVersion:SCHEMA,topImageDigest:deviceAnalysis.top.imageDigest||''};
+      }
+      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'complete',elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan}};
     }catch(error){
       body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'fallback',reason:String(error?.message||error),elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan},groundTruth:GROUND_TRUTH};
     }

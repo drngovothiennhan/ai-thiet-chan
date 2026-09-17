@@ -16,6 +16,10 @@ assert.match(sql,/trainingReady/);
 assert.match(sql,/ai_thiet_chan_feedback_case_id_idx/);
 assert.match(sql,/ai_thiet_chan_learned_knowledge_case_id_idx/);
 assert.match(sql,/revoke all on public\.ai_thiet_chan_ml_training_ready_v2 from anon, authenticated/i);
-assert.doesNotMatch(sql,/label_status='model_generated_unverified'[^;]*training_ready/i,'unverified model observations must never enter the training-ready view');
+
+const trainingReadyView=sql.match(/create or replace view public\.ai_thiet_chan_ml_training_ready_v2 as([\s\S]*?)revoke all on public\.ai_thiet_chan_ml_training_ready_v2/i)?.[1] ?? '';
+assert.ok(trainingReadyView,'training-ready view definition must be present');
+assert.match(trainingReadyView,/label_status='clinician_feedback_approved'/);
+assert.doesNotMatch(trainingReadyView,/label_status='model_generated_unverified'/i,'unverified model observations must never enter the training-ready view');
 
 console.log('ML TRAINING READINESS PASS: supervised export is clinician-approved only; model observations remain separate and missing FK indexes are added.');

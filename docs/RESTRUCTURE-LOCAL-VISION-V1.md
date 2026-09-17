@@ -80,9 +80,13 @@ Trạng thái: DONE.
 - local-vision-engine-v1 nhận payload đã được server xác minh;
 - các field chưa có classifier riêng phải trả “Không xác định”.
 
-Trạng thái: IN PROGRESS / current branch implementation.
+Trạng thái: DONE trên branch tái cấu trúc; CI #415 đã PASS trước khi bắt đầu Stage 2. Chưa merge production.
 
 ### Stage 2 — Model runtime mới
+- trạng thái: IN PROGRESS;
+- đã tạo `public/local-vision/model-manifest.js` và `public/local-vision/model-runtime.js` làm hạ tầng mới, chưa gắn model giả hoặc URL model từ xa;
+- manifest hiện ở `awaiting-trained-artifacts`, chỉ cho phép shadow-only;
+- runtime kiểm SHA-256 model trước khi tạo session, WASM là baseline, WebGPU chỉ được dùng khi artifact có `webgpuParityApproved=true`;
 - tạo model adapter độc lập với UI;
 - ưu tiên ONNX Runtime Web WASM;
 - WebGPU optional, không bắt buộc;
@@ -91,7 +95,7 @@ Trạng thái: IN PROGRESS / current branch implementation.
 - tách model: tongue ROI/segmentation và feature classifiers;
 - fallback: service-worker signature hoặc fail-closed, không gọi Gemini Vision.
 
-Gate: model artifact thật + license/provenance + reproducible checksum.
+Gate: model artifact thật + license/provenance + reproducible checksum. Hiện gate này CHƯA ĐẠT vì chưa có model huấn luyện/đánh giá hợp lệ; hệ thống không giả lập model để vượt gate.
 
 ### Stage 3 — Dataset & training/evaluation
 - khóa split train/validation/test theo source/hash để tránh leakage;

@@ -208,7 +208,6 @@
   function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,lastRun,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
 
   ensureHardwareProfile();
-  ensureWorkers();
   tryRegister();
   window.AITCDeviceRuntime=Object.freeze({version:VERSION,schemaVersion:SCHEMA,profile,groundTruth:GROUND_TRUTH,analyzeViews,snapshot,terminateWorkers});
   window.dispatchEvent(new CustomEvent('aitc:device-runtime',{detail:snapshot()}));

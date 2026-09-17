@@ -44,6 +44,9 @@ assert.match(runtime,/ownerDesignatedTrainingSamples:1027/);
 assert.match(runtime,/globalVisualVectors:1027/);
 assert.match(runtime,/diagnosticTongueSignatures:298/);
 assert.match(runtime,/contextOrNegativeSamples:729/);
+assert.match(runtime,/publishLastRun/);
+assert.match(runtime,/aitc:device-analysis/);
+assert.match(runtime,/lastRun/);
 
 assert.match(worker,/device-analysis-worker-v2/);
 assert.match(worker,/GROUND_TRUTH_PROFILE/);

@@ -20,27 +20,41 @@ function deviceClass(){
 function modeFromBody(init){
   try{const b=JSON.parse(init?.body||'{}');return b.mode==='general'?'general':'normal';}catch{return'normal';}
 }
+function deviceRuntimeState(){
+  try{return window.AITCDeviceRuntime?.snapshot?.()||null;}catch{return null;}
+}
 function hardwareTelemetry(){
   const profile=window.AITCHardwareProfile?.profile||null;
+  const runtime=deviceRuntimeState();
+  const deviceProfile=runtime?.profile||null;
   const meta=window.__aitcLastEnhancementMeta?.top||null;
   const hardware=meta?.hardware||null;
+  const cores=profile?.logicalCores??deviceProfile?.logicalCores??hardware?.cores??'unknown';
+  const memory=profile?.deviceMemoryGb??deviceProfile?.deviceMemoryGb??hardware?.memory??'unknown';
   return {
-    hardwareTier:String(profile?.tier||hardware?.tier||'unknown'),
-    hardwareCores:String(hardware?.cores||'unknown'),
-    hardwareMemory:String(hardware?.memory||'unknown'),
-    connectionClass:String(profile?.network||hardware?.network||'unknown'),
+    hardwareTier:String(deviceProfile?.tier||profile?.tier||hardware?.tier||'unknown'),
+    hardwareCores:String(cores),
+    hardwareMemory:String(memory),
+    connectionClass:String(deviceProfile?.network||profile?.network||hardware?.network||'unknown'),
     enhancementProfile:String(meta?.profile||''),
     enhancementOutputPixels:Number(meta?.output?.pixels)||null,
     enhancementElapsedMs:Number(meta?.elapsedMs)||null
   };
 }
+function deviceComputeElapsedMs(){
+  const run=deviceRuntimeState()?.lastRun||window.__aitcLastDeviceCompute||null;
+  if(run?.status!=='complete')return null;
+  const value=Number(run.elapsedMs);
+  return Number.isFinite(value)&&value>0?Math.min(120000,Math.round(value)):null;
+}
 async function captureAnalyze(response,startedAt,mode){
   let data={};try{data=await response.clone().json();}catch{}
   const timing=data?.timing||{};
+  const deviceMs=deviceComputeElapsedMs();
   lastRequest={
     event:'analysis_render',
     requestToResultMs:Math.round(now()-startedAt),
-    localVisionMs:Number(timing.localVisionMs)||null,
+    localVisionMs:deviceMs||Number(timing.localVisionMs)||null,
     fusionMs:Number(timing.fusionMs)||null,
     upstreamMs:Number(timing.upstreamMs)||Number(response.headers.get('x-ai-upstream-ms'))||null,
     fallback:Boolean(data?.fallback||data?.localVision),
@@ -59,7 +73,7 @@ const __aitcStage3bFetch=async(input,init={})=>{
     await captureAnalyze(response,startedAt,mode);
     return response;
   }catch(err){
-    lastRequest={event:'analysis_render',requestToResultMs:Math.round(now()-startedAt),fallback:false,fallbackReason:'request_error',inferenceSource:'none',mode,success:false};
+    lastRequest={event:'analysis_render',requestToResultMs:Math.round(now()-startedAt),localVisionMs:deviceComputeElapsedMs(),fallback:false,fallbackReason:'request_error',inferenceSource:'none',mode,success:false};
     throw err;
   }
 };

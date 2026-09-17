@@ -22,6 +22,7 @@
   let registered=false;
   let registrationAttempts=0;
   let idleTimer=null;
+  let lastRun=null;
 
   function n(value){const x=Number(value);return Number.isFinite(x)&&x>0?x:null;}
   function connectionClass(){
@@ -77,6 +78,12 @@
     script.async=true;
     script.dataset.aitcHardwareProfile='1';
     document.head.appendChild(script);
+  }
+  function publishLastRun(run){
+    lastRun=Object.freeze({...run,version:VERSION,schemaVersion:SCHEMA,recordedAt:Date.now()});
+    window.__aitcLastDeviceCompute=lastRun;
+    window.dispatchEvent(new CustomEvent('aitc:device-analysis',{detail:lastRun}));
+    return lastRun;
   }
   function clearIdleTimer(){if(idleTimer){clearTimeout(idleTimer);idleTimer=null;}}
   function terminateWorkers(){
@@ -152,6 +159,15 @@
     const started=performance.now();
     try{
       const deviceAnalysis=await analyzeViews(body);
+      const elapsedMs=Math.round(performance.now()-started);
+      publishLastRun({
+        status:'complete',mode:body?.mode==='general'?'general':'normal',elapsedMs,
+        topElapsedMs:Number(deviceAnalysis?.top?.elapsedMs)||null,
+        bottomElapsedMs:Number(deviceAnalysis?.bottom?.elapsedMs)||null,
+        tier:profile.tier,activeBackend:profile.plan.activeBackend,workerCount:profile.plan.workerCount,
+        parallelViews:Boolean(profile.plan.parallelViews),topSignature:Boolean(deviceAnalysis?.top?.signature),
+        bottomFeatures:Boolean(deviceAnalysis?.bottom?.bottomFeatures)
+      });
       body.deviceAnalysis=deviceAnalysis;
       if(deviceAnalysis?.top?.signature){
         body.academicSignature=deviceAnalysis.top.signature;
@@ -163,9 +179,12 @@
           bottomImageDigest:deviceAnalysis.bottom?.imageDigest||''
         };
       }
-      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'complete',elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan}};
+      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'complete',elapsedMs,profile:{tier:profile.tier,plan:profile.plan}};
     }catch(error){
-      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'fallback',reason:String(error?.message||error),elapsedMs:Math.round(performance.now()-started),profile:{tier:profile.tier,plan:profile.plan},groundTruth:GROUND_TRUTH};
+      const elapsedMs=Math.round(performance.now()-started);
+      const reason=String(error?.message||error);
+      publishLastRun({status:'fallback',mode:body?.mode==='general'?'general':'normal',elapsedMs,reason,tier:profile.tier,activeBackend:profile.plan.activeBackend,workerCount:profile.plan.workerCount,parallelViews:Boolean(profile.plan.parallelViews)});
+      body.deviceRuntime={version:VERSION,schemaVersion:SCHEMA,status:'fallback',reason,elapsedMs,profile:{tier:profile.tier,plan:profile.plan},groundTruth:GROUND_TRUTH};
     }
     const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     const rewritten=new Request(request,{headers,body:JSON.stringify(body)});
@@ -186,7 +205,7 @@
       return false;
     }
   }
-  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
+  function snapshot(){return Object.freeze({version:VERSION,schemaVersion:SCHEMA,registered,profile,workers:workers.length,pending:pending.size,lastRun,groundTruth:GROUND_TRUTH,priority:DEVICE_COMPUTE_PRIORITY});}
 
   ensureHardwareProfile();
   ensureWorkers();

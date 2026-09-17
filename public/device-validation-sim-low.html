@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
+<title>A.I Thiệt Chẩn — Simulated low-capacity validation</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light dark}body{margin:0;background:#f4f6f8;color:#111}main{max-width:760px;margin:auto;padding:16px 14px 48px}section{background:#fff;border:1px solid #d9dde3;border-radius:14px;padding:14px;margin:12px 0}h1{font-size:1.35rem;margin:.2rem 0}.warn{padding:10px;border-radius:10px;background:#fff0c9}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}button{border:0;border-radius:10px;padding:10px 13px;font:inherit;font-weight:650;background:#111;color:#fff}.status{padding:4px 8px;border-radius:999px;background:#e9edf2;font-size:.85rem}.ok{background:#dff5e7}.bad{background:#ffe0df}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0f1720;color:#e7eef7;border-radius:10px;padding:10px;font-size:.76rem;max-height:420px;overflow:auto}input{max-width:100%;font:inherit;padding:8px}.grid{display:grid;grid-template-columns:1fr auto;gap:6px 10px}.grid b{text-align:right}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}section{background:#161b22;border-color:#30363d}.status{background:#30363d}.warn{background:#4a3512}.ok{background:#153b27}.bad{background:#4a1f1f}}
+</style>
+<script>
+(()=>{
+  'use strict';
+  const target={logicalCores:3,deviceMemoryGb:3.2,capacityFactor:0.4,sourceLogicalCores:8,sourceDeviceMemoryGb:8};
+  globalThis.__AITC_LOW_SIM=Object.freeze(target);
+  function override(name,value){
+    try{Object.defineProperty(navigator,name,{configurable:true,get:()=>value});return true;}catch{}
+    try{Object.defineProperty(Navigator.prototype,name,{configurable:true,get:()=>value});return true;}catch{}
+    return false;
+  }
+  globalThis.__AITC_LOW_SIM_OVERRIDE=Object.freeze({cores:override('hardwareConcurrency',target.logicalCores),memory:override('deviceMemory',target.deviceMemoryGb)});
+})();
+</script>
+</head><body><main>
+<h1>A.I THIỆT CHẨN — Low-capacity simulation</h1>
+<p class="warn"><strong>TEST-ONLY.</strong> Mô phỏng ngân sách tài nguyên còn 40% từ thiết bị Android HIGH 8 core / 8 GB đã kiểm định. Đây không phải bằng chứng thiết bị LOW vật lý và không được dùng để tuyên bố real-device PASS.</p>
+<section><h2>1. Profile mô phỏng</h2><div id="env" class="grid"></div></section>
+<section><h2>2. Parity + stress 5 vòng</h2><input id="file" type="file" accept="image/*"><div class="row"><button id="stress">Chạy 5 vòng</button><span id="status" class="status">CHƯA CHẠY</span></div></section>
+<section><h2>3. Báo cáo</h2><div class="row"><button id="refresh">Cập nhật</button><button id="copy">Sao chép JSON</button></div><pre id="report"></pre></section>
+<script src="/release-meta.js"></script><script src="/request-client.js"></script><script src="/hardware-profile.js"></script><script src="/academic-vision.js"></script><script src="/device-runtime.js"></script>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),wait=ms=>new Promise(r=>setTimeout(r,ms));
+const stable=v=>Array.isArray(v)?'['+v.map(stable).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}':JSON.stringify(v);
+const mem=()=>{const m=performance?.memory;return m?{usedJSHeapSize:m.usedJSHeapSize,totalJSHeapSize:m.totalJSHeapSize,jsHeapSizeLimit:m.jsHeapSizeLimit}:null};
+let report={schemaVersion:'aitc-low-capacity-sim-v1',startedAt:new Date().toISOString(),simulation:{kind:'resource-cap',physicalDeviceEvidence:false,capacityFactor:0.4,reductionPercent:60,sourceProfile:{logicalCores:8,deviceMemoryGb:8},targetProfile:{logicalCores:3,deviceMemoryGb:3.2},networkPolicy:'unchanged',capabilityPolicy:'unchanged',note:'Synthetic resource-budget simulation; never count as real LOW device evidence.'},tests:{}};
+function save(){report.updatedAt=new Date().toISOString();$('report').textContent=JSON.stringify(report,null,2)}
+function badge(text,kind=''){$('status').textContent=text;$('status').className='status '+kind}
+function env(){const hw=window.AITCHardwareProfile?.profile||null,rt=window.AITCDeviceRuntime?.snapshot?.()||null,sim=globalThis.__AITC_LOW_SIM,ov=globalThis.__AITC_LOW_SIM_OVERRIDE;report.environment={releaseId:window.AITC_RELEASE_ID||null,userAgent:navigator.userAgent,overrideAttempt:ov,navigatorObserved:{logicalCores:navigator.hardwareConcurrency??null,deviceMemoryGb:navigator.deviceMemory??null},hardwareProfile:hw,deviceRuntime:rt?{version:rt.version,schemaVersion:rt.schemaVersion,profile:rt.profile}:null,memoryAtLoad:mem()};const ok=Number(navigator.hardwareConcurrency)===sim.logicalCores&&Math.abs(Number(navigator.deviceMemory)-sim.deviceMemoryGb)<.01&&rt?.profile?.tier==='constrained'&&rt?.profile?.plan?.workerCount===1&&rt?.profile?.plan?.parallelViews===false;report.simulation.profileApplied=Boolean(ok);$('env').innerHTML=[['Nguồn','8 core / 8 GB'],['Còn lại','40%'],['Core mô phỏng',navigator.hardwareConcurrency],['RAM mô phỏng GB',navigator.deviceMemory],['Tier',rt?.profile?.tier||'unknown'],['Workers',rt?.profile?.plan?.workerCount??'unknown'],['Parallel',String(rt?.profile?.plan?.parallelViews)],['Backend',rt?.profile?.plan?.activeBackend||'unknown'],['Profile applied',String(ok)]].map(([k,v])=>`<span>${k}</span><b>${String(v)}</b>`).join('');save()}
+const fileUrl=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result||''));r.onerror=rej;r.readAsDataURL(f)});
+$('stress').onclick=async()=>{const f=$('file').files?.[0];if(!f){badge('CHỌN ẢNH');return}const rt=window.AITCDeviceRuntime?.snapshot?.();if(!report.simulation.profileApplied){report.tests.stress={status:'invalid-simulation-profile'};badge('PROFILE INVALID','bad');save();return}badge('ĐANG CHẠY');const before=mem(),runs=[];try{const data=await fileUrl(f),direct=await window.AITCAcademicVision?.signatureFromDataUrl?.(data);for(let i=0;i<5;i++){const out=await window.AITCDeviceRuntime.analyzeViews({mode:'normal',topImage:data}),sig=out?.top?.signature||null;runs.push({run:i+1,elapsedMs:out?.top?.elapsedMs??null,exactSignatureParity:Boolean(direct&&sig&&stable(direct)===stable(sig)),memory:mem()});await wait(120)}const all=runs.every(x=>x.exactSignatureParity);const times=runs.map(x=>Number(x.elapsedMs)).filter(Number.isFinite);report.tests.stress={status:all?'pass':'fail',tier:rt?.profile?.tier||null,workerCount:rt?.profile?.plan?.workerCount??null,parallelViews:Boolean(rt?.profile?.plan?.parallelViews),backend:rt?.profile?.plan?.activeBackend||null,runs,summary:times.length?{meanMs:Number((times.reduce((a,b)=>a+b,0)/times.length).toFixed(1)),minMs:Math.min(...times),maxMs:Math.max(...times)}:null,memoryBefore:before,memoryAfter:mem()};badge(all?'PASS':'FAIL',all?'ok':'bad');save()}catch(e){report.tests.stress={status:'error',error:String(e?.message||e),memoryBefore:before,memoryAfter:mem()};badge('ERROR','bad');save()}};
+$('refresh').onclick=()=>{env();save()};$('copy').onclick=async()=>{save();try{await navigator.clipboard.writeText(JSON.stringify(report,null,2))}catch{}};
+setTimeout(env,1200);
+})();
+</script></body></html>

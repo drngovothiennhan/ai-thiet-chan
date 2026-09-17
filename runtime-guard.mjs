@@ -2,14 +2,10 @@ const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
 const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
-const GEMINI_VISION_FALLBACK_MODEL='gemini-3.6-flash';
-const GEMINI_VISION_TIMEOUT_MS=8_000;
-const GEMINI_VISION_FALLBACK_TIMEOUT_MS=6_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
 const GEMINI_TEXT_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
-process.env.GEMINI_VISION_FALLBACK_MODEL=GEMINI_VISION_FALLBACK_MODEL;
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');
@@ -150,11 +146,13 @@ function unavailableTextResponse(reason,status=503,elapsedMs=0){
     status,headers:{'content-type':'application/json','x-ai-consultation-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
   });
 }
-function unavailableVisionResponse(reason,status=503,elapsedMs=0){
-  console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status,elapsedMs}));
-  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,elapsedMs}),{
-    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
-  });
+function blockedVisionResponse(){
+  console.error('gemini_vision_blocked',JSON.stringify({policy:'local-vision-only',model:GEMINI_MODEL}));
+  return new Response(JSON.stringify({
+    error:{code:422,status:'FAILED_PRECONDITION',message:'GEMINI_VISION_DISABLED'},
+    visionStatus:'blocked',
+    policy:'local-vision-only'
+  }),{status:422,headers:{'content-type':'application/json','x-ai-vision-status':'blocked'}});
 }
 async function timedFetch(input,init,url,timeoutMs){
   if(!timeoutMs||init?.signal) return nativeFetch(input,init);
@@ -177,39 +175,7 @@ async function geminiResilientFetch(input,init,url){
   const vision=hasInlineMedia(payload);
   const externalGeminiRequired=!vision&&requiresExternalGemini(payload);
 
-  if(vision){
-    let lastResponse=null;
-    let lastError=null;
-    const candidates=[
-      {model:GEMINI_MODEL,timeoutMs:GEMINI_VISION_TIMEOUT_MS,fallback:false},
-      {model:GEMINI_VISION_FALLBACK_MODEL,timeoutMs:GEMINI_VISION_FALLBACK_TIMEOUT_MS,fallback:true}
-    ];
-    for(let attempt=0;attempt<candidates.length;attempt++){
-      const item=candidates[attempt];
-      const candidate=replaceGeminiModel(url,item.model);
-      const attemptStarted=Date.now();
-      try{
-        const response=await timedFetch(candidate,init,candidate,item.timeoutMs);
-        const attemptMs=Date.now()-attemptStarted;
-        if(response.ok){
-          console.info(item.fallback?'gemini_vision_model_fallback':'gemini_attempt_complete',JSON.stringify({model:item.model,primaryModel:GEMINI_MODEL,fallbackModel:GEMINI_VISION_FALLBACK_MODEL,attempt:attempt+1,vision:true,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
-          return response;
-        }
-        if(!(await isTransientGeminiFailure(response))){
-          console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model:item.model,attempt:attempt+1,vision:true,attemptMs,totalMs:Date.now()-startedAt}));
-          return response;
-        }
-        lastResponse=response;
-        console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:item.model,attempt:attempt+1,vision:true,attemptMs,totalMs:Date.now()-startedAt}));
-      }catch(err){
-        lastError=err;
-        console.warn('gemini_transport_failure',JSON.stringify({model:item.model,error:err?.message||String(err),attempt:attempt+1,vision:true,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
-      }
-    }
-    const elapsedMs=Date.now()-startedAt;
-    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
-    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
-  }
+  if(vision) return blockedVisionResponse();
 
   const models=[GEMINI_MODEL,GEMINI_TEXT_FALLBACK_MODEL].slice(0,GEMINI_TEXT_MAX_ATTEMPTS);
   let lastResponse=null;

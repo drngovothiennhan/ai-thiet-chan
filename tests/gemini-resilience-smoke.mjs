@@ -16,7 +16,6 @@ globalThis.fetch=async input=>{
 await import(`../runtime-guard.mjs?smoke=${Date.now()}`);
 assert.equal(process.env.GEMINI_MODEL,'gemini-3.8-flash');
 assert.equal(process.env.GEMINI_TEXT_FALLBACK_MODEL,'gemini-3.6-flash');
-assert.equal(process.env.GEMINI_VISION_FALLBACK_MODEL,'gemini-3.6-flash');
 const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
 assert.equal(pkg.scripts.start,'node --import ./runtime-guard.mjs server.mjs');
 assert.doesNotMatch(pkg.scripts.start,/vision-provider-failover/,'runtime-guard must be the only Gemini failover wrapper loaded at startup');
@@ -74,14 +73,12 @@ const visionPayload={
   generationConfig:{responseMimeType:'application/json'}
 };
 const visionResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(visionPayload)});
-assert.equal(visionResponse.status,503);
-assert.equal(calls.length,2);
-assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.6-flash/);
-assert.equal(visionResponse.headers.get('x-ai-vision-status'),'unavailable');
-assert.equal(visionResponse.headers.get('x-ai-fallback'),null,'vision must remain fail-closed and must never use local text fallback');
+assert.equal(visionResponse.status,422);
+assert.equal(calls.length,0,'Gemini Vision must be blocked before any network call');
+assert.equal(visionResponse.headers.get('x-ai-vision-status'),'blocked');
+assert.equal(visionResponse.headers.get('x-ai-fallback'),null);
 const visionData=await visionResponse.json();
-assert.equal(visionData.visionStatus,'unavailable');
-assert.equal(visionData.error.message,'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE');
+assert.equal(visionData.visionStatus,'blocked');
+assert.equal(visionData.error.message,'GEMINI_VISION_DISABLED');
 
-console.log('GEMINI RESILIENCE SMOKE PASS: runtime-guard is the single provider failover layer; text and vision use bounded Gemini 3.8 -> 3.6 failover, external consultation fails visibly if both models fail, and vision stays fail-closed without fabricated findings.');
+console.log('GEMINI RESILIENCE SMOKE PASS: Gemini is text-only with bounded 3.8 -> 3.6 failover; every inline-media request is blocked locally before network access.');

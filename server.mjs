@@ -5,6 +5,7 @@ import { installAccessControl } from './access-control.mjs';
 import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
 import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
+import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.mjs';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -227,7 +228,7 @@ async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bo
     p_token:apiKey(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
     p_top_image_hash:imageHash(topImage),p_top_image_data_url:topImage,p_top_mime_type:topMimeType||'image/jpeg',
     p_bottom_image_hash:bottomImage?imageHash(bottomImage):null,p_bottom_image_data_url:bottomImage||null,p_bottom_mime_type:bottomImage?(bottomMimeType||'image/jpeg'):null,
-    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:MODEL,p_knowledge_version:KNOWLEDGE_VERSION
+    p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:assessment?.ml?.visionEngine?.engine||LOCAL_VISION_HEALTH.engine,p_knowledge_version:KNOWLEDGE_VERSION
   };
   let lastError;
   for(let attempt=0;attempt<3;attempt++){
@@ -250,7 +251,9 @@ function validateImage(image,label){
 
 app.get('/api/health',(req,res)=>res.json({
   ok:true,app:'A.I Thiệt Chẩn',architecture:'independent-web',legacyPlatform:false,version:VERSION,build:BUILD.slice(0,12),
-  providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
+  providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
+  vision:{provider:'local',engine:LOCAL_VISION_HEALTH.engine,geminiVision:false,analysisRequiresProvider:false,inputContract:LOCAL_VISION_HEALTH.inputContract,semanticMode:LOCAL_VISION_HEALTH.semanticMode},
+  consultation:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'post-analysis-reasoning-only'},
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,
@@ -270,66 +273,37 @@ app.get('/api/cases',async(req,res)=>{
 
 app.post('/api/analyze',aiRateLimit,async(req,res)=>{
   try{
-    const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const body=req.body||{};const mode=body.mode==='general'?'general':'normal';
     const topImage=body.topImage||body.image;const topMimeType=body.topMimeType||body.mimeType||'image/jpeg';const topQc=body.topQc||body.qc||{};
     const bottomImage=mode==='general'?body.bottomImage:null;const bottomMimeType=body.bottomMimeType||'image/jpeg';const bottomQc=mode==='general'?(body.bottomQc||{}):null;
-    const topBase64=validateImage(topImage,'TOP_IMAGE');
-    const bottomBase64=mode==='general'?validateImage(bottomImage,'BOTTOM_IMAGE'):null;
+    validateImage(topImage,'TOP_IMAGE');
+    if(mode==='general')validateImage(bottomImage,'BOTTOM_IMAGE');
     const accessQuota=await consumeCaseAccess(req);
-    const prompt=`Bạn là bộ phân tích thiệt tượng YHCT của A.I Thiệt Chẩn. Chỉ dùng HỆ TRI THỨC được cung cấp và những gì nhìn thấy trực tiếp trong ảnh. Không tự bịa triệu chứng, mạch chẩn, bệnh danh, nguyên nhân, điều trị hay phương thuốc. Công cụ chỉ hỗ trợ học tập/tham khảo, không phải chẩn đoán xác định. Trong JSON phân tích tuyệt đối không xuất tên tài liệu, mã nguồn, số trang, mục Nguồn đối chiếu hoặc mục Tham khảo.
 
-CHẾ ĐỘ: ${mode==='general'?'TỔNG QUÁT - 2 ảnh mặt trên và mặt dưới lưỡi':'BÌNH THƯỜNG - 1 ảnh mặt trên lưỡi'}
-QC MẶT TRÊN: ${JSON.stringify(topQc)}
-QC MẶT DƯỚI: ${JSON.stringify(bottomQc)}
-HỆ TRI THỨC ${KNOWLEDGE_VERSION}:
-${TONGUE_KNOWLEDGE}
-
-YÊU CẦU MẶT TRÊN:
-- Xác nhận có đúng mặt trên lưỡi, có thấy toàn bộ lưỡi hay không; ở chế độ tổng quát đánh giá thêm phần sau/gốc lưỡi có được bộc lộ rõ hay không.
-- Tiêu chí khung đủ toàn bộ lưỡi: phải thấy mặt lưng lưỡi liên tục từ đầu lưỡi đến vùng gốc lưỡi phía sau; vùng vòm miệng/lưỡi gà chỉ dùng làm mốc định hướng phía sau của khung hình. Nếu mặt lưng lưỡi liên tục đến vùng gốc lưỡi ngay phía trước mốc này, không bị môi/răng che đáng kể và các bờ lưỡi cần đánh giá còn quan sát được thì có thể đặt wholeTongueVisible=true và rootVisible=true. Không coi lưỡi gà là một phần của lưỡi.
-- Mô tả hình dạng, màu chất lưỡi, rêu lưỡi, độ ẩm, nứt, hằn răng, gai/điểm, ban/điểm ứ và đặc điểm nhìn thấy khác.
-- Không chẩn đoán bệnh vùng họng; phần vùng họng chỉ dùng để đánh giá mức bộc lộ phần sau/gốc lưỡi.
-
-YÊU CẦU MẶT DƯỚI (chỉ khi chế độ tổng quát):
-- Xác nhận có đúng mặt dưới lưỡi và mạch máu/tĩnh mạch dưới lưỡi có nhìn thấy rõ hay không.
-- Mô tả màu mặt dưới; tình trạng mạch máu/tĩnh mạch: màu, mức nổi, giãn, uốn lượn/ngoằn ngoèo, dấu ứ nhìn thấy nếu có.
-- Theo tài liệu, chỉ dùng tiêu chí đường kính/chiều dài khi ảnh có chuẩn kích thước đáng tin cậy; ảnh thông thường chỉ mô tả định tính.
-- Không biến thay đổi mạch dưới lưỡi thành chẩn đoán bệnh xác định.
-
-TỔNG HỢP:
-- Tách rõ quan sát mặt trên, quan sát mặt dưới và nhận định kết hợp.
-- Mỗi diễn giải YHCT phải nêu bằng chứng nhìn thấy và giới hạn/dữ kiện còn thiếu.
-- Nếu QC poor chỉ mô tả thô; QC fair chỉ gợi ý yếu/trung bình.
-- Dùng thuật ngữ và giọng văn của hệ tri thức khi mô tả. Tầng đối chiếu atlas phía sau sẽ chỉ giữ nguyên ngôn từ tài liệu khi độ tương đồng hình ảnh đạt từ 85% trở lên và có câu văn liên quan trực tiếp; không biến độ giống hình ảnh thành chẩn đoán xác định.
-
-Trả về DUY NHẤT JSON hợp lệ theo schema:
-{
-  "mode":"normal|general",
-  "top":{
-    "quality":"good|fair|poor",
-    "visualValidity":{"tongueVisible":true,"wholeTongueVisible":true,"rootVisible":true,"framing":"good|fair|poor","occlusion":"none|partial|major","colorReliability":"good|fair|poor"},
-    "tongueColor":"...","shape":"...","coatingColor":"...","coatingThickness":"...","coatingTexture":"...","moisture":"...","fissures":"...","toothmarks":"...","pricklesSpots":"...","stasisMarks":"...","otherVisibleFeatures":["..."],
-    "theoryAssessment":{"generalSignals":[{"label":"...","evidence":"...","rule":"...","confidence":0.0}],"stomachPatternSignals":[{"label":"Hàn tà khách Vị|Ẩm thực thương Vị|Can khí phạm Vị|Ứ huyết đình trệ|Thấp nhiệt trung trở|Vị âm khuy hư|Tỳ Vị hư hàn","evidence":"...","missingForConclusion":"...","confidence":0.0}],"cannotConclude":["..."]},
-    "confidence":0.0,"summary":"...","limitations":["..."]
-  },
-  "bottom":${mode==='general'?'{"quality":"good|fair|poor","visualValidity":{"undersideVisible":true,"vesselsVisible":true,"framing":"good|fair|poor","occlusion":"none|partial|major","colorReliability":"good|fair|poor"},"undersideColor":"...","vessels":{"visible":true,"color":"...","prominence":"...","dilation":"...","tortuosity":"...","stasisSigns":"...","measurement":"định tính/không đủ chuẩn kích thước"},"otherVisibleFeatures":["..."],"confidence":0.0,"summary":"...","limitations":["..."]}':'null'},
-  "combined":{"confidence":0.0,"summary":"...","generalSignals":[{"label":"...","evidence":"...","rule":"...","confidence":0.0}],"stomachPatternSignals":[{"label":"...","evidence":"...","missingForConclusion":"...","confidence":0.0}],"cannotConclude":["..."]}
-}`;
-    const parts=[{text:prompt},{text:'ẢNH 1 - MẶT TRÊN LƯỠI:'},{inline_data:{mime_type:topMimeType,data:topBase64}}];
-    if(mode==='general') parts.push({text:'ẢNH 2 - MẶT DƯỚI LƯỠI:'},{inline_data:{mime_type:bottomMimeType,data:bottomBase64}});
-    const text=await geminiGenerate(key,[{role:'user',parts}],{responseMimeType:'application/json',temperature:0.05});
-    let assessment=normalizeAssessment(parseJsonText(text),{mode,topQc,bottomQc});
+    const local=analyzeLocalVision(body,{mode,topQc,bottomQc});
+    let assessment=normalizeAssessment(local.assessment,{mode,topQc,bottomQc});
+    assessment.ml=assessment.ml||{};
+    assessment.ml.visionEngine={...local.provenance,geminiVision:false,authority:'image-observation'};
     try{assessment=applyAcademicFusion(assessment,body);}catch(err){console.error('academic_fusion_error',err?.message||err);}
+
     let collection={ok:false,stored:false,duplicate:false};
     try{
       const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment});
       collection={ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null};
     }catch(err){console.error('case_store_error',err?.message||err);collection={ok:false,error:'CASE_STORE_FAILED'};}
-    return res.json({ok:true,assessment,analysis:assessment,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,collection,access:accessQuota});
-  }catch(err){console.error('analyze_error',err?.message||err);const status=err?.status===400||err?.status===413?err.status:err?.status===429?429:502;return res.status(status).json({error:'ANALYZE_FAILED',message:err?.message||'Unknown error'});}
-});
 
+    return res.json({
+      ok:true,assessment,analysis:assessment,
+      model:LOCAL_VISION_HEALTH.engine,visionModel:LOCAL_VISION_HEALTH.engine,
+      geminiVision:false,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
+      collection,access:accessQuota
+    });
+  }catch(err){
+    console.error('analyze_error',err?.message||err);
+    const status=[400,413,422,429].includes(Number(err?.status))?Number(err.status):503;
+    return res.status(status).json({error:err?.code||'ANALYZE_FAILED',message:err?.message||'Unknown error',geminiVision:false});
+  }
+});
 app.post('/api/chat',async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});

@@ -3,12 +3,14 @@ import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 
 const hardwareSource=await readFile(new URL('../public/hardware-profile.js',import.meta.url),'utf8');
+const requestClientSource=await readFile(new URL('../public/request-client.js',import.meta.url),'utf8');
 const enhancerSource=await readFile(new URL('../public/image-enhancement.js',import.meta.url),'utf8');
 
 function runtime({cores=null,memory=null,effectiveType='4g',saveData=false,withHardware=true}={}){
   const window={fetch:async()=>({ok:true,json:async()=>({})})};
   const navigator={hardwareConcurrency:cores,deviceMemory:memory,connection:{effectiveType,saveData}};
   const context={window,navigator,performance:{now:()=>0},location:{href:'https://example.test/'},OffscreenCanvas:function(){},createImageBitmap:async()=>{},Worker:function(){},requestIdleCallback:()=>{}};
+  vm.runInNewContext(requestClientSource,context,{filename:'request-client.js'});
   if(withHardware)vm.runInNewContext(hardwareSource,context,{filename:'hardware-profile.js'});
   vm.runInNewContext(enhancerSource,context,{filename:'image-enhancement.js'});
   return window.AITCImageEnhancement;

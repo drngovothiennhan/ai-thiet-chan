@@ -69,9 +69,9 @@
     });
   }
   window.__aitcSettingsModulesReady=(async()=>{
+    await load('/access-control.js','aitcAccessControl');
     await load('/torch.js','rearTorch');
     await load('/ui-controls.js','aitcUiControls');
-    await load('/access-control.js','aitcAccessControl');
     await load('/admin-center.js','aitcAdminCenter');
     await load('/user-admin.js','aitcUserAdmin');
     await load('/admin-credentials.js','aitcAdminCredentials');

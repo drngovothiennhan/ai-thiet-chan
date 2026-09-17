@@ -82,20 +82,31 @@ Trạng thái: DONE.
 
 Trạng thái: DONE trên branch tái cấu trúc; CI #415 đã PASS trước khi bắt đầu Stage 2. Chưa merge production.
 
-### Stage 2 — Model runtime mới
-- trạng thái: IN PROGRESS;
-- đã tạo `public/local-vision/model-manifest.js` và `public/local-vision/model-runtime.js` làm hạ tầng mới, chưa gắn model giả hoặc URL model từ xa;
-- manifest hiện ở `awaiting-trained-artifacts`, chỉ cho phép shadow-only;
-- runtime kiểm SHA-256 model trước khi tạo session, WASM là baseline, WebGPU chỉ được dùng khi artifact có `webgpuParityApproved=true`;
-- tạo model adapter độc lập với UI;
-- ưu tiên ONNX Runtime Web WASM;
-- WebGPU optional, không bắt buộc;
-- model manifest có version, SHA-256, input shape, labels, calibration metadata;
-- worker sở hữu inference; main thread chỉ điều phối;
-- tách model: tongue ROI/segmentation và feature classifiers;
-- fallback: service-worker signature hoặc fail-closed, không gọi Gemini Vision.
+### Stage 2 — Model runtime + bootstrap candidate
+- trạng thái: IN PROGRESS, đã đạt gate kỹ thuật cho **candidate shadow**, chưa đạt gate gold/production;
+- model thật đã được huấn luyện: `aitc-tongue-roi-mlp-bootstrap-v1`, pixel MLP 12→24→12→1, dùng cho tongue ROI segmentation;
+- model JSON SHA-256: `43c64af91d4bf5b9cd6ad8a9d26b3c045817243966a7869743bbc72ff5e21174`;
+- dữ liệu bootstrap thực tế: 479 ảnh trích từ TC1/DY1/MC1/AT1, gồm 298 weak-positive và 181 weak-negative;
+- split chống leakage theo group nguồn+trang, SHA ảnh nguồn và dHash gần trùng (Hamming ≤ 8); kết quả audit: 0 group cross-split, 0 exact-SHA cross-split;
+- split cố định: train 337, validation 60, test 82; toàn bộ 41 ảnh AT1 được giữ ở test làm source-external holdout;
+- nhãn là **weak supervision từ runtime mask hiện hữu**, không phải nhãn bác sĩ/chuyên gia;
+- metric lưu trong repo chỉ có nghĩa **agreement with weak bootstrap masks**, tuyệt đối không gọi là clinical accuracy;
+- `04_Nhan_chuyen_gia_Annotations` hiện chưa có gold label; Supabase cũng chưa có approved feedback/learned knowledge đủ điều kiện làm gold;
+- manifest chuyển sang `candidate-shadow`, `activation=shadow-only`, `clinicalGold=false`, `productionEligible=false`;
+- candidate chạy bằng dedicated shadow worker **sau khi response chính đã trả về**, không thay đổi kết quả người dùng và không chặn pipeline chính;
+- shadow telemetry chỉ lưu model/hash/latency/coverage/presence + hardware class; không đưa output candidate vào assessment;
+- ONNX Runtime Web/WASM vẫn là runtime đích cho model production sau này; WebGPU chỉ bật sau parity gate;
+- không tạo ONNX giả: môi trường huấn luyện hiện chưa có package ONNX để chuyển đổi candidate này;
+- Gemini Vision vẫn bị cấm hoàn toàn.
 
-Gate: model artifact thật + license/provenance + reproducible checksum. Hiện gate này CHƯA ĐẠT vì chưa có model huấn luyện/đánh giá hợp lệ; hệ thống không giả lập model để vượt gate.
+Gate còn thiếu trước khi có thể gọi là model được kiểm định:
+1. clinician-approved segmentation masks/labels độc lập;
+2. gold holdout không dùng trong training/tuning;
+3. metric thật trên gold holdout + error analysis;
+4. physical-device shadow evidence;
+5. candidate/champion promotion thủ công.
+
+Các metric bootstrap hiện tại chỉ để regression kỹ thuật: validation Dice 0.9589 / IoU 0.9258; test Dice 0.9023 / IoU 0.8442; AT1 external Dice 0.8507 / IoU 0.7731. **Đây không phải độ chính xác lâm sàng và không được hiển thị như accuracy.**
 
 ### Stage 3 — Dataset & training/evaluation
 - khóa split train/validation/test theo source/hash để tránh leakage;

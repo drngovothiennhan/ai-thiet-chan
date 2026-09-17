@@ -1,12 +1,14 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
+const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
 const GEMINI_VISION_FALLBACK_MODEL='gemini-3.6-flash';
 const GEMINI_VISION_TIMEOUT_MS=8_000;
 const GEMINI_VISION_FALLBACK_TIMEOUT_MS=6_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
 const GEMINI_TEXT_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
+process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
 process.env.GEMINI_VISION_FALLBACK_MODEL=GEMINI_VISION_FALLBACK_MODEL;
 
 function requestUrl(input){
@@ -209,30 +211,33 @@ async function geminiResilientFetch(input,init,url){
     return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
   }
 
-  const candidate=replaceGeminiModel(url,GEMINI_MODEL);
-  const timeoutMs=GEMINI_TEXT_TIMEOUT_MS;
+  const models=[GEMINI_MODEL,GEMINI_TEXT_FALLBACK_MODEL].slice(0,GEMINI_TEXT_MAX_ATTEMPTS);
   let lastResponse=null;
   let lastError=null;
-  for(let attempt=1;attempt<=GEMINI_TEXT_MAX_ATTEMPTS;attempt++){
+  for(let index=0;index<models.length;index++){
+    const attempt=index+1;
+    const model=models[index];
+    const candidate=replaceGeminiModel(url,model);
     const attemptStarted=Date.now();
     try{
-      const response=await timedFetch(candidate,init,candidate,timeoutMs);
+      const response=await timedFetch(candidate,init,candidate,GEMINI_TEXT_TIMEOUT_MS);
       const attemptMs=Date.now()-attemptStarted;
       if(response.ok){
-        console.info('gemini_attempt_complete',JSON.stringify({model:GEMINI_MODEL,attempt,vision:false,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+        console.info('gemini_attempt_complete',JSON.stringify({model,attempt,vision:false,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+        if(model!==GEMINI_MODEL) console.info('gemini_text_model_fallback',JSON.stringify({primaryModel:GEMINI_MODEL,fallbackModel:model,attempt,totalMs:Date.now()-startedAt}));
         return response;
       }
       if(!(await isTransientGeminiFailure(response))){
-        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision:false,attemptMs,totalMs:Date.now()-startedAt}));
+        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model,attempt,vision:false,attemptMs,totalMs:Date.now()-startedAt}));
         return response;
       }
       lastResponse=response;
-      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision:false,attemptMs,totalMs:Date.now()-startedAt}));
+      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model,attempt,vision:false,attemptMs,totalMs:Date.now()-startedAt}));
     }catch(err){
       lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision:false,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
+      console.warn('gemini_transport_failure',JSON.stringify({model,error:err?.message||String(err),attempt,vision:false,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
     }
-    if(attempt<GEMINI_TEXT_MAX_ATTEMPTS) await sleep(300*attempt);
+    if(index<models.length-1) await sleep(300*attempt);
   }
   const elapsedMs=Date.now()-startedAt;
   if(externalGeminiRequired){

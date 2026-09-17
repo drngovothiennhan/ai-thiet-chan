@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 
 const calls=[];
 let mode='all-fail';
@@ -16,6 +17,9 @@ await import(`../runtime-guard.mjs?smoke=${Date.now()}`);
 assert.equal(process.env.GEMINI_MODEL,'gemini-3.8-flash');
 assert.equal(process.env.GEMINI_TEXT_FALLBACK_MODEL,'gemini-3.6-flash');
 assert.equal(process.env.GEMINI_VISION_FALLBACK_MODEL,'gemini-3.6-flash');
+const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+assert.equal(pkg.scripts.start,'node --import ./runtime-guard.mjs server.mjs');
+assert.doesNotMatch(pkg.scripts.start,/vision-provider-failover/,'runtime-guard must be the only Gemini failover wrapper loaded at startup');
 
 const payload={
   contents:[{role:'user',parts:[{text:'HỆ TRI THỨC TRUY XUẤT:\n- [TC1, tr. 12] Chất lưỡi và rêu lưỡi cần được tổng hợp.\nCâu hỏi người dùng: Giải thích kết quả này\nTrả lời ngắn gọn.'}]}],

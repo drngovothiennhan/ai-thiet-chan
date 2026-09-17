@@ -112,10 +112,10 @@
   const version='pipeline-contract-v1';
   const layers=Object.freeze([
     Object.freeze({id:'capture-qc',order:1,runtime:'browser',authority:'input-quality',fallback:'reject-or-degrade-confidence'}),
-    Object.freeze({id:'device-vision',order:2,runtime:'browser-worker',authority:'feature-extraction-only',fallback:'existing-server-pipeline'}),
-    Object.freeze({id:'server-fusion',order:3,runtime:'server',authority:'assessment-synthesis',fallback:'fail-closed-on-provider-error'}),
+    Object.freeze({id:'device-vision',order:2,runtime:'browser-worker',authority:'image-observation',fallback:'service-worker-signature-or-fail-closed'}),
+    Object.freeze({id:'server-fusion',order:3,runtime:'server',authority:'verified-local-vision-synthesis',fallback:'fail-closed-on-unverified-visual-payload'}),
     Object.freeze({id:'learning-store',order:4,runtime:'supabase',authority:'approved-case-memory',fallback:'analysis-without-learning-retrieval'}),
-    Object.freeze({id:'consultation',order:5,runtime:'server-provider',authority:'post-result-reasoning',fallback:'explicit-provider-error'})
+    Object.freeze({id:'consultation',order:5,runtime:'server-provider',authority:'text-only-post-result-reasoning',fallback:'explicit-provider-error'})
   ]);
   window.AITCPipelineContract=Object.freeze({version,layers});
 })();
@@ -143,7 +143,6 @@
       await import('/clinical-learning.js?v=2.9.0').catch(()=>{});
       await import('/session-persistence.js?v=2.9.4').catch(()=>{});
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
-      await loadScript('/analysis-hotfix.js');
       await loadScript('/book-fallback.js');
       await loadScript('/benchmark-telemetry.js');
       await loadScript('/consultation-lock.js');

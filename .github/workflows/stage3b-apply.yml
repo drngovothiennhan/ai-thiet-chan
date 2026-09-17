@@ -1,0 +1,36 @@
+name: Stage3B Apply Request Pipeline Cleanup
+on:
+  push:
+    branches:
+      - hardening/request-pipeline-cleanup-v3b
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      - name: Refactor and run staged regression gates
+        run: node scripts/stage3b-request-pipeline-refactor.mjs
+      - name: Commit only after all gates pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public tests package.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No transformed changes to commit.'
+            exit 0
+          fi
+          git commit -m 'refactor(stage3b): centralize request pipeline'
+          git push origin HEAD:hardening/request-pipeline-cleanup-v3b

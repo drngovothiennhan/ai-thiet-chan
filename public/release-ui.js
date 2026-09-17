@@ -125,6 +125,7 @@
   (async()=>{
     try{
       if(!window.AITCHardwareProfile)await loadScript('/hardware-profile.js');
+      if(!window.AITCDeviceRuntime)await loadScript('/device-runtime.js');
       if(window.__aitcSettingsModulesReady)await window.__aitcSettingsModulesReady;
       await import('/clinical-learning.js?v=2.9.0').catch(()=>{});
       await import('/session-persistence.js?v=2.9.4').catch(()=>{});
@@ -135,7 +136,7 @@
       await loadScript('/consultation-lock.js');
       await loadScript('/admin-enhancement-collapse.js');
       await loadScript('/request-integrity.js');
-      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity)}}));
+      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity),deviceRuntime:Boolean(window.AITCDeviceRuntime)}}));
     }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
   })();
 })();

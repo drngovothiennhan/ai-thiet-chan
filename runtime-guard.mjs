@@ -1,11 +1,13 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
+const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
 const GEMINI_VISION_TIMEOUT_MS=8_000;
 const GEMINI_TEXT_TIMEOUT_MS=12_000;
 const GEMINI_TEXT_MAX_ATTEMPTS=2;
 const GEMINI_VISION_MAX_ATTEMPTS=2;
 process.env.GEMINI_MODEL=GEMINI_MODEL;
+process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');
@@ -22,6 +24,7 @@ async function isTransientGeminiFailure(response){
   if(response.ok) return false;
   try{
     const text=await response.clone().text();
+    if(response.status===404&&/model|not found|not available|unsupported/i.test(text)) return true;
     return /high demand|temporar|unavailable|resource[_ ]?exhausted|try again|overload|timeout/i.test(text);
   }catch{return false;}
 }
@@ -169,35 +172,38 @@ async function timedFetch(input,init,url,timeoutMs){
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function geminiResilientFetch(input,init,url){
   const startedAt=Date.now();
-  const candidate=replaceGeminiModel(url,GEMINI_MODEL);
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const externalGeminiRequired=!vision&&requiresExternalGemini(payload);
   const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
-  const maxAttempts=vision?GEMINI_VISION_MAX_ATTEMPTS:GEMINI_TEXT_MAX_ATTEMPTS;
+  const models=vision?Array(GEMINI_VISION_MAX_ATTEMPTS).fill(GEMINI_MODEL):[GEMINI_MODEL,GEMINI_TEXT_FALLBACK_MODEL].slice(0,GEMINI_TEXT_MAX_ATTEMPTS);
   let lastResponse=null;
   let lastError=null;
-  for(let attempt=1;attempt<=maxAttempts;attempt++){
+  for(let index=0;index<models.length;index++){
+    const attempt=index+1;
+    const model=models[index];
+    const candidate=replaceGeminiModel(url,model);
     const attemptStarted=Date.now();
     try{
       const response=await timedFetch(candidate,init,candidate,timeoutMs);
       const attemptMs=Date.now()-attemptStarted;
       if(response.ok){
-        console.info('gemini_attempt_complete',JSON.stringify({model:GEMINI_MODEL,attempt,vision,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+        console.info('gemini_attempt_complete',JSON.stringify({model,attempt,vision,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+        if(!vision&&model!==GEMINI_MODEL) console.info('gemini_text_model_fallback',JSON.stringify({primaryModel:GEMINI_MODEL,model,attempt,totalMs:Date.now()-startedAt}));
         return response;
       }
       if(!(await isTransientGeminiFailure(response))){
-        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
+        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
         return response;
       }
       lastResponse=response;
-      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
+      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
     }catch(err){
       lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
+      console.warn('gemini_transport_failure',JSON.stringify({model,error:err?.message||String(err),attempt,vision,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
       if(vision&&err?.message==='UPSTREAM_TIMEOUT') break;
     }
-    if(attempt<maxAttempts) await sleep(300*attempt);
+    if(index<models.length-1) await sleep(300*attempt);
   }
   const elapsedMs=Date.now()-startedAt;
   if(vision){

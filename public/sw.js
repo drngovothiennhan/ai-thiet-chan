@@ -10,6 +10,7 @@ const OPTIONAL_SHELL=[
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
   '/local-vision/model-manifest.js','/local-vision/model-runtime.js','/local-vision/shadow-pixel-mlp.js','/local-vision/shadow-worker.js','/local-vision/models/aitc-tongue-roi-mlp-bootstrap-v1.json',
   '/device-shadow-validation-v3.html',
+  '/clinical-contribute-v1.html','/gold-review-v1.html',
   '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
   '/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
   '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/access-control.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',

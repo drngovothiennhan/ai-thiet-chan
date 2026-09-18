@@ -1,3 +1,6 @@
+process.env.GEMINI_RETRY_BASE_MS='0';
+process.env.AI_GATEWAY_ENABLED='false';
+process.env.AITC_TEST_DISABLE_CIRCUIT='1';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
@@ -26,9 +29,10 @@ const payload={
 };
 const response=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(payload)});
 assert.equal(response.status,200);
-assert.equal(calls.length,2);
+assert.equal(calls.length,3);
 assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.6-flash/);
+assert.match(calls[1],/gemini-3\.8-flash/);
+assert.match(calls[2],/gemini-3\.6-flash/);
 assert.doesNotMatch(calls.join('\n'),/gemini-2\.5/);
 assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');
 const data=await response.json();
@@ -43,9 +47,10 @@ const consultationPayload={
 };
 const consultationFallbackResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(consultationPayload)});
 assert.equal(consultationFallbackResponse.status,200);
-assert.equal(calls.length,2);
+assert.equal(calls.length,3);
 assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.6-flash/);
+assert.match(calls[1],/gemini-3\.8-flash/);
+assert.match(calls[2],/gemini-3\.6-flash/);
 assert.equal(consultationFallbackResponse.headers.get('x-ai-consultation-status'),null);
 assert.equal(consultationFallbackResponse.headers.get('x-ai-fallback'),null);
 const fallbackData=await consultationFallbackResponse.json();
@@ -55,9 +60,10 @@ calls.length=0;
 mode='all-fail';
 const consultationResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(consultationPayload)});
 assert.equal(consultationResponse.status,503);
-assert.equal(calls.length,2);
+assert.equal(calls.length,3);
 assert.match(calls[0],/gemini-3\.8-flash/);
-assert.match(calls[1],/gemini-3\.6-flash/);
+assert.match(calls[1],/gemini-3\.8-flash/);
+assert.match(calls[2],/gemini-3\.6-flash/);
 assert.equal(consultationResponse.headers.get('x-ai-consultation-status'),'unavailable');
 assert.equal(consultationResponse.headers.get('x-ai-fallback'),null,'Gemini-required consultation must never masquerade as local fallback');
 const consultationData=await consultationResponse.json();
@@ -81,4 +87,4 @@ const visionData=await visionResponse.json();
 assert.equal(visionData.visionStatus,'blocked');
 assert.equal(visionData.error.message,'GEMINI_VISION_DISABLED');
 
-console.log('GEMINI RESILIENCE SMOKE PASS: Gemini is text-only with bounded 3.8 -> 3.6 failover; every inline-media request is blocked locally before network access.');
+console.log('GEMINI RESILIENCE SMOKE PASS: Gemini is text-only with bounded 3.8 retry -> 3.6 failover; every inline-media request is blocked locally before network access.');

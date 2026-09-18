@@ -17,7 +17,8 @@ try{
   if(health.architecture!=='independent-web'||health.legacyPlatform!==false)throw new Error('architecture gate failed');
   if(health.sharedProvider!==true||health.clientSuppliedKeyAccepted!==false)throw new Error('provider boundary failed');
   if(health.vision?.provider!=='local'||health.vision?.geminiVision!==false||health.vision?.analysisRequiresProvider!==false)throw new Error('local vision boundary failed');
-  if(health.consultation?.provider!=='Gemini'||health.consultation?.role!=='post-analysis-reasoning-only')throw new Error('consultation boundary failed');
+  if(health.consultation?.provider!=='local-grounded'||health.consultation?.role!=='primary-grounded-reasoning'||health.consultation?.requiresExternalProvider!==false)throw new Error('consultation boundary failed');
+  if(health.consultation?.auxiliary?.provider!=='Gemini'||health.consultation?.auxiliary?.role!=='optional-post-analysis-augmentation'||health.consultation?.auxiliary?.visionSentToLlm!==false)throw new Error('auxiliary consultation boundary failed');
   if(health.caseCollection?.mode!=='automatic'||health.caseCollection?.history!==true||health.caseCollection?.deduplicate!=='sha256-composite')throw new Error('automatic case collection gate failed');
   if(!Array.isArray(health.assessmentModes)||!health.assessmentModes.includes('normal')||!health.assessmentModes.includes('general'))throw new Error('assessment mode gate failed');
 
@@ -67,7 +68,9 @@ try{
   if(noKeyBody.error!=='LOCAL_VISION_INPUT_UNVERIFIED'||noKeyBody.geminiVision!==false)throw new Error('analyze must fail closed on unverified local vision without invoking Gemini');
 
   const noKeyChat=await fetch(`http://127.0.0.1:${port}/api/chat`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message:'test'})});
-  if(noKeyChat.status!==428)throw new Error(`expected chat 428 without Gemini key, got ${noKeyChat.status}`);
+  if(noKeyChat.status!==200)throw new Error(`expected grounded chat 200 without Gemini key, got ${noKeyChat.status}`);
+  const noKeyChatBody=await noKeyChat.json();
+  if(noKeyChatBody.provider!=='local-grounded'||noKeyChatBody.auxiliaryStatus!=='not-requested'||!String(noKeyChatBody.reply||'').includes('Chưa có kết quả phân tích ảnh lưỡi'))throw new Error('chat must remain available without Gemini');
 
   const manifest=JSON.parse(await text('/manifest.webmanifest'));
   if(manifest.display!=='standalone'||!Array.isArray(manifest.icons)||!manifest.icons.length)throw new Error('PWA manifest gate failed');

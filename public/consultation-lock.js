@@ -3,9 +3,11 @@
 
 const POLICY={
   uiName:'Trợ lý tham vấn',
-  engine:'gemini',
-  externalReasoning:'required',
-  localFallbackForChat:false,
+  engine:'local-grounded',
+  externalReasoning:'optional',
+  localFallbackForChat:true,
+  primaryReasoning:'local-grounded',
+  auxiliaryReasoning:'optional-gemini',
   cameraOffBeforeAnalysis:true
 };
 window.AITCConsultationPolicy=Object.freeze({...POLICY});
@@ -65,10 +67,10 @@ function installCameraShutdown(){
   document.addEventListener('visibilitychange',()=>{if(document.hidden)hardStopCamera();});
 }
 
-function installConsultationGeminiLock(){
+function installConsultationGroundedPolicy(){
   const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
   const priorFetch=(input,init)=>requestClient.fetchAfter('consultation-lock',input,init);
-  const __aitcStage3bFetch=async(input,init={})=>{
+  const __aitcGroundedFetch=async(input,init={})=>{
     const url=typeof input==='string'?input:input?.url||'';
     const method=String(init?.method||'GET').toUpperCase();
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
@@ -76,17 +78,22 @@ function installConsultationGeminiLock(){
         const body=JSON.parse(init.body);
         body.assessment=scrubFallbackMarker(body.assessment);
         body.analysis=scrubFallbackMarker(body.analysis);
-        body.consultationEngine='gemini';
-        body.externalReasoning='required';
-        if(typeof body.message==='string'&&body.message.trim()){
-          body.message=`[TRO_LY_THAM_VAN_EXTERNAL]\nTrong khung chatbot, bắt buộc dùng năng lực suy luận của Gemini để trả lời câu hỏi tham vấn. Nếu nội dung cần kiến thức ngoài kho tài liệu đã nạp, được phép dùng kiến thức chung của Gemini; không thay câu trả lời bằng heuristic/máy học cục bộ và không lặp lại thông báo chế độ dự phòng của bước phân tích ảnh. Khi dùng kiến thức ngoài kho, tuân thủ cơ chế đánh dấu [A.I] của máy chủ.\n\n${body.message}`;
-        }
+        body.consultationEngine='local-grounded';
+        body.externalReasoning='optional';
+        body.useAuxiliary=body.useAuxiliary===true;
+        return priorFetch(input,{...init,body:JSON.stringify(body)});
+      }catch{}
+    }
+    if(url.includes('/api/report')&&method==='POST'&&typeof init?.body==='string'){
+      try{
+        const body=JSON.parse(init.body);
+        body.useAuxiliary=body.useAuxiliary===true;
         return priorFetch(input,{...init,body:JSON.stringify(body)});
       }catch{}
     }
     return priorFetch(input,init);
   };
-  requestClient.register('consultation-lock',__aitcStage3bFetch,1100);
+  requestClient.register('consultation-lock',__aitcGroundedFetch,1100);
 }
 
 replaceVisibleName();
@@ -94,5 +101,5 @@ if(chatCard){
   new MutationObserver(()=>replaceVisibleName()).observe(chatCard,{subtree:true,childList:true,characterData:true});
 }
 installCameraShutdown();
-installConsultationGeminiLock();
+installConsultationGroundedPolicy();
 })();

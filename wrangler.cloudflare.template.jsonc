@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ai-thiet-chan-cf-preview",
+  "main": "cloudflare/src/index.mjs",
+  "compatibility_date": "2026-09-18",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "AITC_RUNTIME": "cloudflare",
+    "AITC_CASE_RETRIEVAL_URL": "https://aitc-case-retrieval-preview.onrender.com",
+    "SUPABASE_URL": "https://gzmpnsrwqjpsbklyflqr.supabase.co"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -14,7 +14,7 @@ const MAX_CONTEXT_CHARS = 7600;
 let state = { initialized:false, configured:false, ready:false, db:null, statement:null, records:0, sourceCounts:{}, errorCode:null };
 const PREVIEW_REMOTE_URL=process.env.VERCEL_ENV==='preview'?'https://aitc-case-retrieval-preview.onrender.com':'';
 const REMOTE_URL=String(process.env.AITC_CASE_RETRIEVAL_URL||PREVIEW_REMOTE_URL).trim().replace(/\/$/,'');
-const REMOTE_TIMEOUT_MS=Math.max(1000,Math.min(15000,Number(process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS||8000)));
+const REMOTE_TIMEOUT_MS=Math.max(1000,Math.min(20000,Number(process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS||15000)));
 let remoteHealthCache={at:0,value:null};
 
 const BILINGUAL_HINTS = [
@@ -186,7 +186,7 @@ export async function caseRetrievalRuntimeHealth(){
   if(local.ready) return {...local,mode:'local',remoteConfigured:Boolean(REMOTE_URL)};
   if(!REMOTE_URL) return {...local,mode:'disabled',remoteConfigured:false};
   const now=Date.now();
-  if(remoteHealthCache.value&&now-remoteHealthCache.at<30_000) return remoteHealthCache.value;
+  if(remoteHealthCache.value){\n    const ttl=remoteHealthCache.value.ready?30_000:3_000;\n    if(now-remoteHealthCache.at<ttl) return remoteHealthCache.value;\n  }
   try{
     const data=await remoteFetchJson('/health',{method:'GET',headers:{}});
     const value={

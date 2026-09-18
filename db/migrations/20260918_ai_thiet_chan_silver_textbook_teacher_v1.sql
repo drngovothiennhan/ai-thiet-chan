@@ -6,7 +6,7 @@ insert into public.ai_thiet_chan_ml_dataset_versions(
   source_schema,provenance,locked,created_by
 ) values(
   'silver-textbook-teacher-v1',
-  '8673fef2eafbaecce8bf73b419eec262eca575032341484ed77e47b5d8da3947',
+  '2dddfc1d3ceb058610d415abdda062d8b186adee58160fba37cc13207a69dc4b',
   0,337,60,82,
   'aitc-silver-textbook-teacher-v1',
   jsonb_build_object(

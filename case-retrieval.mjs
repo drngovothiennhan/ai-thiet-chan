@@ -41,6 +41,41 @@ const BILINGUAL_HINTS = [
   [/trào ngược|reflux/iu,['反酸','reflux']]
 ];
 
+
+const SYMPTOM_QUESTION_CONCEPTS = Object.freeze([
+  Object.freeze({id:'headache',patterns:[/头痛/u,/headache/i,/đau đầu/iu],question:'Bạn có đau đầu không? Nếu có, đau ở vị trí nào và cảm giác đau như thế nào?'}),
+  Object.freeze({id:'dizziness',patterns:[/头晕/u,/dizziness/i,/chóng mặt|hoa mắt/iu],question:'Bạn có chóng mặt hoặc hoa mắt không?'}),
+  Object.freeze({id:'nausea',patterns:[/恶心/u,/nausea/i,/buồn nôn/iu],question:'Bạn có buồn nôn hoặc cảm giác muốn nôn không?'}),
+  Object.freeze({id:'vomiting',patterns:[/呕吐/u,/vomit/i,/\bnôn\b/iu],question:'Bạn có nôn không? Nếu có, triệu chứng xuất hiện khi nào?'}),
+  Object.freeze({id:'poor-appetite',patterns:[/食欲不振/u,/poor appetite|appetite loss/i,/ăn kém|chán ăn/iu],question:'Gần đây bạn có ăn kém hoặc chán ăn không?'}),
+  Object.freeze({id:'fatigue',patterns:[/乏力/u,/fatigue/i,/mệt|mệt mỏi/iu],question:'Bạn có cảm thấy mệt hoặc thiếu sức hơn bình thường không?'}),
+  Object.freeze({id:'abdominal-pain',patterns:[/腹痛/u,/abdominal pain/i,/đau bụng/iu],question:'Bạn có đau hoặc khó chịu ở bụng không?'}),
+  Object.freeze({id:'diarrhea',patterns:[/腹泻/u,/diarrh/i,/tiêu chảy|đi ngoài lỏng/iu],question:'Gần đây bạn có đi ngoài lỏng hoặc tiêu chảy không?'}),
+  Object.freeze({id:'belching',patterns:[/嗳气/u,/belch/i,/ợ hơi/iu],question:'Bạn có ợ hơi nhiều hoặc cảm giác đầy tức sau ăn không?'}),
+  Object.freeze({id:'reflux',patterns:[/反酸/u,/reflux|acid regurgitation/i,/trào ngược|ợ chua/iu],question:'Bạn có ợ chua hoặc cảm giác trào ngược lên họng không?'})
+]);
+function conceptPresent(concept,text){return concept.patterns.some(pattern=>pattern.test(String(text||'')));}
+export function suggestNextSymptomQuestion(userText,retrievalResult){
+  const current=String(userText||'').slice(0,5000);
+  const cases=Array.isArray(retrievalResult?.cases)?retrievalResult.cases:[];
+  if(!cases.length)return {question:'Bạn còn triệu chứng hoặc khó chịu nào khác không?',conceptId:null,supportCases:0,consideredCases:0,evidenceBased:false,engine:'deterministic-case-rag-v1'};
+  const counts=new Map();
+  for(const item of cases){
+    const text=String(item?.caseText||'');
+    for(const concept of SYMPTOM_QUESTION_CONCEPTS){
+      if(conceptPresent(concept,current))continue;
+      if(conceptPresent(concept,text))counts.set(concept.id,(counts.get(concept.id)||0)+1);
+    }
+  }
+  let selected=null,supportCases=0;
+  for(const concept of SYMPTOM_QUESTION_CONCEPTS){
+    const count=counts.get(concept.id)||0;
+    if(count>supportCases){selected=concept;supportCases=count;}
+  }
+  if(!selected)return {question:'Bạn còn triệu chứng hoặc khó chịu nào khác không?',conceptId:null,supportCases:0,consideredCases:cases.length,evidenceBased:false,engine:'deterministic-case-rag-v1'};
+  return {question:selected.question,conceptId:selected.id,supportCases,consideredCases:cases.length,evidenceBased:true,engine:'deterministic-case-rag-v1'};
+}
+
 function clampLimit(value){
   const n=Number(value);
   return Number.isFinite(n)?Math.max(1,Math.min(MAX_TOP_K,Math.trunc(n))):DEFAULT_TOP_K;

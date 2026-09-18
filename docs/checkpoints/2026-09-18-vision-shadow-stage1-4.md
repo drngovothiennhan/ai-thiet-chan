@@ -21,3 +21,20 @@ Safety boundary:
 
 Resume rule:
 Continue from the latest commit on branch `restructure-local-vision-v1`; do not recreate completed stages. Stage 5 may begin only after the stage 1–4 CI gate passes.
+
+## Stage 1–4 verification
+- GitHub CI #562: PASS at commit 4be0d72322e319dec647d79f7b971ff2fe578b26.
+- `npm run check`: PASS.
+- Live RAG current-head probe: PASS after honoring the configured 15 s remote timeout.
+- Measured Render cold-start incident immediately before this gate: service process started at 12:18:56.343Z and reported ready with 44,643 records at 12:18:56.940Z; the prior 12 s hard-coded probe timed out and was not counted as PASS.
+- No shadow candidate has been promoted to production authority. No accuracy improvement is claimed.
+
+## Stage 5 implementation
+- Intermediate adaptive symptom questions are moved off Gemini to a deterministic, bounded case-RAG selector.
+- New endpoint: `POST /api/symptom-next`.
+- Input: existing structured assessment + user-confirmed symptom transcript.
+- Retrieval: existing `AITC-LLM-Case-Reasoning-v1`, top-k <= 4.
+- Question selection uses only symptom concepts actually present in retrieved `caseText`; corpus targets/answers are not used.
+- If retrieval is unavailable or yields no supported missing symptom, response falls back to the neutral question “Bạn còn triệu chứng hoặc khó chịu nào khác không?” with `evidenceBased=false`.
+- Final synthesis remains on the existing `/api/chat` path. Existing Gemini/provider resilience is not globally changed.
+- Real per-request latency is logged as `symptom_rag_question.elapsedMs`; no speedup claim is allowed until measured on live requests.

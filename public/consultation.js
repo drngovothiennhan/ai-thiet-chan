@@ -179,10 +179,18 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
       try{
         const body=JSON.parse(init.body);
+        const originalMessage=String(body.message||'');
         let requestKind='';
+        let requestTarget=inputArg;
         if(pendingPrompt){
-          body.message=pendingPrompt;
           requestKind=pendingKind;
+          if(requestKind==='adaptive-next'){
+            body.symptomContext=inquiry.transcript;
+            body.message=originalMessage;
+            requestTarget='/api/symptom-next';
+          }else{
+            body.message=pendingPrompt;
+          }
           pendingPrompt='';
           pendingKind='';
         }else if(inquiry.transcript&&typeof body.message==='string'){
@@ -193,7 +201,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
             +'Không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn.';
         }
 
-        const response=await nativeFetch(inputArg,{...init,body:JSON.stringify(body)});
+        const response=await nativeFetch(requestTarget,{...init,body:JSON.stringify(body)});
         if(!response.ok&&requestKind==='adaptive-next'){
           queueMicrotask(()=>bubble('Lượt này chưa lấy được câu hỏi đối chiếu từ A.I/CSDL. Triệu chứng bạn vừa nhập vẫn được giữ. Bạn còn triệu chứng hoặc khó chịu nào khác không?'));
         }

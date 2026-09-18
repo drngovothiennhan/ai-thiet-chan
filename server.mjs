@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
 import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
 import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.mjs';
-import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext } from './case-retrieval.mjs';
+import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext, suggestNextSymptomQuestion } from './case-retrieval.mjs';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -410,6 +410,53 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
     return res.status(status).json({error:err?.code||'ANALYZE_FAILED',message:err?.message||'Unknown error',geminiVision:false});
   }
 });
+app.post('/api/symptom-next',async(req,res)=>{
+  const startedAt=Date.now();
+  try{
+    const {assessment,analysis,symptomContext,message}=req.body||{};
+    const context=assessment||analysis;
+    const llmContext=llmSafeAssessmentContext(context);
+    if(!llmContext)return res.status(400).json({error:'ANALYSIS_REQUIRED'});
+    const confirmed=String(symptomContext||message||'').slice(0,5000);
+    const contextText=JSON.stringify(llmContext);
+    const caseRetrieval=await retrieveSimilarCasesRuntime(`${contextText}\n${confirmed}`,{limit:4});
+    const suggestion=suggestNextSymptomQuestion(confirmed,caseRetrieval);
+    const elapsedMs=Date.now()-startedAt;
+    console.info('symptom_rag_question',JSON.stringify({
+      elapsedMs,
+      returned:Number(caseRetrieval?.returned||0),
+      mode:String(caseRetrieval?.mode||'disabled'),
+      errorCode:caseRetrieval?.errorCode||null,
+      conceptId:suggestion.conceptId,
+      supportCases:suggestion.supportCases,
+      evidenceBased:suggestion.evidenceBased
+    }));
+    return res.json({
+      ok:true,
+      reply:suggestion.question,
+      engine:suggestion.engine,
+      evidenceBased:suggestion.evidenceBased,
+      selectedConcept:suggestion.conceptId,
+      supportCases:suggestion.supportCases,
+      consideredCases:suggestion.consideredCases,
+      timingMs:elapsedMs,
+      caseRetrieval:{
+        corpusId:caseRetrieval?.corpusId||null,
+        engine:caseRetrieval?.engine||null,
+        active:Boolean(caseRetrieval?.active),
+        returned:Number(caseRetrieval?.returned||0),
+        limit:Number(caseRetrieval?.limit||4),
+        terms:Array.isArray(caseRetrieval?.terms)?caseRetrieval.terms:[],
+        errorCode:caseRetrieval?.errorCode||null,
+        mode:caseRetrieval?.mode||'disabled'
+      }
+    });
+  }catch(err){
+    console.error('symptom_rag_question_error',err?.message||err);
+    return res.status(503).json({error:'SYMPTOM_RAG_UNAVAILABLE',message:'Không truy hồi được câu hỏi đối chiếu lúc này.'});
+  }
+});
+
 app.post('/api/chat',async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});

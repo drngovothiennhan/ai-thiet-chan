@@ -23,11 +23,19 @@
     "goldEvaluations": 0,
     "deviceShadowEvidence": 0,
     "promotionReviews": 0,
-    "activeReviewerSessions": 3,
+    "activeReviewerSessions": 0,
     "registeredCandidate": "aitc-tongue-roi-mlp-bootstrap-v1",
     "candidateStatus": "candidate",
     "candidateClinicalGold": false,
-    "candidateProductionEligible": false
+    "candidateProductionEligible": false,
+    "verifiedClinicalContributions": 0,
+    "approvedVerifiedClinicalContributions": 0,
+    "verifiedGoldAnnotations": 0,
+    "verifiedGoldExperts": 0,
+    "trainingReadyV3": 0,
+    "silverDataset": "silver-textbook-teacher-v1",
+    "silverSampleCount": 479,
+    "silverGoldEligible": false
   },
   "lockedOrder": [
     "independent_gold_annotation",
@@ -38,18 +46,21 @@
   ],
   "gates": {
     "independent_gold_annotation": {
-      "status": "COLLECTION_READY_WAITING_FOR_REAL_EXPERT_SUBMISSIONS",
-      "infrastructure": "LIVE_IN_SUPABASE",
+      "status": "COLLECTION_FLOW_LIVE_WAITING_FOR_REAL_VERIFIED_CLINICAL_CONTRIBUTIONS",
+      "infrastructure": "LIVE_IN_SUPABASE_AND_BRANCH",
+      "acceptedSourcePolicy": "Admin-approved Bác sĩ/Y sĩ contribution submitted through /clinical-contribute-v1.html with structured 160x160 ROI/presence label and app professional attestation.",
+      "independenceRule": "Two distinct contributor hashes for the same case; one contributor counts once per case.",
       "progress": {
-        "expertA": "0/22",
-        "expertB": "0/22",
-        "adjudicator": "0/0 eligible"
+        "verifiedContributions": 0,
+        "verifiedGoldAnnotations": 0,
+        "casesWithTwoIndependentExperts": 0
       },
-      "reason": "Two independent expert sessions and one independent adjudicator session are live, but no real human annotation has been submitted. Do not fabricate labels."
+      "reason": "No real verified clinical contribution has been submitted yet. Silver/textbook labels cannot unlock this gate."
     },
     "immutable_gold_holdout": {
-      "status": "BLOCKED_BY_REAL_GOLD_INPUT",
-      "infrastructure": "LIVE_IN_SUPABASE"
+      "status": "BLOCKED_BY_VERIFIED_CLINICAL_GOLD",
+      "infrastructure": "LIVE_IN_SUPABASE",
+      "sourcePolicy": "verified-clinical-contributions-only"
     },
     "gold_holdout_metrics": {
       "status": "BLOCKED_BY_LOCKED_GOLD_HOLDOUT",
@@ -60,7 +71,7 @@
       "infrastructure": "READY"
     },
     "manual_promotion_review": {
-      "status": "HARD_BLOCKED_BY_REAL_GOLD_AND_PHYSICAL_EVIDENCE",
+      "status": "HARD_BLOCKED_BY_PREVIOUS_GATES",
       "infrastructure": "LIVE_IN_SUPABASE",
       "candidateRegistered": true
     }
@@ -73,11 +84,15 @@
     "fabricatedMetrics": false,
     "autoPromotion": false,
     "reviewerTokensCommittedToRepo": false,
-    "productionInferenceChanged": false
+    "productionInferenceChanged": false,
+    "legacyArbitraryReviewerSessionsDisabled": true,
+    "textbookSilverCanBecomeGold": false,
+    "directLegacyGoldAnnotationSessionsDisabledByPolicyV2": true,
+    "externalLicenseRegistryVerificationClaimed": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T00:21:00Z",
-  "lastVerifiedHead": "5fc7bfe806cced99b6dff312bc45fe4379b28459",
+  "updatedAt": "2026-09-18T00:48:30Z",
+  "lastVerifiedHead": "5b3b3d0c18e7d5c1aed89585f2219c67907882c0",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
     "run": 438,
@@ -96,7 +111,16 @@
     "reviewerTokenSessions": "READY",
     "reviewerWebUI": "READY_IN_BRANCH",
     "bootstrapDatasetRegistry": "LIVE_IN_SUPABASE",
-    "modelCandidateRegistry": "LIVE_IN_SUPABASE"
+    "modelCandidateRegistry": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionTable": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionSubmission": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionAdminReview": "LIVE_IN_SUPABASE",
+    "verifiedClinicalGoldSourcePolicyV2": "LIVE_IN_SUPABASE",
+    "verifiedClinicianAdjudicatorBridge": "LIVE_IN_SUPABASE",
+    "trainingReadinessV3": "LIVE_IN_SUPABASE",
+    "silverTextbookTeacherLane": "LIVE_IN_SUPABASE",
+    "clinicalContributionWebUI": "READY_IN_BRANCH",
+    "adminContributionReviewUI": "READY_IN_BRANCH"
   },
-  "nextAction": "Two real independent experts must submit 22 blind labels each; a third independent adjudicator must then adjudicate eligible cases. Holdout creation, gold metrics, physical shadow evidence and promotion remain blocked in that order."
+  "nextAction": "Collect real Bác sĩ/Y sĩ contributions through /clinical-contribute-v1.html. Admin reviews each contribution. When the same case has two distinct approved contributor hashes, create a 72h adjudication session only for a previously approved verified clinician who is not either source annotator. Then adjudicate, lock holdout, compute gold metrics, run physical-device shadow, and only then perform manual promotion review."
 }

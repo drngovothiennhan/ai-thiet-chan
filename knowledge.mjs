@@ -1,12 +1,15 @@
 import './runtime-guard.mjs';
 import { TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS as BASE_KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
 import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } from './knowledge-extended.mjs';
+import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from './knowledge-open-access.mjs';
+import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-15.5doc';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-18.5doc+oa16-v1';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
-  ...EXTENDED_KNOWLEDGE_DOCUMENTS
+  ...EXTENDED_KNOWLEDGE_DOCUMENTS,
+  ...OPEN_ACCESS_KNOWLEDGE_DOCUMENTS
 ];
 
 export const KNOWLEDGE_SOURCES = [
@@ -15,11 +18,12 @@ export const KNOWLEDGE_SOURCES = [
   'Ứng dụng thiệt chẩn điều trị bệnh lý dạ dày thực quản theo Y học cổ truyền - ThS.BS Nguyễn Đức Huệ Tiên'
 ];
 
-const ALL_EVIDENCE=[...TONGUE_EVIDENCE,...EXTENDED_EVIDENCE];
+const USER_EVIDENCE=[...TONGUE_EVIDENCE,...EXTENDED_EVIDENCE];
+const ALL_EVIDENCE=[...USER_EVIDENCE,...OPEN_ACCESS_EVIDENCE];
 const documentById=new Map(KNOWLEDGE_DOCUMENTS.map(d=>[d.id,d]));
 
 function analysisEvidence(){
-  return ALL_EVIDENCE.map(e=>`- ${e.text}`).join('\n');
+  return USER_EVIDENCE.map(e=>`- ${e.text}`).join('\n');
 }
 
 function normalizeSearchText(value){
@@ -28,7 +32,7 @@ function normalizeSearchText(value){
 function tokens(value){return [...new Set(normalizeSearchText(value).split(' ').filter(x=>x.length>=3))];}
 function evidenceScore(e,queryTokens){
   if(!queryTokens.length)return 0;
-  const hay=tokens(`${e.topics?.join(' ')||''} ${e.text}`);let score=0;
+  const hay=tokens(`${e.topics?.join(' ')||''} ${e.ontology?.join(' ')||''} ${e.text}`);let score=0;
   for(const q of queryTokens){if(hay.includes(q))score+=3;else if(hay.some(h=>h.includes(q)||q.includes(h)))score+=1;}
   return score;
 }
@@ -36,17 +40,18 @@ function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam
 function renderCitedEvidence(items){
   return items.map(e=>{
     const doc=documentById.get(e.source);
-    return `- [${e.source}, tr. ${e.page}] ${e.text}${doc?` (Nguồn: ${doc.title})`:''}`;
+    const locator=e.page?`tr. ${e.page}`:String(e.locator||(doc?.pmid?`PMID ${doc.pmid}`:'nguồn học thuật'));
+    return `- [${e.source}, ${locator}] ${e.text}${doc?` (Nguồn: ${doc.title})`:''}`;
   }).join('\n');
 }
 
 export function knowledgeForQuery(query,{limit=18}={}){
-  const qTokens=tokens(query);
+  const qTokens=[...new Set([...tokens(query),...ontologyTokensForQuery(query)])];
   const allowPsych=psychRelevant(query);
   const ranked=ALL_EVIDENCE
     .filter(e=>allowPsych||e.source!=='PSY1')
     .map(e=>({e,score:evidenceScore(e,qTokens)}))
-    .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||a.e.page-b.e.page);
+    .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||(Number(a.e.page)||0)-(Number(b.e.page)||0));
   const selected=[];const seen=new Set();
   for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=limit)break;}
   for(const source of ['TC1','DY1','MC1','AT1']){
@@ -57,7 +62,7 @@ export function knowledgeForQuery(query,{limit=18}={}){
   if(allowPsych&&!selected.some(e=>e.source==='PSY1')){
     const fallback=EXTENDED_EVIDENCE.find(e=>e.source==='PSY1');if(fallback)selected.push(fallback);
   }
-  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,Math.max(limit,12)))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
+  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,Math.max(limit,12)))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
 }
 
 export const TONGUE_KNOWLEDGE = `
@@ -66,6 +71,7 @@ PHẠM VI: Dùng để chuẩn hóa mô tả thiệt tượng và gợi ý biệ
 KIẾN TRÚC SUY LUẬN:
 - Tách ba lớp: (1) quan sát trực tiếp từ ảnh; (2) đối chiếu lý thuyết/atlas; (3) tổng hợp có điều kiện với dữ kiện vấn chẩn đã có.
 - Năm tài liệu PDF người dùng cung cấp được phối hợp theo vai trò: lý thuyết thiệt chẩn, atlas hình ảnh, mạch-thiệt chẩn/giải phẫu-bệnh lý lưỡi, và Tâm bệnh học cho bối cảnh thập vấn sau phân tích.
+- Bộ open-access PubMed/PMC được dùng làm lớp đối chiếu chuẩn hóa, độ tin cậy, giải phẫu-rêu, hình thái, tĩnh mạch dưới lưỡi, QC và AI; không thay thế gold chuyên gia và không được dùng để tự suy chẩn đoán bệnh hiện đại.
 - Không dùng Tâm bệnh học để tạo quan hệ nhân quả giữa hình lưỡi và bệnh tâm thần.
 - Không để một atlas ca đơn lẻ lấn át nguyên tắc tổng hợp chất lưỡi + rêu + QC + dữ kiện còn thiếu.
 
@@ -127,7 +133,7 @@ NGUYÊN TẮC SUY LUẬN:
 6) Atlas hình ảnh chỉ là đối chiếu tương tự, không phải nhãn tuyệt đối.
 7) Kiến thức Tâm bệnh học chỉ dùng khi người dùng chủ động cung cấp dữ kiện tâm lý/tình chí trong Thập vấn sau phân tích.
 
-BẰNG CHỨNG ĐÃ CHUẨN HÓA TỪ 5 TÀI LIỆU PDF NGƯỜI DÙNG CUNG CẤP:
+BẰNG CHỨNG NỀN ĐÃ CHUẨN HÓA TỪ 5 TÀI LIỆU PDF NGƯỜI DÙNG CUNG CẤP:
 ${analysisEvidence()}
 
 ${PSYCH_CONTEXT_RULES}

@@ -353,7 +353,7 @@ function validateImage(image,label){
 
 app.get('/api/health',async(req,res)=>res.json({
   ok:true,app:'A.I Thiệt Chẩn',architecture:'independent-web',legacyPlatform:false,version:VERSION,build:BUILD.slice(0,12),
-  providerConfigured:true,auxiliaryProviderConfigured:Boolean(apiKey()),sharedProvider:false,clientSuppliedKeyAccepted:false,model:LOCAL_REASONING_HEALTH.engine,consultationModel:LOCAL_REASONING_HEALTH.engine,auxiliaryModel:apiKey()?MODEL:null,knowledgeVersion:KNOWLEDGE_VERSION,
+  providerConfigured:true,auxiliaryProviderConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:LOCAL_REASONING_HEALTH.engine,consultationModel:LOCAL_REASONING_HEALTH.engine,auxiliaryModel:apiKey()?MODEL:null,knowledgeVersion:KNOWLEDGE_VERSION,
   vision:{provider:'local',engine:LOCAL_VISION_HEALTH.engine,geminiVision:false,analysisRequiresProvider:false,inputContract:LOCAL_VISION_HEALTH.inputContract,semanticMode:LOCAL_VISION_HEALTH.semanticMode},
   consultation:{provider:'local-grounded',configured:true,model:LOCAL_REASONING_HEALTH.engine,role:'primary-grounded-reasoning',requiresExternalProvider:false,auxiliary:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'optional-post-analysis-augmentation',failurePolicy:'never-replace-primary-result',visionSentToLlm:false}},
   caseReasoningRetrieval:await caseRetrievalRuntimeHealth(),

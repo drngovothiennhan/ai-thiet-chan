@@ -1,0 +1,36 @@
+name: Cloudflare Build Dry Run
+
+on:
+  push:
+    branches:
+      - cloudflare-rebuild-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install
+      - name: Verify Cloudflare scaffold
+        run: npm run check:cloudflare-scaffold
+      - name: Compile Cloudflare Worker without deployment
+        run: |
+          set -o pipefail
+          npx --yes wrangler@4.102.0 deploy --dry-run --config wrangler.cloudflare.template.jsonc --outdir .wrangler-dry-run 2>&1 | tee wrangler-dry-run.log
+      - name: Preserve dry-run output
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-dry-run-output
+          path: |
+            wrangler-dry-run.log
+            .wrangler-dry-run
+          if-no-files-found: ignore

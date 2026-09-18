@@ -1,0 +1,31 @@
+name: Cloudflare Refresh Claim
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-claim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install
+      - name: Verify Cloudflare scaffold
+        run: npm run check:cloudflare-scaffold
+      - name: Create one temporary Cloudflare preview
+        run: |
+          set -o pipefail
+          npx --yes wrangler@4.102.0 deploy --temporary --config wrangler.cloudflare.template.jsonc 2>&1 | tee wrangler-refresh-claim.log
+      - name: Preserve deployment output
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-refresh-claim-output
+          path: wrangler-refresh-claim.log
+          if-no-files-found: ignore

@@ -1,0 +1,43 @@
+name: Cloudflare Temporary Preview Probe
+
+on:
+  push:
+    branches:
+      - cloudflare-rebuild-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PREVIEW_URL: https://ai-thiet-chan-cf-preview.comfortable-fastball.workers.dev
+    steps:
+      - name: Probe static app
+        run: |
+          set -u
+          code=$(curl -sS -L -o home.html -w "%{http_code}" "$PREVIEW_URL/")
+          echo "HOME_HTTP=$code"
+          echo "--- HOME BODY ---"
+          head -c 4000 home.html || true
+          echo
+      - name: Probe API health
+        run: |
+          set -u
+          code=$(curl -sS -L -o health.json -w "%{http_code}" "$PREVIEW_URL/api/health")
+          echo "HEALTH_HTTP=$code"
+          echo "--- HEALTH BODY ---"
+          head -c 4000 health.json || true
+          echo
+      - name: Preserve probe evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-temporary-preview-probe
+          path: |
+            home.html
+            health.json
+          if-no-files-found: ignore

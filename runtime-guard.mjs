@@ -260,7 +260,7 @@ async function geminiResilientFetch(input,init,url){
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const externalGeminiRequired=!vision&&requiresExternalGemini(payload);
-  if(vision)return blockedVisionResponse();
+  if(vision) return blockedVisionResponse();
 
   const plan=[{model:GEMINI_MODEL,maxAttempts:2},{model:GEMINI_TEXT_FALLBACK_MODEL,maxAttempts:1}];
   let lastResponse=null,lastError=null,lastDiagnostics=null,sequence=0;

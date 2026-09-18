@@ -23,7 +23,11 @@
     "goldEvaluations": 0,
     "deviceShadowEvidence": 0,
     "promotionReviews": 0,
-    "activeReviewerSessions": 3
+    "activeReviewerSessions": 3,
+    "registeredCandidate": "aitc-tongue-roi-mlp-bootstrap-v1",
+    "candidateStatus": "candidate",
+    "candidateClinicalGold": false,
+    "candidateProductionEligible": false
   },
   "lockedOrder": [
     "independent_gold_annotation",
@@ -56,8 +60,9 @@
       "infrastructure": "READY"
     },
     "manual_promotion_review": {
-      "status": "HARD_BLOCKED_BY_PREVIOUS_GATES",
-      "infrastructure": "LIVE_IN_SUPABASE"
+      "status": "HARD_BLOCKED_BY_REAL_GOLD_AND_PHYSICAL_EVIDENCE",
+      "infrastructure": "LIVE_IN_SUPABASE",
+      "candidateRegistered": true
     }
   },
   "safety": {
@@ -71,7 +76,7 @@
     "productionInferenceChanged": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T00:18:30Z",
+  "updatedAt": "2026-09-18T00:21:00Z",
   "lastVerifiedHead": "5fc7bfe806cced99b6dff312bc45fe4379b28459",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
@@ -89,7 +94,9 @@
     "physicalShadowHarness": "READY",
     "promotionEvidenceGate": "READY",
     "reviewerTokenSessions": "READY",
-    "reviewerWebUI": "READY_IN_BRANCH"
+    "reviewerWebUI": "READY_IN_BRANCH",
+    "bootstrapDatasetRegistry": "LIVE_IN_SUPABASE",
+    "modelCandidateRegistry": "LIVE_IN_SUPABASE"
   },
-  "nextAction": "Have two independent domain experts complete the 22 blind ROI/presence labels, then have the third independent adjudicator resolve all eligible cases. Only then lock the holdout and compute metrics."
+  "nextAction": "Two real independent experts must submit 22 blind labels each; a third independent adjudicator must then adjudicate eligible cases. Holdout creation, gold metrics, physical shadow evidence and promotion remain blocked in that order."
 }

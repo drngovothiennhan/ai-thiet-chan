@@ -56,6 +56,19 @@ function addTerm(out,seen,value){
   if(seen.has(key)) return;
   seen.add(key);out.push(term);
 }
+export function buildRemoteCaseRetrievalTerms(input){
+  const text=String(input||'').slice(0,5000);
+  const out=[],seen=new Set();
+  for(const [pattern,hints] of BILINGUAL_HINTS){
+    if(pattern.test(text)) for(const hint of hints) addTerm(out,seen,hint);
+    if(out.length>=MAX_QUERY_TERMS) break;
+  }
+  const hasTongueFeature=out.some(term=>term.startsWith('舌')||/tongue/i.test(term));
+  if(!hasTongueFeature&&/lưỡi|tongue/iu.test(text)){addTerm(out,seen,'舌');addTerm(out,seen,'tongue');}
+  const hasCoatingFeature=out.some(term=>term.startsWith('苔')||/coating/i.test(term));
+  if(!hasCoatingFeature&&/rêu|coating/iu.test(text)){addTerm(out,seen,'苔');addTerm(out,seen,'coating');}
+  return out.slice(0,MAX_QUERY_TERMS);
+}
 export function buildCaseRetrievalTerms(input){
   const text=String(input||'').slice(0,5000);
   const out=[],seen=new Set();
@@ -202,7 +215,7 @@ export async function caseRetrievalRuntimeHealth(){
 export async function retrieveSimilarCasesRuntime(input,{limit=DEFAULT_TOP_K}={}){
   const local=caseRetrievalHealth();
   if(local.ready) return {...retrieveSimilarCases(input,{limit}),mode:'local'};
-  const terms=buildCaseRetrievalTerms(input);
+  const terms=buildRemoteCaseRetrievalTerms(input);
   const boundedLimit=clampLimit(limit);
   if(!terms.length) return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:Boolean(REMOTE_URL),terms,limit:boundedLimit,returned:0,cases:[],errorCode:'no-query-terms',mode:REMOTE_URL?'remote':'disabled'};
   if(!REMOTE_URL) return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:false,terms,limit:boundedLimit,returned:0,cases:[],errorCode:local.errorCode,mode:'disabled'};

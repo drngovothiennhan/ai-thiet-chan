@@ -12,6 +12,10 @@ const MAX_TARGET_TEXT = 650;
 const MAX_CONTEXT_CHARS = 7600;
 
 let state = { initialized:false, configured:false, ready:false, db:null, statement:null, records:0, sourceCounts:{}, errorCode:null };
+const PREVIEW_REMOTE_URL=process.env.VERCEL_ENV==='preview'?'https://aitc-case-retrieval-preview.onrender.com':'';
+const REMOTE_URL=String(process.env.AITC_CASE_RETRIEVAL_URL||PREVIEW_REMOTE_URL).trim().replace(/\/$/,'');
+const REMOTE_TIMEOUT_MS=Math.max(1000,Math.min(15000,Number(process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS||8000)));
+let remoteHealthCache={at:0,value:null};
 
 const BILINGUAL_HINTS = [
   [/lưỡi đỏ|đỏ nhạt|đỏ sẫm|red tongue/iu,['舌红','red tongue']],
@@ -133,6 +137,82 @@ export function retrieveSimilarCasesByTerms(values,{limit=DEFAULT_TOP_K}={}){
 }
 export function retrieveSimilarCases(input,{limit=DEFAULT_TOP_K}={}){
   return retrieveSimilarCasesByTerms(buildCaseRetrievalTerms(input),{limit});
+}
+function normalizeRemoteCases(payload,terms,limit){
+  const boundedLimit=clampLimit(limit);
+  const cases=Array.isArray(payload?.cases)?payload.cases.slice(0,boundedLimit).map(item=>({
+    id:Number(item?.id||0),
+    sourceId:String(item?.sourceId||'').slice(0,120),
+    sourceRecordId:String(item?.sourceRecordId||'').slice(0,160),
+    task:String(item?.task||'').slice(0,80),
+    rank:Number(Number(item?.rank||0).toFixed(6)),
+    caseText:safeText(item?.caseText,MAX_CASE_TEXT),
+    target:safeText(item?.target,MAX_TARGET_TEXT),
+    provenance:{
+      license:String(item?.provenance?.license||'').slice(0,80),
+      pmid:String(item?.provenance?.pmid||'').slice(0,80),
+      pmcid:String(item?.provenance?.pmcid||'').slice(0,80),
+      doi:String(item?.provenance?.doi||'').slice(0,160)
+    }
+  })):[]; 
+  return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:true,terms,limit:boundedLimit,returned:cases.length,cases,errorCode:null,mode:'remote'};
+}
+async function remoteFetchJson(pathname,init={}){
+  if(!REMOTE_URL) throw new Error('REMOTE_NOT_CONFIGURED');
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),REMOTE_TIMEOUT_MS);
+  try{
+    const response=await fetch(`${REMOTE_URL}${pathname}`,{...init,signal:controller.signal,headers:{'content-type':'application/json',...(init.headers||{})}});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(`REMOTE_HTTP_${response.status}`);
+    return data;
+  }finally{clearTimeout(timer);}
+}
+export async function caseRetrievalRuntimeHealth(){
+  const local=caseRetrievalHealth();
+  if(local.ready) return {...local,mode:'local',remoteConfigured:Boolean(REMOTE_URL)};
+  if(!REMOTE_URL) return {...local,mode:'disabled',remoteConfigured:false};
+  const now=Date.now();
+  if(remoteHealthCache.value&&now-remoteHealthCache.at<30_000) return remoteHealthCache.value;
+  try{
+    const data=await remoteFetchJson('/health',{method:'GET',headers:{}});
+    const value={
+      corpusId:CASE_RETRIEVAL_CORPUS_ID,
+      engine:CASE_RETRIEVAL_ENGINE,
+      configured:true,
+      ready:Boolean(data?.ready||data?.ok),
+      records:Number(data?.records||0),
+      sourceCounts:data?.sourceCounts&&typeof data.sourceCounts==='object'?data.sourceCounts:{},
+      defaultTopK:DEFAULT_TOP_K,
+      maxTopK:MAX_TOP_K,
+      errorCode:(data?.ready||data?.ok)?null:String(data?.errorCode||'remote-not-ready'),
+      mode:'remote',
+      localConfigured:local.configured,
+      remoteConfigured:true
+    };
+    remoteHealthCache={at:now,value};
+    return value;
+  }catch(err){
+    const value={...local,configured:true,ready:false,errorCode:'remote-unavailable',mode:'remote',localConfigured:local.configured,remoteConfigured:true};
+    remoteHealthCache={at:now,value};
+    console.warn('case_retrieval_remote_health_failed',String(err?.message||err).slice(0,160));
+    return value;
+  }
+}
+export async function retrieveSimilarCasesRuntime(input,{limit=DEFAULT_TOP_K}={}){
+  const local=caseRetrievalHealth();
+  if(local.ready) return {...retrieveSimilarCases(input,{limit}),mode:'local'};
+  const terms=buildCaseRetrievalTerms(input);
+  const boundedLimit=clampLimit(limit);
+  if(!terms.length) return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:Boolean(REMOTE_URL),terms,limit:boundedLimit,returned:0,cases:[],errorCode:'no-query-terms',mode:REMOTE_URL?'remote':'disabled'};
+  if(!REMOTE_URL) return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:false,terms,limit:boundedLimit,returned:0,cases:[],errorCode:local.errorCode,mode:'disabled'};
+  try{
+    const payload=await remoteFetchJson('/search',{method:'POST',body:JSON.stringify({terms,limit:boundedLimit})});
+    return normalizeRemoteCases(payload,terms,boundedLimit);
+  }catch(err){
+    console.warn('case_retrieval_remote_query_failed',String(err?.message||err).slice(0,160));
+    return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:false,terms,limit:boundedLimit,returned:0,cases:[],errorCode:'remote-query-failed',mode:'remote'};
+  }
 }
 export function formatCaseRetrievalContext(result){
   const cases=Array.isArray(result?.cases)?result.cases:[];

@@ -1,0 +1,47 @@
+name: Cloudflare Permanent Preview
+
+on:
+  push:
+    branches:
+      - cloudflare-rebuild-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER_NAME: ai-thiet-chan-cf-preview
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: npm install
+      - name: Verify Cloudflare scaffold
+        run: npm run check:cloudflare-scaffold
+      - name: Detect Cloudflare credentials
+        id: creds
+        shell: bash
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Cloudflare deployment credentials are configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Cloudflare deployment credentials are not configured; deployment skipped."
+          fi
+      - name: Deploy permanent protected-preview candidate
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          npx --yes wrangler@4.102.0 deploy --config wrangler.cloudflare.template.jsonc --name "$WORKER_NAME"
+      - name: Deployment gate summary
+        run: |
+          echo "cloudflare_credentials_ready=${{ steps.creds.outputs.ready }}"
+          echo "production_cutover=false"
+          echo "d1_authority=false"

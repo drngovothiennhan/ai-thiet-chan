@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "aitc-case-seed-v1",
+  "sourceId": "pmc-ccby-cc0-case-reports-v1",
+  "createdAt": "2026-09-18",
+  "rightsVerified": true,
+  "recordCount": 6,
+  "records": [
+    {
+      "source_record_id": "PMC10695627",
+      "pmid": "38050304",
+      "pmcid": "PMC10695627",
+      "doi": "10.1097/MD.0000000000036169",
+      "title": "Sotos syndrome treated with traditional Chinese medicine and rehabilitation: Case report.",
+      "license": "CC-BY-4.0",
+      "case_context": "A one-year-old boy with macrocephaly, excessive growth, characteristic facial features and developmental delay had a pathogenic NSD1 variant and was diagnosed with Sotos syndrome.",
+      "intervention": "The report describes three months of combined traditional Chinese medicine and rehabilitation.",
+      "outcome": "The authors reported improvement in global development after the combined treatment, while also noting that the condition has no radical cure.",
+      "reasoning_use": "Train the model to separate confirmed biomedical diagnosis from supportive TCM/rehabilitation management and to avoid turning a single case report into a general efficacy claim.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10695627/"
+    },
+    {
+      "source_record_id": "PMC11608678",
+      "pmid": "39612407",
+      "pmcid": "PMC11608678",
+      "doi": "10.1097/MD.0000000000040747",
+      "title": "Chinese medicine as comprehensive therapy for psoriasis: A case report.",
+      "license": "CC-BY-4.0",
+      "case_context": "A 32-year-old man had severe plaque psoriasis with recurrent erythematous scaling for about one year together with metabolic abnormalities and psychiatric symptoms.",
+      "intervention": "The reported intervention was oral Chinese herbal medicine.",
+      "outcome": "The report described improvement in skin findings and several metabolic-related indices after treatment.",
+      "reasoning_use": "Use as a case-reasoning example that preserves the single-patient evidence level and distinguishes observed outcome from proof of general treatment efficacy.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11608678/"
+    },
+    {
+      "source_record_id": "PMC11018238",
+      "pmid": "38608118",
+      "pmcid": "PMC11018238",
+      "doi": "10.1097/MD.0000000000037744",
+      "title": "A relatively rare traditional Chinese medicine pattern of primary Sjögren syndrome: A case report.",
+      "license": "CC-BY-4.0",
+      "case_context": "A 56-year-old woman with long-standing dry eye and dry mouth was diagnosed with primary Sjögren syndrome after clinical testing and labial gland biopsy. The report described a mixed cold-heat and cold-dampness TCM pattern.",
+      "intervention": "Modified Da-Chai-Hu decoction and Linggui Zhugan decoction were used after prior therapies did not adequately control symptoms.",
+      "outcome": "The patient reported improvement in dryness-related symptoms and sleep quality after eight weeks.",
+      "reasoning_use": "Teach layered reasoning: biomedical diagnosis is established by clinical testing, while TCM pattern differentiation is a separate interpretive layer used to guide the reported herbal approach.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11018238/"
+    },
+    {
+      "source_record_id": "PMC12420317",
+      "pmid": "40937418",
+      "pmcid": "PMC12420317",
+      "doi": "10.3389/fendo.2025.1638086",
+      "title": "Case Report: Integrated traditional Chinese and Western medicine in the outpatient management of diabetic foot gangrene complicating uremia.",
+      "license": "CC-BY-4.0",
+      "case_context": "A 65-year-old man with end-stage renal disease on peritoneal dialysis had progressive diabetic foot gangrene, severe atherosclerosis and elevated inflammatory markers despite prior conventional management.",
+      "intervention": "The published case used an integrated outpatient protocol combining a Chinese herbal decoction with debridement and local analgesia over seven months.",
+      "outcome": "The report described complete ulcer healing, reduced inflammatory markers and preservation of foot function.",
+      "reasoning_use": "Train the model to recognize multimodal care, comorbidity burden, objective follow-up markers and the limits of causal inference from one case.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12420317/"
+    },
+    {
+      "source_record_id": "PMC6485890",
+      "pmid": "30985690",
+      "pmcid": "PMC6485890",
+      "doi": "10.1097/MD.0000000000015148",
+      "title": "Traditional Chinese medicine for management of recurrent and refractory Crohn disease: A case report.",
+      "license": "CC-BY-4.0",
+      "case_context": "A 53-year-old woman had a long history of recurrent refractory Crohn disease with chronic indigestion, reflux, abdominal pain and diarrhea despite pharmacologic and surgical treatment.",
+      "intervention": "The report describes weekly acupuncture for 21 sessions plus Chinese herbal medicine as needed, alongside ongoing pharmacologic therapy.",
+      "outcome": "The patient reported improvement in gastrointestinal symptoms and reduced medication dosage.",
+      "reasoning_use": "Use to train cautious multimodal reasoning: preserve the established Crohn diagnosis, identify adjunctive TCM use, and avoid extrapolating a single subjective response to population-level efficacy.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6485890/"
+    },
+    {
+      "source_record_id": "PMC10615480",
+      "pmid": "37904483",
+      "pmcid": "PMC10615480",
+      "doi": "10.1097/MD.0000000000034430",
+      "title": "Black hairy tongue treated with traditional Chinese medicine: A case report.",
+      "license": "CC-BY-4.0",
+      "case_context": "A 73-year-old woman developed a persistent black tongue with thirst and diarrhea after hospitalization and antibiotic exposure. The report documented a thick black coating surrounded by thick white coating, a medium-sized tongue with tooth marks, and a light-red tongue body.",
+      "intervention": "Using the four TCM diagnostic methods, the authors described a pattern of spleen Qi deficiency with turbid dampness and used a modified herbal formula based on Wu-Ling-San and Da-Yuan-Yin.",
+      "outcome": "The report described near resolution after two weeks and complete resolution after four weeks.",
+      "reasoning_use": "High-priority tongue case for teaching structured observation -> TCM pattern interpretation -> intervention -> follow-up, while retaining the distinction between an observed case and a validated diagnostic rule.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10615480/"
+    }
+  ]
+}

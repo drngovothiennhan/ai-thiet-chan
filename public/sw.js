@@ -7,10 +7,14 @@ const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
 const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/request-client.js','/manifest.webmanifest','/icon.svg'];
 const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
-  '/hardware-profile.js','/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
-  '/analysis-hotfix.js','/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
+  '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
+  '/local-vision/model-manifest.js','/local-vision/model-runtime.js','/local-vision/shadow-pixel-mlp.js','/local-vision/shadow-worker.js','/local-vision/models/aitc-tongue-roi-mlp-bootstrap-v1.json',
+  '/device-shadow-validation-v3.html',
+  '/clinical-contribute-v1.html','/gold-review-v1.html',
+  '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
+  '/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
   '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/access-control.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
-  '/academic-vision.js','/academic-source.js','/open-source.html'
+  '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
 ];
 const NAV_TIMEOUT_MS=2500;
 
@@ -53,13 +57,35 @@ async function fetchWithTimeout(request,timeoutMs=NAV_TIMEOUT_MS){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{return await fetch(request,{cache:'no-cache',signal:controller.signal});}finally{clearTimeout(timer);}
 }
+function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
+async function digestBase64Payload(dataUrl){
+  try{
+    const bytes=new TextEncoder().encode(base64Payload(dataUrl));
+    const out=await crypto.subtle.digest('SHA-256',bytes);
+    return [...new Uint8Array(out)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }catch{return '';}
+}
+function hasCompleteDevicePayload(body){
+  return Boolean(body?.deviceRuntime?.status==='complete'&&body?.academicSignature&&body?.academicSource?.execution==='device-worker'&&body?.academicSource?.topImageDigest);
+}
 async function enrichAnalyzeRequest(request){
   try{
-    const body=await request.clone().json();const image=body?.topImage||body?.image;const vision=self.AITCAcademicVision;
+    const body=await request.clone().json();
+    if(hasCompleteDevicePayload(body))return request;
+    const image=body?.topImage||body?.image;const vision=self.AITCAcademicVision;
     if(!image||!vision?.signatureFromDataUrl)return request;
     const signature=await vision.signatureFromDataUrl(image);if(!signature)return request;
-    body.academicSignature=signature;body.academicSource=vision.source;
-    const headers=new Headers(request.headers);headers.set('content-type','application/json');return new Request(request,{headers,body:JSON.stringify(body)});
+    const topImageDigest=await digestBase64Payload(image);
+    body.academicSignature=signature;
+    body.academicSource={
+      ...(vision.source||{}),
+      execution:'service-worker-fallback',
+      runtimeVersion:'service-worker-academic-vision-v1',
+      schemaVersion:'legacy-academic-signature-v1',
+      topImageDigest
+    };
+    const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
+    return new Request(request,{headers,body:JSON.stringify(body)});
   }catch{return request;}
 }
 self.addEventListener('fetch',event=>{

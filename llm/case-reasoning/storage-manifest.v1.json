@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "aitc-case-storage-manifest-v1",
+  "corpusId": "AITC-LLM-Case-Reasoning-v1",
+  "recordedAt": "2026-09-18",
+  "networkJob": {
+    "branch": "data-job/aitc-llm-case-reasoning-v1",
+    "commit": "407d4104297c11b56b09d050478d77f9510b3d54",
+    "githubActionsRunId": 35322356256,
+    "conclusion": "success",
+    "artifactId": 10537966683,
+    "artifactName": "AITC-LLM-Case-Reasoning-v1",
+    "artifactSizeBytes": 48867888,
+    "artifactDigest": "sha256:caf750c635e7a94851f13e8fc69147eaecaabe47a04f9a32b8ae10acfb382c61",
+    "artifactRetention": "1 day handoff only"
+  },
+  "sources": {
+    "tcmchat": {
+      "upstreamFile": "sft/train/medical_case.json",
+      "upstreamSizeReported": "84.6 MB",
+      "upstreamSha256": "d35080e447631909c54f4018a7add449627415b1c01ac8b02eb376b6059b0e10",
+      "checksumVerified": true,
+      "acceptedRecords": 44623,
+      "rejected": {
+        "empty": 0,
+        "exactDuplicate": 1491,
+        "nearDuplicate": 1926
+      },
+      "normalizedSha256": "097a5d1b64064cd3c3de52c1588ff32e1585a0daefde3bef35abd68ccd8525b3"
+    },
+    "pmc": {
+      "licensePolicy": "CC0 / CC BY / CC BY-SA only",
+      "curatedAcceptedRecords": 20,
+      "initialSeed": 6,
+      "expandedSeed": 14
+    }
+  },
+  "retrievalSnapshot": {
+    "engine": "sqlite-fts5",
+    "records": 44643,
+    "crossSourceDuplicatesSkipped": 0,
+    "sourceCounts": {
+      "tcmchat-medical-case-sft-v1": 44623,
+      "pmc-ccby-cc0-case-reports-v1": 20
+    },
+    "taskCounts": {
+      "sft": 44623,
+      "case_reasoning": 20
+    },
+    "probeMatchCount": 8,
+    "database": "AITC-LLM-Case-Reasoning-v1.sqlite",
+    "databaseSha256": "68aa881b8e0c31935b8040095d2277d2940a55874209b7458d1433eb6b01781e",
+    "clinicalGoldOperationalRequirement": false
+  },
+  "googleDrive": {
+    "projectRootFolderId": "1vPOIc34DkRnfbe5SIgZRTsJZcFJvEyWB",
+    "sourceRegistryFolderId": "1EDv-yxOw3GSjOXzbAWggbF8bhNXWQ_N9",
+    "rawFolderId": "1VBuFPwylzWnyZjLe5wDqm9ZrBDaeWTgn",
+    "validatedFolderId": "1_iqQN4f9kLIeqPh3HEB3kXK7ifa1GlB0",
+    "bundleFileId": "1aC64OiQNxel9ZoMlA7NacBKvPiBHiRBV",
+    "bundleFileName": "AITC-LLM-Case-Reasoning-v1-20260918.zip",
+    "bundleSizeBytes": 48867888,
+    "physicalCopies": 1,
+    "note": "One Drive bundle copy is intentionally kept to avoid duplicate storage. It contains compressed raw TCMChat, normalized TCMChat/PMC data, ingest states, checksums, source metadata and the SQLite FTS5 retrieval snapshot."
+  },
+  "operationalPolicy": {
+    "productionModified": false,
+    "rawDatasetBundledIntoVercel": false,
+    "goldBlocksLlmOperation": false,
+    "visionImageAuthority": "Local Vision unchanged"
+  }
+}

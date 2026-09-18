@@ -1,0 +1,223 @@
+{
+  "schemaVersion": "aitc-execution-checkpoint-v1",
+  "project": "A.I Thiệt Chẩn",
+  "stage": "stage2-gold-to-promotion",
+  "branch": "restructure-local-vision-v1",
+  "startedFrom": "26ed3f45fb26a8f8dfc9b4920c7b13021da5ce80",
+  "observedAt": "2026-09-17T23:56:33Z",
+  "productionMain": "07ec84ddaa677c6695a2f1112b44baf37bbf9668",
+  "liveFacts": {
+    "cases": 22,
+    "topImages": 22,
+    "bottomImages": 14,
+    "mlSamples": 22,
+    "modelGeneratedUnverified": 22,
+    "trainingReadyGold": 0,
+    "approvedFeedback": 0,
+    "goldPool": 22,
+    "goldGroups": 21,
+    "expertAnnotations": 0,
+    "adjudications": 0,
+    "goldReady": 0,
+    "holdoutVersions": 0,
+    "goldEvaluations": 0,
+    "deviceShadowEvidence": 0,
+    "promotionReviews": 0,
+    "activeReviewerSessions": 0,
+    "registeredCandidate": "aitc-tongue-roi-mlp-bootstrap-v1",
+    "candidateStatus": "candidate",
+    "candidateClinicalGold": false,
+    "candidateProductionEligible": false,
+    "verifiedClinicalContributions": 0,
+    "approvedVerifiedClinicalContributions": 0,
+    "verifiedGoldAnnotations": 0,
+    "verifiedGoldExperts": 0,
+    "trainingReadyV3": 0,
+    "silverDataset": "silver-textbook-teacher-v1",
+    "silverSampleCount": 479,
+    "silverGoldEligible": false,
+    "continualLearningEvents": 0,
+    "continualQueuedEvents": 0,
+    "continualBlockedHoldoutEvents": 0,
+    "continualSnapshots": 0,
+    "continualPendingTrainingJobs": 0
+  },
+  "lockedOrder": [
+    "independent_gold_annotation",
+    "immutable_gold_holdout",
+    "gold_holdout_metrics",
+    "physical_device_shadow",
+    "manual_promotion_review"
+  ],
+  "gates": {
+    "independent_gold_annotation": {
+      "status": "COLLECTION_FLOW_LIVE_WAITING_FOR_REAL_VERIFIED_CLINICAL_CONTRIBUTIONS",
+      "infrastructure": "LIVE_IN_SUPABASE_AND_BRANCH",
+      "acceptedSourcePolicy": "Admin-approved Bác sĩ/Y sĩ contribution submitted through /clinical-contribute-v1.html with structured 160x160 ROI/presence label and app professional attestation.",
+      "independenceRule": "Two distinct contributor hashes for the same case; one contributor counts once per case.",
+      "progress": {
+        "verifiedContributions": 0,
+        "verifiedGoldAnnotations": 0,
+        "casesWithTwoIndependentExperts": 0
+      },
+      "reason": "No real verified clinical contribution has been submitted yet. Silver/textbook labels cannot unlock this gate."
+    },
+    "immutable_gold_holdout": {
+      "status": "BLOCKED_BY_VERIFIED_CLINICAL_GOLD",
+      "infrastructure": "LIVE_IN_SUPABASE",
+      "sourcePolicy": "verified-clinical-contributions-only"
+    },
+    "gold_holdout_metrics": {
+      "status": "BLOCKED_BY_LOCKED_GOLD_HOLDOUT",
+      "infrastructure": "READY"
+    },
+    "physical_device_shadow": {
+      "status": "BLOCKED_UNTIL_GOLD_METRICS",
+      "infrastructure": "READY"
+    },
+    "manual_promotion_review": {
+      "status": "HARD_BLOCKED_BY_PREVIOUS_GATES",
+      "infrastructure": "LIVE_IN_SUPABASE",
+      "candidateRegistered": true
+    }
+  },
+  "safety": {
+    "productionDeploy": false,
+    "productionMerge": false,
+    "providerVision": false,
+    "syntheticGoldLabels": false,
+    "fabricatedMetrics": false,
+    "autoPromotion": false,
+    "reviewerTokensCommittedToRepo": false,
+    "productionInferenceChanged": false,
+    "legacyArbitraryReviewerSessionsDisabled": true,
+    "textbookSilverCanBecomeGold": false,
+    "directLegacyGoldAnnotationSessionsDisabledByPolicyV2": true,
+    "externalLicenseRegistryVerificationClaimed": false,
+    "servingAvailabilityDependsOnTraining": false,
+    "onlineWeightMutation": false,
+    "prospectiveHoldoutCanEnterTraining": false,
+    "continualCandidatesAutoActivate": false
+  },
+  "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
+  "updatedAt": "2026-09-18T03:42:00Z",
+  "lastVerifiedHead": "7b34356134e930c7aa03892f5c546076d232acaf",
+  "ci": {
+    "workflow": "A.I Thiet Chan CI",
+    "run": 35304126950,
+    "conclusion": "success",
+    "head": "7b34356134e930c7aa03892f5c546076d232acaf"
+  },
+  "infrastructure": {
+    "independentGoldContract": "READY",
+    "blindPacketExport": "READY",
+    "independentAdjudication": "READY",
+    "immutableHoldoutContract": "READY",
+    "predeclaredHoldoutPolicy": "READY",
+    "goldMetricEvaluator": "READY",
+    "physicalShadowHarness": "READY",
+    "promotionEvidenceGate": "READY",
+    "reviewerTokenSessions": "READY",
+    "reviewerWebUI": "READY_IN_BRANCH",
+    "bootstrapDatasetRegistry": "LIVE_IN_SUPABASE",
+    "modelCandidateRegistry": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionTable": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionSubmission": "LIVE_IN_SUPABASE",
+    "verifiedClinicalContributionAdminReview": "LIVE_IN_SUPABASE",
+    "verifiedClinicalGoldSourcePolicyV2": "LIVE_IN_SUPABASE",
+    "verifiedClinicianAdjudicatorBridge": "LIVE_IN_SUPABASE",
+    "trainingReadinessV3": "LIVE_IN_SUPABASE",
+    "silverTextbookTeacherLane": "LIVE_IN_SUPABASE",
+    "clinicalContributionWebUI": "READY_IN_BRANCH",
+    "adminContributionReviewUI": "READY_IN_BRANCH",
+    "continualLearningEventQueue": "LIVE_IN_SUPABASE",
+    "continualImmutableSnapshots": "LIVE_IN_SUPABASE",
+    "prospectiveHoldoutFirewall": "LIVE_IN_SUPABASE",
+    "continualTrainingJobQueue": "LIVE_IN_SUPABASE",
+    "continualWorkerContract": "LIVE_IN_SUPABASE",
+    "unifiedApprovedMemoryV2": "LIVE_IN_SUPABASE",
+    "continualReplayTrainer": "READY_IN_BRANCH",
+    "serveAndLearnAdminStatus": "READY_IN_BRANCH",
+    "llmObservationContextV2": "READY_IN_BRANCH",
+    "morphologyExpertLabelValidation": "LIVE_IN_SUPABASE",
+    "morphologyContributionUI": "READY_IN_BRANCH",
+    "morphologyAdjudicationUI": "READY_IN_BRANCH",
+    "openAccessPubmedPmcCorpusV1": "READY_IN_BRANCH",
+    "ontologyAwareRagV1": "READY_IN_BRANCH"
+  },
+  "nextAction": "Priority 1 knowledge task completed for v1: expand the open-access corpus next with legal oral-medicine sources for normal variants/red flags, then continue collecting verified Bác sĩ/Y sĩ morphology labels for dedicated Local Vision models. User-provided teaching materials will be ingested later as a separate owner-provided corpus.",
+  "serveAndLearn": {
+    "status": "READY_WAITING_FOR_REAL_APPROVED_AND_ADJUDICATED_LABELS",
+    "servingLane": {
+      "availabilityIndependentFromTraining": true,
+      "runtimeMutationFromLearning": false,
+      "automaticModelSwap": false,
+      "currentProductionMain": "07ec84ddaa677c6695a2f1112b44baf37bbf9668"
+    },
+    "liveMemoryLane": {
+      "status": "READY",
+      "retrievalFunction": "ai_thiet_chan_find_learned_cases_v2",
+      "sources": [
+        "legacy-admin-approved-feedback",
+        "admin-approved-verified-clinician-contributions"
+      ],
+      "modelWeightsMutated": false
+    },
+    "modelLearningLane": {
+      "status": "READY_WAITING_FOR_ADJUDICATED_NON_HOLDOUT_GOLD",
+      "snapshotSchema": "aitc-continual-snapshot-v1",
+      "sourcePolicy": "verified-clinical-contributions-only -> independent adjudication",
+      "prospectiveHoldoutFirewall": "group_sha256_mod5_bucket0 excluded before training",
+      "replayDataset": "silver-textbook-teacher-v1",
+      "trainer": "ml/training/train_continual_roi_mlp.py",
+      "workerContract": "ai_thiet_chan_worker_*_continual_job_v1",
+      "outputActivation": "shadow-only",
+      "automaticPromotion": false
+    }
+  },
+  "llmAnalysis": {
+    "status": "STRUCTURED_CONTEXT_V2_READY",
+    "observationContext": "aitc-llm-observation-context-v2",
+    "featureVector": "tongue-dual-view-feature-vector-v2",
+    "rawImageToLlm": false,
+    "visualAuthority": "local-vision-only",
+    "morphology": {
+      "medianSulcusSeparatedFromFissure": true,
+      "legacyDarkLineSignalCannotBecomeFissure": true,
+      "fissureDepthFrom2DForbidden": true,
+      "expertLabelSchema": "tongue-morphology-label-v1",
+      "expertCollection": "READY_IN_CLINICAL_CONTRIBUTION_AND_ADJUDICATION_UI"
+    },
+    "priorityOrder": [
+      "P0 structured visual observation contract — COMPLETE",
+      "P1 dedicated local morphology models — WAITING_FOR_REAL_VERIFIED_LABELS",
+      "P2 coating/surface morphology models — NEXT_AFTER_P1",
+      "P3 approved clinical memory matching on structured morphology — PARTIAL",
+      "P4 Thap Van evidence fusion with explicit source attribution — READY_FOR_NEXT_ITERATION",
+      "P5 text-LLM reliability/failover independent of vision — PRESERVE"
+    ]
+  },
+  "openAccessKnowledge": {
+    "status": "LOADED_IN_BRANCH_RAG",
+    "knowledgeVersion": "thiet-chan-kb-2026-09-18.5doc+oa16-v1",
+    "corpusId": "aitc-open-access-tongue-v1",
+    "sourceCount": 16,
+    "ontologyId": "aitc-tongue-ontology-v1",
+    "sourcePolicy": "PubMed/PMC open-access/full-text-permitted sources only for v1; metadata + short paraphrased evidence; no article bodies or figures vendored",
+    "legalHandling": {
+      "ccBy": "attribution metadata retained; paraphrased evidence and ontology derivation allowed",
+      "ccByNcNd": "metadata + factual/paraphrased evidence only; no full-text/adapted figures/tables"
+    },
+    "runtime": {
+      "ontologyAwareRetrieval": true,
+      "userProvidedFiveDocCorpusPreserved": true,
+      "diseaseAssociationSourcesDiagnosisRule": "association-only; never diagnose modern disease from tongue image",
+      "goldLabelsUnaffected": true
+    },
+    "files": [
+      "knowledge-open-access.mjs",
+      "knowledge-ontology.mjs",
+      "docs/OPEN-ACCESS-TONGUE-KB-V1.md"
+    ]
+  }
+}

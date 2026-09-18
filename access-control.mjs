@@ -33,6 +33,40 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     return createHash('sha256').update(`aitc-guest-v1|${ip}|${ua}|${accept}`).digest('hex');
   }
 
+  function guestLimitError(quota){
+    const error=new Error('Khách đã dùng đủ 5 lượt thiệt chẩn hôm nay. Đăng nhập sinh viên để sử dụng không giới hạn.');
+    error.status=429;
+    error.code='GUEST_DAILY_LIMIT';
+    error.quota=quota;
+    return error;
+  }
+
+  function armGuestQuotaCommit(req,guestKeyValue){
+    const res=req.__aitcAccessResponse;
+    if(!res||res.__aitcGuestQuotaCommitArmed) return;
+    res.__aitcGuestQuotaCommitArmed=true;
+    req.__aitcPendingGuestKey=guestKeyValue;
+    const originalJson=res.json.bind(res);
+    res.json=async body=>{
+      const pendingKey=req.__aitcPendingGuestKey;
+      if(!pendingKey||res.statusCode>=400) return originalJson(body);
+      req.__aitcPendingGuestKey=null;
+      try{
+        const quota=await rpc('ai_thiet_chan_guest_consume_v1',{p_guest_key:pendingKey});
+        if(!quota?.ok){
+          res.status(429);
+          return originalJson({error:'GUEST_DAILY_LIMIT',message:'Khách đã dùng đủ 5 lượt thiệt chẩn hôm nay. Đăng nhập sinh viên để sử dụng không giới hạn.',quota});
+        }
+        if(body&&typeof body==='object'&&!Array.isArray(body)) body={...body,access:quota};
+        return originalJson(body);
+      }catch(err){
+        console.error('access_consume_error',err?.message||err);
+        res.status(503);
+        return originalJson({error:'ACCESS_COMMIT_UNAVAILABLE',message:'Chưa ghi nhận được lượt sử dụng. Vui lòng thử lại.'});
+      }
+    };
+  }
+
   async function resolveAdmin(req){
     const token=adminToken(req);
     if(!token){req.adminAccess=null;return null;}
@@ -64,6 +98,7 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
 
   app.use(async(req,res,next)=>{
     if(!req.path.startsWith('/api/')) return next();
+    req.__aitcAccessResponse=res;
     try{
       await resolveAdmin(req);
       if(!req.adminAccess) await resolveStudent(req);
@@ -121,14 +156,11 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
   async function consumeCaseAccess(req){
     if(req.adminAccess?.role==='admin') return {ok:true,role:'admin',unlimited:true};
     if(req.studentAccess?.role==='student') return {ok:true,role:'student',unlimited:true};
-    const quota=await rpc('ai_thiet_chan_guest_consume_v1',{p_guest_key:guestKey(req)});
-    if(!quota?.ok){
-      const error=new Error('Khách đã dùng đủ 5 lượt thiệt chẩn hôm nay. Đăng nhập sinh viên để sử dụng không giới hạn.');
-      error.status=429;
-      error.code='GUEST_DAILY_LIMIT';
-      error.quota=quota;
-      throw error;
-    }
+    const key=guestKey(req);
+    const quota=await rpc('ai_thiet_chan_guest_status_v1',{p_guest_key:key});
+    const remaining=Number(quota?.remaining);
+    if(!quota?.ok||!Number.isFinite(remaining)||remaining<=0) throw guestLimitError(quota);
+    armGuestQuotaCommit(req,key);
     return quota;
   }
 

@@ -116,11 +116,11 @@
       </section>
 
       <section class="card chat-card">
-        <div class="section-head"><div><h2>Tham Vấn · Gemini</h2><p>Hỏi trực tiếp Gemini hoặc dùng Thập vấn để bổ sung dữ kiện cho ca thiệt chẩn hiện tại.</p></div></div>
-        <div class="inquiry-controls"><button id="startInquiryBtn" class="btn primary compact" type="button">Bắt đầu Thập vấn</button><span id="inquiryProgress" class="inquiry-progress">Chưa bắt đầu</span></div>
-        <p class="inquiry-note">Chatbot Gemini có thể được hỏi trực tiếp không giới hạn lượt ở tầng ứng dụng. Thập vấn gồm 10 nhóm hỏi là tùy chọn để bổ sung dữ kiện; kết quả vẫn chỉ phục vụ học tập/tham khảo, không thay thế tứ chẩn trực tiếp.</p>
-        <div id="chatLog" class="chat-log"><div class="bubble bot">Bạn có thể hỏi Gemini trực tiếp. Nếu cần tăng dữ kiện đối chiếu cho ca hiện tại, hãy chọn “Bắt đầu Thập vấn”.</div></div>
-        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Nhập câu hỏi hoặc câu trả lời…" /><button class="btn primary" type="submit">Gửi</button></form>
+        <div class="section-head"><div><h2>Đối chiếu triệu chứng · Gemini</h2><p>Sau thiệt chẩn, Trợ lý chủ động hỏi triệu chứng để đối chiếu các ca tương tự trong CSDL.</p></div></div>
+        <div class="inquiry-controls"><button id="startInquiryBtn" class="btn primary compact" type="button">Bổ sung triệu chứng</button><span id="inquiryProgress" class="inquiry-progress">Sẵn sàng đối chiếu</span></div>
+        <p class="inquiry-note">Không dùng bộ 10 câu cố định. Mỗi lượt chỉ hỏi một câu ngắn dựa trên dữ kiện hiện có và ca tương tự được truy hồi; tối đa 4 lượt.</p>
+        <div id="chatLog" class="chat-log"><div class="bubble bot">Sau khi phân tích lưỡi, tôi sẽ chủ động hỏi triệu chứng để đối chiếu các ca tương tự trong CSDL. Bạn không cần tự nghĩ câu hỏi cho chatbot.</div></div>
+        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Mô tả triệu chứng hoặc khó chịu…" /><button class="btn primary" type="submit">Gửi</button></form>
       </section>
     </main>
   </div>

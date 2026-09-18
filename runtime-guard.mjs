@@ -1,11 +1,19 @@
 const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
-const GEMINI_VISION_TIMEOUT_MS=8_000;
-const GEMINI_TEXT_TIMEOUT_MS=12_000;
-const GEMINI_TEXT_MAX_ATTEMPTS=2;
-const GEMINI_VISION_MAX_ATTEMPTS=2;
+const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
+const GEMINI_TEXT_TIMEOUT_MS=Math.max(2000,Number(process.env.GEMINI_TEXT_TIMEOUT_MS||8000));
+const GEMINI_TOTAL_BUDGET_MS=Math.max(GEMINI_TEXT_TIMEOUT_MS,Number(process.env.GEMINI_TOTAL_BUDGET_MS||18000));
+const GEMINI_RETRY_BASE_MS=Math.max(0,Number(process.env.GEMINI_RETRY_BASE_MS||900));
+const GEMINI_RETRY_MAX_MS=Math.max(GEMINI_RETRY_BASE_MS,Number(process.env.GEMINI_RETRY_MAX_MS||4000));
+const GEMINI_CIRCUIT_503_MS=Math.max(5000,Number(process.env.GEMINI_CIRCUIT_503_MS||30000));
+const GEMINI_CIRCUIT_429_MS=Math.max(10000,Number(process.env.GEMINI_CIRCUIT_429_MS||60000));
+const AI_GATEWAY_TIMEOUT_MS=Math.max(2000,Number(process.env.AI_GATEWAY_TIMEOUT_MS||8000));
+const AI_GATEWAY_PRIMARY_MODEL=String(process.env.AI_GATEWAY_PRIMARY_MODEL||'openai/gpt-5.6-sol').trim();
+const AI_GATEWAY_ENABLED=String(process.env.AI_GATEWAY_ENABLED||'auto').trim().toLowerCase();
 process.env.GEMINI_MODEL=GEMINI_MODEL;
+process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
+process.env.AITC_AI_GATEWAY_PRIMARY_MODEL=AI_GATEWAY_PRIMARY_MODEL;
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');
@@ -15,6 +23,57 @@ function replaceGeminiModel(url,model=GEMINI_MODEL){
 }
 function isGeminiGenerate(url){
   return url.includes('generativelanguage.googleapis.com')&&url.includes(':generateContent');
+}
+const circuitState=new Map();
+function gatewayCredential(){return String(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||'').trim();}
+function gatewayAvailable(){return AI_GATEWAY_ENABLED!=='false'&&Boolean(gatewayCredential());}
+function circuitInfo(model){
+  const state=circuitState.get(model)||{failures:0,openedUntil:0,lastStatus:0};
+  if(state.openedUntil&&state.openedUntil<=Date.now()){state.openedUntil=0;state.failures=0;state.lastStatus=0;circuitState.set(model,state);}
+  return state;
+}
+function circuitOpen(model){if(process.env.AITC_TEST_DISABLE_CIRCUIT==='1')return false;return circuitInfo(model).openedUntil>Date.now();}
+function openCircuit(model,status,ms){
+  const state=circuitInfo(model);
+  state.failures=Math.max(1,state.failures||0);
+  state.lastStatus=Number(status)||0;
+  state.openedUntil=Math.max(state.openedUntil||0,Date.now()+Math.max(1,Number(ms)||1));
+  circuitState.set(model,state);
+  console.warn('gemini_circuit_open',JSON.stringify({model,status:state.lastStatus,failures:state.failures,openMs:Math.max(0,state.openedUntil-Date.now())}));
+}
+function recordModelSuccess(model){circuitState.set(model,{failures:0,openedUntil:0,lastStatus:200});}
+function recordTransientFailure(model,status,retryAfterMs=0){
+  if(process.env.AITC_TEST_DISABLE_CIRCUIT==='1')return;
+  const state=circuitInfo(model);state.failures=(state.failures||0)+1;state.lastStatus=Number(status)||0;
+  if(Number(status)===429)openCircuit(model,status,Math.max(GEMINI_CIRCUIT_429_MS,retryAfterMs||0));
+  else if(state.failures>=2)openCircuit(model,status,GEMINI_CIRCUIT_503_MS);
+  else circuitState.set(model,state);
+}
+function parseRetryAfterMs(value){
+  const text=String(value||'').trim();if(!text)return 0;
+  const seconds=Number(text);if(Number.isFinite(seconds))return Math.max(0,Math.round(seconds*1000));
+  const at=Date.parse(text);return Number.isFinite(at)?Math.max(0,at-Date.now()):0;
+}
+function parseRetryDelayMs(value){
+  if(typeof value==='string'){const s=value.match(/^([0-9.]+)s$/i);if(s)return Math.round(Number(s[1])*1000);const ms=value.match(/^([0-9.]+)ms$/i);if(ms)return Math.round(Number(ms[1]));}
+  if(value&&typeof value==='object'){const seconds=Number(value.seconds||0),nanos=Number(value.nanos||0);if(Number.isFinite(seconds)&&Number.isFinite(nanos))return Math.max(0,Math.round(seconds*1000+nanos/1e6));}
+  return 0;
+}
+async function transientDiagnostics(response){
+  const retryHeaderMs=parseRetryAfterMs(response?.headers?.get?.('retry-after'));
+  let body=null;try{body=await response.clone().json();}catch{}
+  const err=body?.error||{},details=Array.isArray(err.details)?err.details:[];let retryDetailMs=0;const quotaViolations=[];
+  for(const detail of details){
+    const type=String(detail?.['@type']||'');
+    if(/RetryInfo$/i.test(type))retryDetailMs=Math.max(retryDetailMs,parseRetryDelayMs(detail.retryDelay));
+    if(/QuotaFailure$/i.test(type))for(const v of Array.isArray(detail.violations)?detail.violations:[])quotaViolations.push({subject:String(v?.subject||'').slice(0,180),description:String(v?.description||'').slice(0,240),quotaMetric:String(v?.quotaMetric||'').slice(0,180),quotaId:String(v?.quotaId||'').slice(0,180),quotaDimensions:v?.quotaDimensions&&typeof v.quotaDimensions==='object'?v.quotaDimensions:undefined});
+  }
+  return {status:Number(response?.status)||0,errorStatus:String(err.status||'').slice(0,80),errorCode:Number(err.code)||0,message:String(err.message||'').replace(/([?&]\s*)?key\s*=\s*[^&\s]+/gi,'key=[redacted]').replace(/AIza[0-9A-Za-z_-]{20,}/g,'[redacted-google-key]').slice(0,260),retryAfterMs:Math.max(retryHeaderMs,retryDetailMs),quotaViolations:quotaViolations.slice(0,6)};
+}
+function backoffMs(sequence,retryAfterMs=0){
+  if(retryAfterMs>0)return Math.min(retryAfterMs,GEMINI_RETRY_MAX_MS);
+  const raw=Math.min(GEMINI_RETRY_MAX_MS,GEMINI_RETRY_BASE_MS*Math.pow(2,Math.max(0,sequence)));
+  return raw?Math.max(0,Math.round(raw*(0.75+Math.random()*0.5))):0;
 }
 async function isTransientGeminiFailure(response){
   if(!response) return true;
@@ -146,11 +205,13 @@ function unavailableTextResponse(reason,status=503,elapsedMs=0){
     status,headers:{'content-type':'application/json','x-ai-consultation-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
   });
 }
-function unavailableVisionResponse(reason,status=503,elapsedMs=0){
-  console.warn('gemini_vision_unavailable',JSON.stringify({reason,model:GEMINI_MODEL,status,elapsedMs}));
-  return new Response(JSON.stringify({error:{code:status,status:'UNAVAILABLE',message:'VISION_ANALYSIS_TEMPORARILY_UNAVAILABLE'},visionStatus:'unavailable',reason,elapsedMs}),{
-    status,headers:{'content-type':'application/json','x-ai-vision-status':'unavailable','x-ai-upstream-ms':String(elapsedMs||0)}
-  });
+function blockedVisionResponse(){
+  console.error('gemini_vision_blocked',JSON.stringify({policy:'local-vision-only',model:GEMINI_MODEL}));
+  return new Response(JSON.stringify({
+    error:{code:422,status:'FAILED_PRECONDITION',message:'GEMINI_VISION_DISABLED'},
+    visionStatus:'blocked',
+    policy:'local-vision-only'
+  }),{status:422,headers:{'content-type':'application/json','x-ai-vision-status':'blocked'}});
 }
 async function timedFetch(input,init,url,timeoutMs){
   if(!timeoutMs||init?.signal) return nativeFetch(input,init);
@@ -166,49 +227,105 @@ async function timedFetch(input,init,url,timeoutMs){
     throw err;
   }finally{clearTimeout(timer);}
 }
-const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const sleep=ms=>ms>0?new Promise(resolve=>setTimeout(resolve,ms)):Promise.resolve();
+function textMessagesForGateway(payload={}){
+  const messages=[];
+  for(const content of Array.isArray(payload.contents)?payload.contents:[]){
+    const text=(Array.isArray(content?.parts)?content.parts:[]).map(part=>typeof part?.text==='string'?part.text:'').filter(Boolean).join('\n');
+    if(!text)continue;
+    messages.push({role:content?.role==='model'?'assistant':'user',content:text});
+  }
+  return messages;
+}
+async function gatewayFallbackResponse(payload,startedAt){
+  if(!gatewayAvailable())return null;
+  const credential=gatewayCredential(),messages=textMessagesForGateway(payload);if(!messages.length)return null;
+  const remaining=Math.max(0,GEMINI_TOTAL_BUDGET_MS-(Date.now()-startedAt));if(remaining<1000)return null;
+  const timeout=Math.min(AI_GATEWAY_TIMEOUT_MS,remaining),gatewayStarted=Date.now();
+  try{
+    const response=await timedFetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credential},body:JSON.stringify({model:AI_GATEWAY_PRIMARY_MODEL,messages,stream:false,temperature:Number(payload?.generationConfig?.temperature??0.15),max_tokens:1600})},'https://ai-gateway.vercel.sh/v1/chat/completions',timeout);
+    const elapsedMs=Date.now()-gatewayStarted,data=await response.json().catch(()=>({}));
+    if(!response.ok){console.warn('ai_gateway_failure',JSON.stringify({status:response.status,model:AI_GATEWAY_PRIMARY_MODEL,elapsedMs,message:String(data?.error?.message||'').slice(0,220)}));return null;}
+    const text=String(data?.choices?.[0]?.message?.content||'').trim();if(!text)return null;
+    const usedModel=String(data?.model||AI_GATEWAY_PRIMARY_MODEL).slice(0,120);
+    console.info('ai_gateway_fallback_complete',JSON.stringify({model:usedModel,status:response.status,elapsedMs,totalMs:Date.now()-startedAt}));
+    return new Response(JSON.stringify({candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],gatewayFallback:{active:true,model:usedModel,elapsedMs}}),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'vercel-ai-gateway','x-ai-gateway-model':usedModel,'x-ai-upstream-ms':String(elapsedMs)}});
+  }catch(err){
+    console.warn('ai_gateway_transport_failure',JSON.stringify({model:AI_GATEWAY_PRIMARY_MODEL,error:err?.message||String(err),elapsedMs:Date.now()-gatewayStarted,totalMs:Date.now()-startedAt}));
+    return null;
+  }
+}
 async function geminiResilientFetch(input,init,url){
   const startedAt=Date.now();
-  const candidate=replaceGeminiModel(url,GEMINI_MODEL);
   const payload=requestPayload(init);
   const vision=hasInlineMedia(payload);
   const externalGeminiRequired=!vision&&requiresExternalGemini(payload);
-  const timeoutMs=vision?GEMINI_VISION_TIMEOUT_MS:GEMINI_TEXT_TIMEOUT_MS;
-  const maxAttempts=vision?GEMINI_VISION_MAX_ATTEMPTS:GEMINI_TEXT_MAX_ATTEMPTS;
-  let lastResponse=null;
-  let lastError=null;
-  for(let attempt=1;attempt<=maxAttempts;attempt++){
-    const attemptStarted=Date.now();
-    try{
-      const response=await timedFetch(candidate,init,candidate,timeoutMs);
-      const attemptMs=Date.now()-attemptStarted;
-      if(response.ok){
-        console.info('gemini_attempt_complete',JSON.stringify({model:GEMINI_MODEL,attempt,vision,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
-        return response;
-      }
-      if(!(await isTransientGeminiFailure(response))){
-        console.warn('gemini_nontransient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
-        return response;
-      }
-      lastResponse=response;
-      console.warn('gemini_transient_failure',JSON.stringify({status:response.status,model:GEMINI_MODEL,attempt,vision,attemptMs,totalMs:Date.now()-startedAt}));
-    }catch(err){
-      lastError=err;
-      console.warn('gemini_transport_failure',JSON.stringify({model:GEMINI_MODEL,error:err?.message||String(err),attempt,vision,attemptMs:Date.now()-attemptStarted,totalMs:Date.now()-startedAt}));
-      if(vision&&err?.message==='UPSTREAM_TIMEOUT') break;
+  if(vision) return blockedVisionResponse();
+
+  const plan=[{model:GEMINI_MODEL,maxAttempts:2},{model:GEMINI_TEXT_FALLBACK_MODEL,maxAttempts:1}];
+  let lastResponse=null,lastError=null,lastDiagnostics=null,sequence=0;
+
+  for(const step of plan){
+    const model=step.model;
+    if(circuitOpen(model)){
+      const state=circuitInfo(model);
+      console.warn('gemini_circuit_skip',JSON.stringify({model,lastStatus:state.lastStatus,remainingOpenMs:Math.max(0,state.openedUntil-Date.now())}));
+      continue;
     }
-    if(attempt<maxAttempts) await sleep(300*attempt);
+    for(let localAttempt=1;localAttempt<=step.maxAttempts;localAttempt++){
+      const remaining=Math.max(0,GEMINI_TOTAL_BUDGET_MS-(Date.now()-startedAt));
+      if(remaining<1000)break;
+      const candidate=replaceGeminiModel(url,model),attemptStarted=Date.now(),timeout=Math.min(GEMINI_TEXT_TIMEOUT_MS,remaining);
+      try{
+        const response=await timedFetch(candidate,init,candidate,timeout);
+        const attemptMs=Date.now()-attemptStarted;
+        if(response.ok){
+          recordModelSuccess(model);
+          console.info('gemini_attempt_complete',JSON.stringify({model,attempt:localAttempt,sequence:sequence+1,vision:false,status:response.status,attemptMs,totalMs:Date.now()-startedAt}));
+          if(model!==GEMINI_MODEL)console.info('gemini_text_model_fallback',JSON.stringify({primaryModel:GEMINI_MODEL,fallbackModel:model,attempt:localAttempt,totalMs:Date.now()-startedAt}));
+          return response;
+        }
+        if(!(await isTransientGeminiFailure(response))){
+          const diag=await transientDiagnostics(response);
+          console.warn('gemini_nontransient_failure',JSON.stringify({model,attempt:localAttempt,sequence:sequence+1,vision:false,attemptMs,totalMs:Date.now()-startedAt,...diag}));
+          return response;
+        }
+        const diag=await transientDiagnostics(response);
+        lastResponse=response;lastDiagnostics=diag;sequence+=1;
+        recordTransientFailure(model,response.status,diag.retryAfterMs);
+        console.warn('gemini_transient_failure',JSON.stringify({model,attempt:localAttempt,sequence,vision:false,attemptMs,totalMs:Date.now()-startedAt,...diag}));
+        if(response.status===429||circuitOpen(model))break;
+        if(localAttempt<step.maxAttempts){
+          const wait=backoffMs(sequence-1,diag.retryAfterMs),room=GEMINI_TOTAL_BUDGET_MS-(Date.now()-startedAt);
+          if(room<=wait+750)break;
+          console.info('gemini_retry_backoff',JSON.stringify({model,attempt:localAttempt,nextAttempt:localAttempt+1,waitMs:wait,totalMs:Date.now()-startedAt}));
+          await sleep(wait);
+        }
+      }catch(err){
+        lastError=err;sequence+=1;
+        const attemptMs=Date.now()-attemptStarted;
+        recordTransientFailure(model,err?.status||504,0);
+        console.warn('gemini_transport_failure',JSON.stringify({model,error:err?.message||String(err),attempt:localAttempt,sequence,vision:false,attemptMs,totalMs:Date.now()-startedAt}));
+        if(err?.message==='UPSTREAM_TIMEOUT'||circuitOpen(model))break;
+        if(localAttempt<step.maxAttempts){
+          const wait=backoffMs(sequence-1,0),room=GEMINI_TOTAL_BUDGET_MS-(Date.now()-startedAt);
+          if(room<=wait+750)break;
+          await sleep(wait);
+        }
+      }
+    }
   }
+
+  const gateway=await gatewayFallbackResponse(payload,startedAt);
+  if(gateway)return gateway;
+
   const elapsedMs=Date.now()-startedAt;
-  if(vision){
-    if(lastResponse) return unavailableVisionResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
-    return unavailableVisionResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
-  }
+  const finalReason=lastDiagnostics?'HTTP_'+lastDiagnostics.status:(lastError?.message||'TRANSPORT_ERROR');
   if(externalGeminiRequired){
-    if(lastResponse)return unavailableTextResponse(`HTTP_${lastResponse.status}`,lastResponse.status===429?503:lastResponse.status,elapsedMs);
-    return unavailableTextResponse(lastError?.message||'TRANSPORT_ERROR',lastError?.status===504?504:503,elapsedMs);
+    let status=lastDiagnostics?.status||lastError?.status||503;if(status===429)status=503;
+    return unavailableTextResponse(finalReason,status,elapsedMs);
   }
-  return localKnowledgeResponse(init,lastResponse?`HTTP_${lastResponse.status}`:(lastError?.message||'TRANSPORT_ERROR'),elapsedMs);
+  return localKnowledgeResponse(init,finalReason,elapsedMs);
 }
 
 if(nativeFetch){

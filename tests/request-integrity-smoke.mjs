@@ -7,12 +7,15 @@ const [client,integrity,settings,releaseUi,index]=await Promise.all([read('publi
 assert.match(client,/request-client-v1/);
 assert.match(index,/\/request-client\.js/);
 assert.match(settings,/window\.__aitcSettingsModulesReady=\(async\(\)=>/);
-const readyAt=releaseUi.indexOf('await window.__aitcSettingsModulesReady');
-const hotfixAt=releaseUi.indexOf("await loadScript('/analysis-hotfix.js')");
+const settingsCaptureAt=releaseUi.indexOf('const settingsModulesReady=window.__aitcSettingsModulesReady;');
+const academicAt=releaseUi.indexOf("await loadScript('/academic-vision.js')");
 const benchmarkAt=releaseUi.indexOf("await loadScript('/benchmark-telemetry.js')");
 const consultationLockAt=releaseUi.indexOf("await loadScript('/consultation-lock.js')");
+const readyAt=releaseUi.indexOf('if(settingsModulesReady)await settingsModulesReady;');
 const guardAt=releaseUi.indexOf("await loadScript('/request-integrity.js')");
-assert.ok(readyAt>=0&&hotfixAt>readyAt&&benchmarkAt>hotfixAt&&consultationLockAt>benchmarkAt&&guardAt>consultationLockAt,'request-integrity must remain the final loaded ingress guard');
+const bookAt=releaseUi.indexOf("await loadScript('/book-fallback.js')");
+assert.ok(settingsCaptureAt>=0&&academicAt>settingsCaptureAt&&bookAt>academicAt&&benchmarkAt>bookAt&&consultationLockAt>benchmarkAt&&readyAt>consultationLockAt&&guardAt>readyAt,'critical local-vision runtime may load while settings boot continues, but request-integrity must remain the final loaded ingress guard after settings request layers');
+assert.doesNotMatch(releaseUi,/analysis-hotfix\.js|analysis_hotfix/);
 assert.match(integrity,/request-integrity-v1/);assert.match(integrity,/x-aitc-request-id/);assert.match(integrity,/unhandledrejection/);assert.match(integrity,/MAX_FAULTS_PER_MINUTE=8/);assert.match(integrity,/requestClient\.register\('request-integrity',guardedFetch,1200\)/);assert.match(integrity,/requestClient\.seal\(\)/);
 assert.doesNotMatch(integrity,/event\?\.message|error\?\.message|reason\?\.message/);
 let lastCall=null;const listeners={};const fakeWindow={fetch:async(input,init)=>{lastCall={input,init};return new Response('{}',{status:200,headers:{'content-type':'application/json'}});},addEventListener:(name,fn)=>{listeners[name]=fn;},dispatchEvent:()=>true,AITCHardwareProfile:{profile:{tier:'constrained'}}};

@@ -54,13 +54,13 @@
 
   async function findApprovedLearning(){
     if(!learning.featureVector)return [];
-    const rows=await supabaseRpc('ai_thiet_chan_find_learned_cases_v1',{p_feature_vector:learning.featureVector,p_top_image_hash:learning.topHash||'',p_bottom_image_hash:learning.bottomHash||'',p_limit:3});
+    const rows=await supabaseRpc('ai_thiet_chan_find_learned_cases_v2',{p_feature_vector:learning.featureVector,p_top_image_hash:learning.topHash||'',p_bottom_image_hash:learning.bottomHash||'',p_limit:3});
     return (Array.isArray(rows)?rows:[]).filter(row=>Boolean(row.exact_image_match)||Number(row.similarity||0)>=LEARNING_THRESHOLD);
   }
 
   async function synthesizeWithLearning(baseAssessment,matches){
     if(!matches.length)return baseAssessment;
-    const approvedKnowledge=matches.map(row=>({similarity:Number(row.similarity||0),exactImageMatch:Boolean(row.exact_image_match),approvedAt:row.approved_at,professionalTitle:row.professional_title,knowledgeRevision:row.knowledge_revision,clinicalNote:row.clinical_note}));
+    const approvedKnowledge=matches.map(row=>({similarity:Number(row.similarity||0),exactImageMatch:Boolean(row.exact_image_match),approvedAt:row.approved_at,professionalTitle:row.professional_title,knowledgeRevision:row.knowledge_revision,clinicalNote:row.clinical_note,verifiedClinicalAnnotation:row.base_analysis?.verifiedClinicalAnnotation||null,verificationBasis:row.base_analysis?.verificationBasis||null,source:row.base_analysis?.source||'legacy-approved-feedback'}));
     const context=JSON.parse(JSON.stringify(baseAssessment||{}));context.approvedClinicalKnowledge=approvedKnowledge;
     try{
       const response=await rawFetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({assessment:context,message:'Hãy tổng hợp lại nhận định cho ca hiện tại bằng cách đối chiếu lý thuyết thiệt chẩn trong kết quả hiện tại với các góp ý lâm sàng đã được admin duyệt. Ưu tiên ca trùng ảnh hoặc có độ tương tự cao; khi độ tương tự gần nhau ưu tiên bản duyệt mới nhất. Chỉ mở rộng trong phạm vi dữ kiện nhìn thấy và kiến thức đã duyệt; nếu mâu thuẫn phải nêu rõ, không tự thêm triệu chứng, không kê đơn và không biến thành chẩn đoán xác định. Trả lời ngắn gọn bằng tiếng Việt.'})});

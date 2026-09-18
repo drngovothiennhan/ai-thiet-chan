@@ -16,7 +16,7 @@ for(const marker of [
   'ai_thiet_chan_submit_feedback_v1',
   'ai_thiet_chan_admin_list_feedback_v1',
   'ai_thiet_chan_admin_review_feedback_v1',
-  'ai_thiet_chan_find_learned_cases_v1',
+  'ai_thiet_chan_find_learned_cases_v2',
   'Góp ý ca lâm sàng',
   'Phân tích ca trước',
   'clinical-feedback-card{display:block}',

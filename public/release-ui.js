@@ -74,6 +74,17 @@
     });
   }
 
+  function installClinicalContributionEntry(){
+    const panel=document.querySelector('#settingsDialog .settings-panel');
+    if(!panel||$('#aitcClinicalContributionEntry'))return;
+    const group=document.createElement('div');
+    group.id='aitcClinicalContributionEntry';
+    group.className='settings-group';
+    group.innerHTML='<strong>Đóng góp ca lâm sàng</strong><button id="aitcClinicalContributionBtn" class="btn ghost full" type="button">Bác sĩ/Y sĩ đóng góp nhãn xác nhận</button><p class="settings-note" style="margin-top:8px">Luồng độc lập, không hiển thị kết quả A.I trước khi gán nhãn. Nhãn chỉ thành gold sau khi Admin duyệt và vẫn cần hai chuyên gia độc lập + adjudication.</p>';
+    panel.appendChild(group);
+    $('#aitcClinicalContributionBtn')?.addEventListener('click',()=>{location.href='/clinical-contribute-v1.html';});
+  }
+
   const citationPattern=/\s*\[(?:TC1|DY1|MC1|AT1|PSY1)\s*,?\s*tr\.?\s*\d+\]\s*/gi;
   function cleanReferenceText(value){
     let text=String(value||'').replace(citationPattern,' ');
@@ -100,11 +111,24 @@
     $('#summaryText')?.closest('.summary-box')?.classList.add('evidence-summary');
   }
 
-  installStepper();installBottomNav();installNewCaseButton();markEvidenceFirst();observeReferenceBoundary();updateStepper();
+  installStepper();installBottomNav();installNewCaseButton();installClinicalContributionEntry();markEvidenceFirst();observeReferenceBoundary();updateStepper();
   const stateObserver=new MutationObserver(updateStepper);
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});
   document.addEventListener('change',()=>queueMicrotask(updateStepper));
   document.addEventListener('click',()=>setTimeout(updateStepper,0));
+})();
+
+(()=>{
+  if(window.AITCPipelineContract)return;
+  const version='pipeline-contract-v1';
+  const layers=Object.freeze([
+    Object.freeze({id:'capture-qc',order:1,runtime:'browser',authority:'input-quality',fallback:'reject-or-degrade-confidence'}),
+    Object.freeze({id:'device-vision',order:2,runtime:'browser-worker',authority:'image-observation',fallback:'service-worker-signature-or-fail-closed'}),
+    Object.freeze({id:'server-fusion',order:3,runtime:'server',authority:'verified-local-vision-synthesis',fallback:'fail-closed-on-unverified-visual-payload'}),
+    Object.freeze({id:'learning-store',order:4,runtime:'supabase',authority:'approved-case-memory',fallback:'analysis-without-learning-retrieval'}),
+    Object.freeze({id:'consultation',order:5,runtime:'server-provider',authority:'text-only-post-result-reasoning',fallback:'explicit-provider-error'})
+  ]);
+  window.AITCPipelineContract=Object.freeze({version,layers});
 })();
 
 (()=>{
@@ -125,17 +149,18 @@
   (async()=>{
     try{
       if(!window.AITCHardwareProfile)await loadScript('/hardware-profile.js');
-      if(window.__aitcSettingsModulesReady)await window.__aitcSettingsModulesReady;
+      if(!window.AITCDeviceRuntime)await loadScript('/device-runtime.js');
+      const settingsModulesReady=window.__aitcSettingsModulesReady;
       await import('/clinical-learning.js?v=2.9.0').catch(()=>{});
       await import('/session-persistence.js?v=2.9.4').catch(()=>{});
       if(!window.AITCAcademicVision)await loadScript('/academic-vision.js');
-      await loadScript('/analysis-hotfix.js');
       await loadScript('/book-fallback.js');
       await loadScript('/benchmark-telemetry.js');
       await loadScript('/consultation-lock.js');
       await loadScript('/admin-enhancement-collapse.js');
+      if(settingsModulesReady)await settingsModulesReady;
       await loadScript('/request-integrity.js');
-      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity)}}));
-    }catch(err){console.warn('analysis_hotfix_loader_failed',err?.message||err);}
+      window.dispatchEvent(new CustomEvent('aitc:runtime-ready',{detail:{requestIntegrity:Boolean(window.AITCRequestIntegrity),deviceRuntime:Boolean(window.AITCDeviceRuntime),pipelineContract:window.AITCPipelineContract?.version||null,pipelineLayers:window.AITCPipelineContract?.layers?.map(layer=>layer.id)||[]}}));
+    }catch(err){console.warn('runtime_loader_failed',err?.message||err);}
   })();
 })();

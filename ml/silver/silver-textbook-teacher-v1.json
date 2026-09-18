@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "aitc-silver-textbook-teacher-v1",
+  "datasetId": "silver-textbook-teacher-v1",
+  "sourceDataset": "aitc-stage2-bootstrap-479-v1",
+  "purpose": "teaching-material-derived silver lane for pretraining, bootstrap segmentation, regression and ablation only",
+  "goldEligible": false,
+  "holdoutEligible": false,
+  "promotionEligible": false,
+  "clinicalAccuracyEligible": false,
+  "provenance": {
+    "sourceType": "owner-provided teaching textbooks",
+    "sourceIds": [
+      "TC1",
+      "DY1",
+      "MC1",
+      "AT1"
+    ],
+    "sampleCount": 479,
+    "weakPositive": 298,
+    "weakNegative": 181,
+    "rawImagesCommittedToGit": false,
+    "sourcePdfSha256": {
+      "TC1": "72afb5595e20e0f6311b2166ad8103129cf42a1299528b58bfea09892d49218e",
+      "DY1": "802d949b0e512fbe3ab34f699b9a1e73a75fc2679f282b98ab33b55736511c22",
+      "MC1": "336de613f28b26b3122ccee33d395bd57ed91ee3342df42fd84a99d0eadf3dea",
+      "AT1": "2105100126eba2fb7ea59ad7a048a1fdd269caed8d7de243ff8001617df4fc3f"
+    }
+  },
+  "labelPolicy": {
+    "kind": "silver_weak_supervision",
+    "sources": [
+      "runtime-mask-v2",
+      "textbook image role/provenance",
+      "optional model-assisted preannotation"
+    ],
+    "humanExpertRequiredForGold": true,
+    "conversionToGold": "forbidden"
+  },
+  "splitPolicy": {
+    "inheritedFrom": "aitc-stage2-bootstrap-479-v1",
+    "groupCrossSplit": 0,
+    "exactDerivedShaCrossSplit": 0,
+    "externalSourceHoldout": "AT1",
+    "note": "This split is for silver engineering metrics only and never substitutes for the independent clinical gold holdout."
+  },
+  "allowedUses": [
+    "bootstrap-training",
+    "pretraining",
+    "regression",
+    "ablation",
+    "annotation-tool-QA",
+    "shadow-candidate-development"
+  ],
+  "forbiddenUses": [
+    "gold-ground-truth",
+    "clinical-accuracy-claim",
+    "gold-holdout",
+    "automatic-promotion",
+    "production-activation"
+  ]
+}

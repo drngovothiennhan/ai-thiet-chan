@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "aitc-bootstrap-metrics-v1",
+  "datasetId": "aitc-stage2-bootstrap-479-v1",
+  "modelId": "aitc-tongue-roi-mlp-bootstrap-v1",
+  "metricSemantics": "agreement with weak bootstrap masks; NOT clinical accuracy and NOT production approval",
+  "validationThresholdSelection": {
+    "threshold": 0.8,
+    "meanDice": 0.9588987972315773,
+    "meanIoU": 0.9258316664061184,
+    "presenceAgreement": 1,
+    "n": 60
+  },
+  "testWeakLabelAgreement": {
+    "meanDice": 0.9022795581751056,
+    "meanIoU": 0.8441594189515003,
+    "presenceAgreement": 0.9878048780487805,
+    "n": 82
+  },
+  "externalAT1WeakLabelAgreement": {
+    "meanDice": 0.8506538167013243,
+    "meanIoU": 0.7730619713258959,
+    "presenceAgreement": 0.975609756097561,
+    "n": 41
+  },
+  "clinicalAccuracyPublished": false,
+  "goldHoldoutAvailable": false,
+  "productionApproval": false,
+  "modelJsonSha256": "43c64af91d4bf5b9cd6ad8a9d26b3c045817243966a7869743bbc72ff5e21174",
+  "trainingCheckpointSha256": "8bdba888c3b575ea968940be83e2720cc7d6c2a3982497bba1930830c279663a",
+  "notes": [
+    "Threshold selected only on validation split.",
+    "Test and external AT1 values are recorded for engineering regression only.",
+    "No clinical sensitivity/specificity/accuracy is claimed because no clinician-approved gold holdout exists."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "aitc-gold-holdout-policy-v1",
+  "lockedAt": "2026-09-18T00:00:00Z",
+  "lockedBeforeGoldLabels": true,
+  "selection": {
+    "eligibility": "adjudicated_gold_only",
+    "unit": "group_hash",
+    "groupHashRequirement": "sha256 de-identified subject/source-equivalence group; correlated or near-duplicate samples must share the same group_hash",
+    "function": "uint32(first_8_hex(group_hash)) mod 5",
+    "holdoutBucket": 0,
+    "approximateFraction": 0.2,
+    "labelBlind": true,
+    "modelBlind": true
+  },
+  "leakageControls": [
+    "No sample may cross group boundaries.",
+    "No label value may influence holdout membership.",
+    "No candidate/model output may influence holdout membership.",
+    "Once a holdout version is created its membership is immutable."
+  ],
+  "interpretation": {
+    "minimumStatisticalAdequacy": "not predeclared here; must be approved before promotion review and reported with per-class/group support",
+    "metricsAre": "model-vs-adjudicated-gold ROI/presence agreement",
+    "metricsAreNot": "clinical diagnostic accuracy"
+  }
+}

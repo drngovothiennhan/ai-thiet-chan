@@ -1,0 +1,50 @@
+(function(scope){
+'use strict';
+const manifest=Object.freeze({
+  schemaVersion:'aitc-local-vision-model-manifest-v1',
+  pipelineVersion:'local-vision-model-pipeline-v1',
+  status:'candidate-shadow',
+  activation:'shadow-only',
+  runtime:Object.freeze({
+    preferred:'onnxruntime-web',
+    currentCandidateAdapter:'native-js-pixel-mlp-shadow',
+    baselineProvider:'wasm',
+    optionalProvider:'webgpu',
+    webgpuRequiresParityGate:true
+  }),
+  provenance:Object.freeze({
+    trainingDatasetVersion:'aitc-stage2-bootstrap-479-v1',
+    evaluationDatasetVersion:'aitc-stage2-bootstrap-479-v1',
+    trainedAt:'2026-09-17T23:36:00Z',
+    codeCommit:'bab52076dacaef9c95af9eb95bf782385d17c049',
+    license:'internal-research-only',
+    labelPolicy:'weak-supervision-not-clinician-gold'
+  }),
+  artifacts:Object.freeze([
+    Object.freeze({
+      id:'tongue-roi-mlp-bootstrap-v1',kind:'pixel-mlp-json',adapter:'shadow-pixel-mlp-v1',
+      url:'/local-vision/models/aitc-tongue-roi-mlp-bootstrap-v1.json',
+      sha256:'43c64af91d4bf5b9cd6ad8a9d26b3c045817243966a7869743bbc72ff5e21174',
+      datasetId:'aitc-stage2-bootstrap-479-v1',clinicalGold:false,productionEligible:false,
+      weakSupervision:true,webgpuParityApproved:false
+    })
+  ]),
+  tasks:Object.freeze([
+    Object.freeze({id:'tongue-presence',kind:'derived-classification',required:true,artifactId:'tongue-roi-mlp-bootstrap-v1',derivedFrom:'tongue-roi-coverage',labels:Object.freeze(['not-tongue','tongue']),threshold:.018,shadowOnly:true}),
+    Object.freeze({id:'tongue-roi',kind:'segmentation',required:true,artifactId:'tongue-roi-mlp-bootstrap-v1',labels:Object.freeze(['background','tongue']),threshold:.8,shadowOnly:true}),
+    Object.freeze({id:'top-features',kind:'multi-label-classification',required:true,artifactId:null,labels:Object.freeze(['tongue-color','coating-color','coating-thickness','fissure','toothmark','spot']),threshold:null}),
+    Object.freeze({id:'bottom-features',kind:'multi-label-classification',required:false,artifactId:null,labels:Object.freeze(['vessel-visible','vessel-color','vessel-prominence']),threshold:null}),
+    Object.freeze({id:'qc-roi-shadow-v2',kind:'measurement-candidates',required:false,artifactId:null,labels:Object.freeze(['glare','flash-risk','sharpness-proxy','roi-coverage']),threshold:null,shadowOnly:true,authority:false}),
+    Object.freeze({id:'bottom-observation-shadow-v2',kind:'candidate-classification',required:false,artifactId:null,labels:Object.freeze(['underside-frame','vessel-visibility','bilateral-balance','dark-purple-ratio']),threshold:null,shadowOnly:true,authority:false}),
+    Object.freeze({id:'top-morphology-shadow-v2',kind:'candidate-classification',required:false,artifactId:null,labels:Object.freeze(['median-sulcus','fissure','flash-robust-color','moisture-proxy']),threshold:null,shadowOnly:true,authority:false})
+  ]),
+  safety:Object.freeze({
+    noProviderVision:true,
+    noSyntheticObservation:true,
+    unknownOnUnsupportedFeature:true,
+    noDiseaseDiagnosis:true,
+    noTreatmentRecommendation:true
+  })
+});
+scope.AITCLocalVisionModelManifest=manifest;
+})(globalThis);

@@ -261,7 +261,13 @@
     const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     const rewritten=new Request(request,{headers,body:JSON.stringify(body)});
     const response=await client.fetchAfter('device-compute',rewritten);
-    queueShadowViews(top,bottom,{mode:body?.mode==='general'?'general':'normal',baselineCoverage:Number(deviceAnalysis?.top?.signature?.coverage),baselineTop:deviceAnalysis?.top?.coarseVisual||null,baselineBottom:deviceAnalysis?.bottom?.bottomFeatures||null});
+    try{
+      const shadowTop=typeof body?.topImage==='string'?body.topImage:typeof body?.image==='string'?body.image:'';
+      const shadowBottom=body?.mode==='general'&&typeof body?.bottomImage==='string'?body.bottomImage:'';
+      queueShadowViews(shadowTop,shadowBottom,{mode:body?.mode==='general'?'general':'normal',baselineCoverage:Number(deviceAnalysis?.top?.signature?.coverage),baselineTop:deviceAnalysis?.top?.coarseVisual||null,baselineBottom:deviceAnalysis?.bottom?.bottomFeatures||null});
+    }catch(error){
+      publishShadow({status:'enqueue-error',mode:body?.mode==='general'?'general':'normal',tier:profile.tier,error:String(error?.message||error).slice(0,120),pipelineImpact:'none-primary-response-preserved',authority:false});
+    }
     return response;
   }
   function tryRegister(){

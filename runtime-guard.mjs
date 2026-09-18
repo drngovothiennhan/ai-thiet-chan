@@ -68,7 +68,7 @@ async function transientDiagnostics(response){
     if(/RetryInfo$/i.test(type))retryDetailMs=Math.max(retryDetailMs,parseRetryDelayMs(detail.retryDelay));
     if(/QuotaFailure$/i.test(type))for(const v of Array.isArray(detail.violations)?detail.violations:[])quotaViolations.push({subject:String(v?.subject||'').slice(0,180),description:String(v?.description||'').slice(0,240),quotaMetric:String(v?.quotaMetric||'').slice(0,180),quotaId:String(v?.quotaId||'').slice(0,180),quotaDimensions:v?.quotaDimensions&&typeof v.quotaDimensions==='object'?v.quotaDimensions:undefined});
   }
-  return {status:Number(response?.status)||0,errorStatus:String(err.status||'').slice(0,80),errorCode:Number(err.code)||0,message:String(err.message||'').replace(/[?&]key=[^&\s]+/gi,'?key=[redacted]').slice(0,260),retryAfterMs:Math.max(retryHeaderMs,retryDetailMs),quotaViolations:quotaViolations.slice(0,6)};
+  return {status:Number(response?.status)||0,errorStatus:String(err.status||'').slice(0,80),errorCode:Number(err.code)||0,message:String(err.message||'').replace(/([?&]\s*)?key\s*=\s*[^&\s]+/gi,'key=[redacted]').replace(/AIza[0-9A-Za-z_-]{20,}/g,'[redacted-google-key]').slice(0,260),retryAfterMs:Math.max(retryHeaderMs,retryDetailMs),quotaViolations:quotaViolations.slice(0,6)};
 }
 function backoffMs(sequence,retryAfterMs=0){
   if(retryAfterMs>0)return Math.min(retryAfterMs,GEMINI_RETRY_MAX_MS);

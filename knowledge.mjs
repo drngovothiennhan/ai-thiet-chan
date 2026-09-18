@@ -52,17 +52,23 @@ export function knowledgeForQuery(query,{limit=18}={}){
     .filter(e=>allowPsych||e.source!=='PSY1')
     .map(e=>({e,score:evidenceScore(e,qTokens)}))
     .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||(Number(a.e.page)||0)-(Number(b.e.page)||0));
+  const effectiveLimit=Math.max(Number(limit)||18,12);
   const selected=[];const seen=new Set();
-  for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=limit)break;}
-  for(const source of ['TC1','DY1','MC1','AT1']){
+  for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=effectiveLimit)break;}
+  const requiredSources=['TC1','DY1','MC1','AT1',...(allowPsych?['PSY1']:[])];
+  for(const source of requiredSources){
     if(selected.some(e=>e.source===source))continue;
     const fallback=ALL_EVIDENCE.find(e=>e.source===source);
-    if(fallback&&!seen.has(fallback.id)){selected.push(fallback);seen.add(fallback.id);}
+    if(!fallback||seen.has(fallback.id))continue;
+    if(selected.length>=effectiveLimit){
+      const protectedSources=new Set(requiredSources);
+      let replaceAt=-1;
+      for(let i=selected.length-1;i>=0;i--){if(!protectedSources.has(selected[i].source)){replaceAt=i;break;}}
+      if(replaceAt>=0){seen.delete(selected[replaceAt].id);selected.splice(replaceAt,1);}
+    }
+    if(selected.length<effectiveLimit){selected.push(fallback);seen.add(fallback.id);}
   }
-  if(allowPsych&&!selected.some(e=>e.source==='PSY1')){
-    const fallback=EXTENDED_EVIDENCE.find(e=>e.source==='PSY1');if(fallback)selected.push(fallback);
-  }
-  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,Math.max(limit,12)))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
+  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,effectiveLimit))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
 }
 
 export const TONGUE_KNOWLEDGE = `

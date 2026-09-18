@@ -7,6 +7,8 @@ import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQue
 import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
 import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.mjs';
 import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext, suggestNextSymptomQuestion } from './case-retrieval.mjs';
+import { localGroundedChat, localGroundedReport, LOCAL_REASONING_HEALTH } from './local-grounded-reasoning.mjs';
+import { OPEN_SOURCE_VISION_REGISTRY, OPEN_SOURCE_VISION_POLICY } from './open-source-vision-registry.mjs';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,13 +22,7 @@ const CASE_STORE_URL = process.env.SUPABASE_URL || 'https://gzmpnsrwqjpsbklyflqr
 const CASE_STORE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
 let caseStoreReady = false;
 
-const OPEN_SOURCE_REFERENCES = [
-  { name:'TongueDiagnosis.AI', repo:'https://github.com/TonguePicture-SKaRD/TongueDiagnosis', license:'AGPL-3.0', use:'architecture-reference-only', note:'Tham chiếu pipeline định vị lưỡi → phân đoạn → phân loại đặc trưng → LLM; không sao chép mã nguồn hoặc trọng số AGPL.' },
-  { name:'OpenCV', repo:'https://github.com/opencv/opencv', license:'Apache-2.0', use:'image-quality-reference', note:'Tham chiếu kỹ thuật QC ảnh: độ nét, phơi sáng, tương phản và tiền xử lý.' },
-  { name:'Segment Anything', repo:'https://github.com/facebookresearch/segment-anything', license:'Apache-2.0', use:'segmentation-reference', note:'Tham chiếu kiến trúc tạo mask để chuẩn bị bước tách vùng lưỡi trước phân loại.' },
-  { name:'ONNX Runtime', repo:'https://github.com/microsoft/onnxruntime', license:'MIT', use:'inference-runtime-reference', note:'Tham chiếu runtime suy luận đa nền tảng cho mô hình ONNX.' },
-  { name:'TensorFlow.js', repo:'https://github.com/tensorflow/tfjs', license:'Apache-2.0', use:'browser-ml-reference', note:'Tham chiếu huấn luyện/chuyển đổi/chạy mô hình trong trình duyệt và định dạng mẫu ML.' }
-];
+const OPEN_SOURCE_REFERENCES = OPEN_SOURCE_VISION_REGISTRY;
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '24mb' }));
@@ -64,6 +60,7 @@ const cleanupTimer=setInterval(()=>{
 cleanupTimer.unref?.();
 
 function apiKey(){ return String(process.env.GEMINI_API_KEY||'').trim(); }
+function caseStoreToken(){ return String(process.env.AITC_CASE_STORE_TOKEN||process.env.CASE_STORE_SECRET||process.env.GEMINI_API_KEY||'').trim(); }
 function textFromGemini(data){ return (data?.candidates?.[0]?.content?.parts||[]).map(p=>p?.text||'').join('').trim(); }
 async function geminiGenerate(key,contents,generationConfig={}){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent?key=${encodeURIComponent(key)}`;
@@ -314,7 +311,7 @@ async function supabaseRpc(name,payload){
   return data;
 }
 async function ensureCaseStoreSecret(){
-  const token=apiKey();if(!token){caseStoreReady=false;return false;}
+  const token=caseStoreToken();if(!token){caseStoreReady=false;return false;}
   try{const ok=await supabaseRpc('ai_thiet_chan_register_secret',{p_token:token});caseStoreReady=Boolean(ok);}catch(err){caseStoreReady=false;console.error('case_store_register_error',err?.message||err);}
   return caseStoreReady;
 }
@@ -330,7 +327,7 @@ async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bo
   if(!caseStoreReady) await ensureCaseStoreSecret();
   if(!caseStoreReady) throw new Error('CASE_STORE_NOT_READY');
   const payload={
-    p_token:apiKey(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
+    p_token:caseStoreToken(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
     p_top_image_hash:imageHash(topImage),p_top_image_data_url:topImage,p_top_mime_type:topMimeType||'image/jpeg',
     p_bottom_image_hash:bottomImage?imageHash(bottomImage):null,p_bottom_image_data_url:bottomImage||null,p_bottom_mime_type:bottomImage?(bottomMimeType||'image/jpeg'):null,
     p_qc:{top:topQc||{},bottom:bottomQc||null},p_analysis:assessment||{},p_feature_vector:assessment?.ml?.featureVector||{},p_model:assessment?.ml?.visionEngine?.engine||LOCAL_VISION_HEALTH.engine,p_knowledge_version:KNOWLEDGE_VERSION
@@ -344,7 +341,7 @@ async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bo
 async function listTrainingCases(limit=30){
   if(!caseStoreReady) await ensureCaseStoreSecret();
   if(!caseStoreReady) throw new Error('CASE_STORE_NOT_READY');
-  return supabaseRpc('ai_thiet_chan_list_cases_v2',{p_token:apiKey(),p_limit:Math.min(100,Math.max(1,Number(limit)||30))});
+  return supabaseRpc('ai_thiet_chan_list_cases_v2',{p_token:caseStoreToken(),p_limit:Math.min(100,Math.max(1,Number(limit)||30))});
 }
 
 function validateImage(image,label){
@@ -356,22 +353,22 @@ function validateImage(image,label){
 
 app.get('/api/health',async(req,res)=>res.json({
   ok:true,app:'A.I Thiệt Chẩn',architecture:'independent-web',legacyPlatform:false,version:VERSION,build:BUILD.slice(0,12),
-  providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
+  providerConfigured:true,auxiliaryProviderConfigured:Boolean(apiKey()),sharedProvider:false,clientSuppliedKeyAccepted:false,model:LOCAL_REASONING_HEALTH.engine,consultationModel:LOCAL_REASONING_HEALTH.engine,auxiliaryModel:apiKey()?MODEL:null,knowledgeVersion:KNOWLEDGE_VERSION,
   vision:{provider:'local',engine:LOCAL_VISION_HEALTH.engine,geminiVision:false,analysisRequiresProvider:false,inputContract:LOCAL_VISION_HEALTH.inputContract,semanticMode:LOCAL_VISION_HEALTH.semanticMode},
-  consultation:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'post-analysis-reasoning-only',resilience:{primary:'gemini-3.8-flash',directFallback:'gemini-3.6-flash',gatewayAvailable:Boolean(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN),gatewayEnabled:String(process.env.AI_GATEWAY_ENABLED||'auto').toLowerCase()!=='false',gatewayModel:String(process.env.AITC_AI_GATEWAY_PRIMARY_MODEL||process.env.AI_GATEWAY_PRIMARY_MODEL||'openai/gpt-5.6-sol'),localKnowledgeFallback:true,visionSentToLlm:false}},
+  consultation:{provider:'local-grounded',configured:true,model:LOCAL_REASONING_HEALTH.engine,role:'primary-grounded-reasoning',requiresExternalProvider:false,auxiliary:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'optional-post-analysis-augmentation',failurePolicy:'never-replace-primary-result',visionSentToLlm:false}},
   caseReasoningRetrieval:await caseRetrievalRuntimeHealth(),
-  knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
+  knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,openSourceVisionPolicy:OPEN_SOURCE_VISION_POLICY.policyVersion,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,
   caseCollection:{mode:'automatic',history:true,deduplicate:'sha256-composite',storeReady:caseStoreReady},
   aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX,appliesTo:['analyze','report']},
-  chatPolicy:{provider:'Gemini',applicationRateLimit:false,outsideKnowledgeSuffix:'[A.I]',documentVoice:true,atlasLanguageThreshold:ACADEMIC_HEALTH.atlasLanguageThreshold},
+  chatPolicy:{provider:'local-grounded',applicationRateLimit:false,externalProviderRequired:false,auxiliaryGemini:Boolean(apiKey()),documentVoice:true,atlasLanguageThreshold:ACADEMIC_HEALTH.atlasLanguageThreshold},
   access:{guestAnalysesPerDay:5,studentUnlimited:true},time:new Date().toISOString()
 }));
 app.get('/api/sources',(req,res)=>res.json({ok:true,version:VERSION,references:OPEN_SOURCE_REFERENCES}));
 app.get('/api/cases',async(req,res)=>{
   try{
-    if(!apiKey()) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
+    if(!caseStoreToken()) return res.status(428).json({error:'CASE_STORE_NOT_CONFIGURED'});
     const cases=await listTrainingCases(req.query.limit||30);
     return res.json({ok:true,cases:Array.isArray(cases)?cases:[],collectionMode:'automatic'});
   }catch(err){console.error('case_history_error',err?.message||err);return res.status(503).json({error:'CASE_HISTORY_UNAVAILABLE'});}
@@ -401,7 +398,7 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
     return res.json({
       ok:true,assessment,analysis:assessment,
       model:LOCAL_VISION_HEALTH.engine,visionModel:LOCAL_VISION_HEALTH.engine,
-      geminiVision:false,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
+      geminiVision:false,consultationModel:LOCAL_REASONING_HEALTH.engine,auxiliaryModel:apiKey()?MODEL:null,knowledgeVersion:KNOWLEDGE_VERSION,
       collection,access:accessQuota
     });
   }catch(err){
@@ -459,32 +456,76 @@ app.post('/api/symptom-next',async(req,res)=>{
 
 app.post('/api/chat',async(req,res)=>{
   try{
-    const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
-    const {assessment,analysis,message}=req.body||{};if(!message||typeof message!=='string') return res.status(400).json({error:'MESSAGE_REQUIRED'});
+    const body=req.body||{};
+    const {assessment,analysis,message}=body;
+    if(!message||typeof message!=='string') return res.status(400).json({error:'MESSAGE_REQUIRED'});
     const context=assessment||analysis;
     const llmContext=llmSafeAssessmentContext(context);
     const contextText=llmContext?JSON.stringify(llmContext):'Chưa có kết quả phân tích hình lưỡi.';
     const hasAssessment=Boolean(llmContext);
     const retrievedKnowledge=hasAssessment?knowledgeForQuery(`${contextText}\n${message}`,{limit:18}):TONGUE_KNOWLEDGE;
     const caseRetrieval=hasAssessment?await retrieveSimilarCasesRuntime(`${contextText}\n${message}`,{limit:4}):null;
+    const local=localGroundedChat({assessment:llmContext||context,message,knowledgeText:retrievedKnowledge,caseRetrieval});
+    const base={
+      ok:true,
+      reply:local.reply,
+      model:LOCAL_REASONING_HEALTH.engine,
+      provider:'local-grounded',
+      knowledgeVersion:KNOWLEDGE_VERSION,
+      grounding:local.grounding,
+      applicationRateLimited:false,
+      caseRetrieval:caseRetrieval?{corpusId:caseRetrieval.corpusId,engine:caseRetrieval.engine,active:caseRetrieval.active,returned:caseRetrieval.returned,limit:caseRetrieval.limit,terms:caseRetrieval.terms,errorCode:caseRetrieval.errorCode,mode:caseRetrieval.mode||'local'}:{active:false,returned:0,reason:'assessment-required'},
+      auxiliaryRequested:body.useAuxiliary===true,
+      auxiliaryProvider:'Gemini'
+    };
+    if(body.useAuxiliary!==true)return res.json({...base,auxiliaryStatus:'not-requested'});
+
+    const key=apiKey();
+    if(!key)return res.json({...base,auxiliaryStatus:'not-configured'});
+
     const retrievedCases=caseRetrieval?formatCaseRetrievalContext(caseRetrieval):'';
     const caseRetrievalSection=retrievedCases?`\n\nCA TƯƠNG TỰ TỪ ${caseRetrieval.corpusId} (retrieval top-k, không phải gold):\n${retrievedCases}`:'';
-    const prompt=`[CHAT_GROUNDING_PROTOCOL]\nBạn là chatbot Gemini của A.I Thiệt Chẩn. Gemini chỉ phân tích KẾT QUẢ CẤU TRÚC do tầng thị giác cục bộ cung cấp; Gemini không được xem ảnh và không được tạo thêm quan sát hình ảnh. Ưu tiên tuyệt đối hệ tri thức được cung cấp, kết quả quan sát cấu trúc của ca hiện tại và dữ kiện Thập vấn do người dùng cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nQUY TẮC HÌNH THÁI ƯU TIÊN: medianSulcus (rãnh giữa) và fissure (nứt) là hai trường khác nhau. Không được gọi rãnh giữa là nứt chỉ vì có một đường dọc giữa. legacyDarkLineSignal chỉ là tín hiệu điểm/đường tối thô và KHÔNG đủ để kết luận nứt. Nếu morphology.fissure.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt. Không suy đoán độ sâu nứt từ ảnh 2D. Chỉ mô tả branching/pattern/location khi trường tương ứng khác unknown.\n\nGIỌNG VĂN: dùng thuật ngữ, cách gọi và nhịp diễn đạt của tài liệu/hệ tri thức đã cung cấp khi có nội dung tương ứng; không thay bằng từ ngữ chat đời thường nếu tài liệu đã có thuật ngữ chuẩn. Nếu bối cảnh có combined.academicFusion.atlasLanguage.applied=true và câu hỏi liên quan trực tiếp đến dấu đó, giữ nguyên trường wording của tài liệu khi diễn đạt phần đối chiếu.\n\nQUY TẮC CA TƯƠNG TỰ: nếu phần CA TƯƠNG TỰ xuất hiện, đó chỉ là các ca được SQLite FTS5 truy hồi để đối chiếu cách lập luận. Chúng không phải gold, không được dùng để tự tạo thêm triệu chứng, không biến đáp án lịch sử trong corpus thành chẩn đoán cho ca hiện tại, và không được sao chép khuyến nghị thuốc/phương vào tư vấn cá thể. Chỉ nêu tương đồng/khác biệt khi dữ kiện hiện tại thực sự hỗ trợ.\n\nQUY TẮC NGOÀI TÀI LIỆU: nếu toàn bộ nội dung y học/YHCT trong câu trả lời đều được hỗ trợ trực tiếp bởi HỆ TRI THỨC hoặc dữ kiện ca hiện tại, dòng đầu phải là GROUNDING=IN. Nếu có bất kỳ phần trả lời nào dựa trên kiến thức chung của Gemini mà không có trong HỆ TRI THỨC/dữ kiện ca hiện tại, vẫn được trả lời nhưng dòng đầu phải là GROUNDING=OUT. Không tự ghi ký hiệu [A.I]; máy chủ sẽ gắn ký hiệu đó ở cuối câu trả lời. Không bịa nguồn hoặc giả vờ nội dung ngoài tài liệu là nội dung đã nạp.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}${caseRetrievalSection}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối phần nội dung có thể thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng tài liệu/trang thực sự đã dùng trong lập luận; nếu không có nguồn cụ thể thì không tạo mục nguồn.`;
-    const raw=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
-    const normalized=normalizeChatReply(raw);
-    return res.json({ok:true,reply:normalized.reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,grounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge',applicationRateLimited:false,caseRetrieval:caseRetrieval?{corpusId:caseRetrieval.corpusId,engine:caseRetrieval.engine,active:caseRetrieval.active,returned:caseRetrieval.returned,limit:caseRetrieval.limit,terms:caseRetrieval.terms,errorCode:caseRetrieval.errorCode,mode:caseRetrieval.mode||'local'}: {active:false,returned:0,reason:'assessment-required'}});
-  }catch(err){console.error('chat_error',err?.message||err);return res.status(502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
+    const prompt=`[AUXILIARY_POST_ANALYSIS_ONLY]\nBạn là lớp tư vấn phụ của A.I Thiệt Chẩn. Không xem ảnh và không tạo thêm quan sát hình ảnh. Chỉ được diễn giải kết quả cấu trúc từ Local Vision, hệ tri thức được cung cấp và dữ kiện người dùng đã xác nhận. Không tự thêm triệu chứng, mạch chẩn, bệnh danh, điều trị hoặc phương thuốc. Rãnh giữa và nứt là hai trường khác nhau; legacyDarkLineSignal không đủ để kết luận nứt. Các ca tương tự chỉ dùng đối chiếu lập luận và không phải gold.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}${caseRetrievalSection}\n\nBối cảnh cấu trúc: ${contextText}\nCâu hỏi: ${message}\nTrả lời ngắn gọn bằng tiếng Việt, phục vụ học tập/tham khảo.`;
+    try{
+      const raw=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
+      const normalized=normalizeChatReply(raw);
+      return res.json({...base,auxiliaryStatus:'ok',auxiliaryModel:MODEL,auxiliaryReply:normalized.reply,auxiliaryGrounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge'});
+    }catch(auxError){
+      console.warn('chat_auxiliary_unavailable',auxError?.status||'',auxError?.message||auxError);
+      return res.json({...base,auxiliaryStatus:'unavailable',auxiliaryModel:MODEL,auxiliaryErrorCode:Number(auxError?.status)||'UPSTREAM_UNAVAILABLE'});
+    }
+  }catch(err){
+    console.error('chat_error',err?.message||err);
+    return res.status(500).json({error:'LOCAL_CHAT_FAILED',message:err?.message||'Unknown error'});
+  }
 });
 
 app.post('/api/report',aiRateLimit,async(req,res)=>{
   try{
-    const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
-    const {mode='normal',assessment,analysis,topQc,bottomQc,qc}=req.body||{};const data=assessment||analysis;if(!data) return res.status(400).json({error:'ANALYSIS_REQUIRED'});
-    const llmData=llmSafeAssessmentContext(data);
-    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu CẤU TRÚC dưới đây. Gemini không được tạo thêm quan sát hình ảnh. Với hình thái rãnh/nứt: rãnh giữa (medianSulcus) không tự động đồng nghĩa với nứt; legacyDarkLineSignal không đủ để kết luận nứt; nếu fissure.status=unknown phải ghi chưa đủ căn cứ; không suy đoán độ sâu từ ảnh 2D. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang. Dùng giọng văn và thuật ngữ của hệ tri thức; nếu analysis.combined.academicFusion.atlasLanguage.applied=true thì giữ nguyên wording tương ứng trong phần đối chiếu hình ảnh.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích cấu trúc: ${JSON.stringify(llmData)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
-    const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
-    return res.json({ok:true,report,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
-  }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}
+    const body=req.body||{};
+    const {mode='normal',assessment,analysis,topQc,bottomQc,qc}=body;
+    const data=assessment||analysis;
+    if(!data)return res.status(400).json({error:'ANALYSIS_REQUIRED'});
+    const llmData=llmSafeAssessmentContext(data)||data;
+    const local=localGroundedReport({assessment:llmData,mode,topQc:topQc||qc||{},bottomQc:bottomQc||{}});
+    const base={ok:true,report:local.report,model:LOCAL_REASONING_HEALTH.engine,provider:'local-grounded',knowledgeVersion:KNOWLEDGE_VERSION,grounding:local.grounding,auxiliaryRequested:body.useAuxiliary===true,auxiliaryProvider:'Gemini'};
+    if(body.useAuxiliary!==true)return res.json({...base,auxiliaryStatus:'not-requested'});
+
+    const key=apiKey();
+    if(!key)return res.json({...base,auxiliaryStatus:'not-configured'});
+
+    const prompt=`[AUXILIARY_REPORT_ONLY]\nHãy diễn giải bổ sung báo cáo cấu trúc dưới đây bằng tiếng Việt. Không tạo thêm quan sát hình ảnh, bệnh danh, triệu chứng, mạch chẩn, điều trị hoặc phương thuốc. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Rãnh giữa không tự động đồng nghĩa với nứt; nếu fissure.status=unknown phải giữ là chưa đủ căn cứ.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích cấu trúc: ${JSON.stringify(llmData)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
+    try{
+      const auxiliaryReport=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
+      return res.json({...base,auxiliaryStatus:'ok',auxiliaryModel:MODEL,auxiliaryReport});
+    }catch(auxError){
+      console.warn('report_auxiliary_unavailable',auxError?.status||'',auxError?.message||auxError);
+      return res.json({...base,auxiliaryStatus:'unavailable',auxiliaryModel:MODEL,auxiliaryErrorCode:Number(auxError?.status)||'UPSTREAM_UNAVAILABLE'});
+    }
+  }catch(err){
+    console.error('report_error',err?.message||err);
+    return res.status(500).json({error:'LOCAL_REPORT_FAILED',message:err?.message||'Unknown error'});
+  }
 });
 
 app.use(express.static(path.join(__dirname,'public'),{maxAge:0,etag:true,setHeaders:(res,filePath)=>{if(/\.(html|js|css|webmanifest|svg)$/i.test(filePath)) res.setHeader('Cache-Control','no-cache');}}));

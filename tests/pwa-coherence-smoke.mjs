@@ -27,5 +27,5 @@ assert.match(home,/AITCPWAUpdate/);
 assert.match(home,/updateReady/);
 assert.match(home,/AITC_ACTIVATE_UPDATE/);
 
-assert.ok(releaseId.startsWith('2026.09.17-'));
+assert.ok(releaseId.startsWith('2026.09.18-'));
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, required/optional cache gates, and no forced reload or takeover.`);

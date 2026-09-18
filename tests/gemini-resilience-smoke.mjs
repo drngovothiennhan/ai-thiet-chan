@@ -6,6 +6,7 @@ import {readFile} from 'node:fs/promises';
 
 const calls=[];
 let mode='all-fail';
+let transientProfile='default';
 globalThis.fetch=async input=>{
   const url=String(input);
   calls.push(url);
@@ -38,6 +39,20 @@ assert.equal(response.headers.get('x-ai-fallback'),'local-knowledge');
 const data=await response.json();
 assert.match(data.candidates[0].content.parts[0].text,/Tham Vấn từ kho tri thức/i);
 assert.match(data.candidates[0].content.parts[0].text,/TC1/);
+
+for(const profile of ['timeout','rate-limit']){
+  calls.length=0;
+  mode='all-fail';
+  transientProfile=profile;
+  const resilienceResponse=await globalThis.fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test',{method:'POST',body:JSON.stringify(payload)});
+  assert.equal(resilienceResponse.status,200,profile+' must resolve at application boundary');
+  assert.notEqual(resilienceResponse.status,429);
+  assert.notEqual(resilienceResponse.status,504);
+  assert.equal(resilienceResponse.headers.get('x-ai-fallback'),'local-knowledge');
+  const resilienceData=await resilienceResponse.json();
+  assert.match(resilienceData.candidates[0].content.parts[0].text,/Tham Vấn từ kho tri thức/i);
+}
+transientProfile='default';
 
 calls.length=0;
 mode='fallback-success';

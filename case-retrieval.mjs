@@ -101,10 +101,18 @@ export function caseRetrievalHealth(){
   const s=initialize();
   return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,configured:s.configured,ready:s.ready,records:s.ready?s.records:0,sourceCounts:s.ready?s.sourceCounts:{},defaultTopK:DEFAULT_TOP_K,maxTopK:MAX_TOP_K,errorCode:s.errorCode};
 }
-export function retrieveSimilarCases(input,{limit=DEFAULT_TOP_K}={}){
+function normalizeCaseRetrievalTerms(values){
+  const out=[],seen=new Set();
+  for(const value of Array.isArray(values)?values:[]){
+    addTerm(out,seen,value);
+    if(out.length>=MAX_QUERY_TERMS) break;
+  }
+  return out;
+}
+export function retrieveSimilarCasesByTerms(values,{limit=DEFAULT_TOP_K}={}){
   const s=initialize();
   const boundedLimit=clampLimit(limit);
-  const terms=buildCaseRetrievalTerms(input);
+  const terms=normalizeCaseRetrievalTerms(values);
   if(!s.ready||!terms.length) return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:s.ready,terms,limit:boundedLimit,returned:0,cases:[],errorCode:s.ready?'no-query-terms':s.errorCode};
   try{
     const rows=s.statement.all(toFtsQuery(terms),boundedLimit);
@@ -122,6 +130,9 @@ export function retrieveSimilarCases(input,{limit=DEFAULT_TOP_K}={}){
     console.warn('case_retrieval_query_failed',String(err?.message||err).slice(0,180));
     return {corpusId:CASE_RETRIEVAL_CORPUS_ID,engine:CASE_RETRIEVAL_ENGINE,active:true,terms,limit:boundedLimit,returned:0,cases:[],errorCode:'query-failed'};
   }
+}
+export function retrieveSimilarCases(input,{limit=DEFAULT_TOP_K}={}){
+  return retrieveSimilarCasesByTerms(buildCaseRetrievalTerms(input),{limit});
 }
 export function formatCaseRetrievalContext(result){
   const cases=Array.isArray(result?.cases)?result.cases:[];

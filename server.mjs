@@ -9,12 +9,12 @@ import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.m
 import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext, suggestNextSymptomQuestion } from '#case-retrieval';
 
 const app = express();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const AITC_RUNTIME = String(process.env.AITC_RUNTIME || 'node').trim().toLowerCase();
+const IS_CLOUDFLARE_RUNTIME = AITC_RUNTIME === 'cloudflare';
+const __dirname = IS_CLOUDFLARE_RUNTIME ? '' : path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const VERSION = '2.9.2';
-const AITC_RUNTIME = String(process.env.AITC_RUNTIME || 'node').trim().toLowerCase();
-const IS_CLOUDFLARE_RUNTIME = AITC_RUNTIME === 'cloudflare';
 const BUILD = process.env.RENDER_GIT_COMMIT || 'local';
 const AI_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.AI_RATE_LIMIT_WINDOW_MS || 600_000));
 const AI_RATE_LIMIT_MAX = Math.max(1, Number(process.env.AI_RATE_LIMIT_MAX || 30));

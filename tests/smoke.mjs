@@ -32,7 +32,7 @@ try{
   requireMarkers(consultation,['questions=[','Hàn – nhiệt','Đại – tiểu tiện','[THAP_VAN_CONTEXT]',"import('/clinical-learning.js?v=2.9.0')"],'consultation');
 
   const learning=await text('/clinical-learning.js');
-  requireMarkers(learning,['Góp ý ca lâm sàng','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v1','Bác sĩ','Y sĩ'],'clinical learning');
+  requireMarkers(learning,['Góp ý ca lâm sàng','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v2','Bác sĩ','Y sĩ'],'clinical learning');
 
   const lifecycle=await text('/feedback-lifecycle.js');
   requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');

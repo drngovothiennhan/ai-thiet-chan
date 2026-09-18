@@ -54,6 +54,48 @@ try{
     providerConfigured:localHealth.providerConfigured,
     vision:localHealth.vision
   }));
+
+  const symptomResponse=await fetch('http://127.0.0.1:3100/api/symptom-next',{
+    method:'POST',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({
+      assessment:{
+        mode:'normal',
+        top:{
+          quality:'good',
+          confidence:0.72,
+          visualValidity:{tongueVisible:true,wholeTongueVisible:true,rootVisible:true,framing:'adequate',occlusion:'none',colorReliability:'good'},
+          tongueColor:'Đỏ',shape:'Bình thường',coatingColor:'Vàng',coatingThickness:'Mỏng',
+          coatingTexture:'Bình thường',moisture:'Nhuận',
+          morphology:{medianSulcus:{status:'unknown'},fissure:{status:'unknown',depth:'not-assessable-from-2d-image'}},
+          toothmarks:'Không xác định',pricklesSpots:'Không xác định',stasisMarks:'Không xác định',
+          otherVisibleFeatures:[],theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:[]},limitations:[]
+        },
+        bottom:null,
+        combined:{confidence:0.72,summary:'Quan sát cấu trúc: chất lưỡi đỏ, rêu vàng mỏng.',generalSignals:[],stomachPatternSignals:[],cannotConclude:[]},
+        approvedClinicalKnowledge:[],knowledgeVersion:'live-rag-ci'
+      },
+      symptomContext:'Tôi đau đầu'
+    })
+  });
+  const symptomData=await symptomResponse.json().catch(()=>({}));
+  assert.equal(symptomResponse.status,200,JSON.stringify(symptomData));
+  assert.equal(symptomData.ok,true);
+  assert.equal(symptomData.engine,'deterministic-case-rag-v1');
+  assert.ok(symptomData.caseRetrieval?.returned>0,JSON.stringify(symptomData));
+  assert.equal(typeof symptomData.reply,'string');
+  assert.ok(symptomData.reply.length>0);
+  console.log('CURRENT_HEAD_ADAPTIVE_SYMPTOM_RAG',JSON.stringify({
+    status:symptomResponse.status,
+    engine:symptomData.engine,
+    evidenceBased:symptomData.evidenceBased,
+    selectedConcept:symptomData.selectedConcept,
+    supportCases:symptomData.supportCases,
+    returned:symptomData.caseRetrieval?.returned,
+    mode:symptomData.caseRetrieval?.mode,
+    timingMs:symptomData.timingMs,
+    reply:symptomData.reply
+  }));
 } finally {
   server.kill('SIGTERM');
 }

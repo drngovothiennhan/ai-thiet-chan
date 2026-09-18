@@ -1,4 +1,4 @@
-name: Cloudflare Temporary Preview
+name: Cloudflare Build Dry Run
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  temporary-preview:
+  dry-run:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -21,14 +21,16 @@ jobs:
       - run: npm install
       - name: Verify Cloudflare scaffold
         run: npm run check:cloudflare-scaffold
-      - name: Build temporary Cloudflare preview without account credentials
+      - name: Compile Cloudflare Worker without deployment
         run: |
           set -o pipefail
-          npx --yes wrangler@4.102.0 deploy --temporary --config wrangler.cloudflare.template.jsonc 2>&1 | tee wrangler-temporary-preview.log
-      - name: Preserve deployment output
+          npx --yes wrangler@4.102.0 deploy --dry-run --config wrangler.cloudflare.template.jsonc --outdir .wrangler-dry-run 2>&1 | tee wrangler-dry-run.log
+      - name: Preserve dry-run output
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: cloudflare-temporary-preview-output
-          path: wrangler-temporary-preview.log
+          name: cloudflare-dry-run-output
+          path: |
+            wrangler-dry-run.log
+            .wrangler-dry-run
           if-no-files-found: ignore

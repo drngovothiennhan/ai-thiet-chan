@@ -13,6 +13,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const VERSION = '2.9.2';
+const AITC_RUNTIME = String(process.env.AITC_RUNTIME || 'node').trim().toLowerCase();
+const IS_CLOUDFLARE_RUNTIME = AITC_RUNTIME === 'cloudflare';
 const BUILD = process.env.RENDER_GIT_COMMIT || 'local';
 const AI_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.AI_RATE_LIMIT_WINDOW_MS || 600_000));
 const AI_RATE_LIMIT_MAX = Math.max(1, Number(process.env.AI_RATE_LIMIT_MAX || 30));
@@ -57,11 +59,11 @@ function aiRateLimit(req,res,next){
   }
   next();
 }
-const cleanupTimer=setInterval(()=>{
+const cleanupTimer=IS_CLOUDFLARE_RUNTIME?null:setInterval(()=>{
   const cutoff=Date.now()-AI_RATE_LIMIT_WINDOW_MS*2;
   for(const [key,bucket] of rateBuckets) if(bucket.startedAt<cutoff) rateBuckets.delete(key);
 },AI_RATE_LIMIT_WINDOW_MS);
-cleanupTimer.unref?.();
+cleanupTimer?.unref?.();
 
 function apiKey(){ return String(process.env.GEMINI_API_KEY||'').trim(); }
 function textFromGemini(data){ return (data?.candidates?.[0]?.content?.parts||[]).map(p=>p?.text||'').join('').trim(); }
@@ -487,8 +489,15 @@ app.post('/api/report',aiRateLimit,async(req,res)=>{
   }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}
 });
 
-app.use(express.static(path.join(__dirname,'public'),{maxAge:0,etag:true,setHeaders:(res,filePath)=>{if(/\.(html|js|css|webmanifest|svg)$/i.test(filePath)) res.setHeader('Cache-Control','no-cache');}}));
-app.use((req,res)=>{res.setHeader('Cache-Control','no-cache');res.sendFile(path.join(__dirname,'public','index.html'));});
+if(!IS_CLOUDFLARE_RUNTIME){
+  app.use(express.static(path.join(__dirname,'public'),{maxAge:0,etag:true,setHeaders:(res,filePath)=>{if(/\.(html|js|css|webmanifest|svg)$/i.test(filePath)) res.setHeader('Cache-Control','no-cache');}}));
+  app.use((req,res)=>{res.setHeader('Cache-Control','no-cache');res.sendFile(path.join(__dirname,'public','index.html'));});
+}
 
 await ensureCaseStoreSecret();
-app.listen(PORT,'0.0.0.0',()=>console.log(`A.I Thiệt Chẩn web v${VERSION} listening on ${PORT} · sharedGemini=${Boolean(apiKey())} · autoTrainingStore=${caseStoreReady} · dualView=true · academic350=${ACADEMIC_HEALTH.enabled}`));
+
+export { app, VERSION, AITC_RUNTIME, IS_CLOUDFLARE_RUNTIME };
+
+if(!IS_CLOUDFLARE_RUNTIME){
+  app.listen(PORT,'0.0.0.0',()=>console.log(`A.I Thiệt Chẩn web v${VERSION} listening on ${PORT} · sharedGemini=${Boolean(apiKey())} · autoTrainingStore=${caseStoreReady} · dualView=true · academic350=${ACADEMIC_HEALTH.enabled}`));
+}

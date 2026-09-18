@@ -1,0 +1,40 @@
+name: Cloud Run Container Smoke
+
+on:
+  push:
+    branches:
+      - 'infra/cloud-run-migration-20260917'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build Cloud Run image
+        run: docker build -t ai-thiet-chan-cloudrun-smoke .
+
+      - name: Run existing verification suite in image
+        run: docker run --rm ai-thiet-chan-cloudrun-smoke npm run check
+
+      - name: Start container and verify health
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name aitc-cloudrun-smoke -p 18080:8080 -e PORT=8080 ai-thiet-chan-cloudrun-smoke
+          trap 'docker logs aitc-cloudrun-smoke || true; docker rm -f aitc-cloudrun-smoke || true' EXIT
+
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18080/api/health > /tmp/health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          test -s /tmp/health.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));if(!h.ok||h.app!=='A.I Thiệt Chẩn'||h.architecture!=='independent-web')process.exit(1);console.log(JSON.stringify({ok:h.ok,app:h.app,version:h.version,architecture:h.architecture,providerConfigured:h.providerConfigured}))"
+          curl --fail --silent http://127.0.0.1:18080/ > /dev/null

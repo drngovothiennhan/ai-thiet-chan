@@ -35,7 +35,12 @@
     "trainingReadyV3": 0,
     "silverDataset": "silver-textbook-teacher-v1",
     "silverSampleCount": 479,
-    "silverGoldEligible": false
+    "silverGoldEligible": false,
+    "continualLearningEvents": 0,
+    "continualQueuedEvents": 0,
+    "continualBlockedHoldoutEvents": 0,
+    "continualSnapshots": 0,
+    "continualPendingTrainingJobs": 0
   },
   "lockedOrder": [
     "independent_gold_annotation",
@@ -88,16 +93,20 @@
     "legacyArbitraryReviewerSessionsDisabled": true,
     "textbookSilverCanBecomeGold": false,
     "directLegacyGoldAnnotationSessionsDisabledByPolicyV2": true,
-    "externalLicenseRegistryVerificationClaimed": false
+    "externalLicenseRegistryVerificationClaimed": false,
+    "servingAvailabilityDependsOnTraining": false,
+    "onlineWeightMutation": false,
+    "prospectiveHoldoutCanEnterTraining": false,
+    "continualCandidatesAutoActivate": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T00:48:30Z",
-  "lastVerifiedHead": "5b3b3d0c18e7d5c1aed89585f2219c67907882c0",
+  "updatedAt": "2026-09-18T01:14:30Z",
+  "lastVerifiedHead": "b5171250c821d1cf10a41d0e6fef672a48cf0669",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
-    "run": 438,
+    "run": 489,
     "conclusion": "success",
-    "head": "e393663cc097204be42ac012176c35ab75161644"
+    "head": "b5171250c821d1cf10a41d0e6fef672a48cf0669"
   },
   "infrastructure": {
     "independentGoldContract": "READY",
@@ -120,7 +129,44 @@
     "trainingReadinessV3": "LIVE_IN_SUPABASE",
     "silverTextbookTeacherLane": "LIVE_IN_SUPABASE",
     "clinicalContributionWebUI": "READY_IN_BRANCH",
-    "adminContributionReviewUI": "READY_IN_BRANCH"
+    "adminContributionReviewUI": "READY_IN_BRANCH",
+    "continualLearningEventQueue": "LIVE_IN_SUPABASE",
+    "continualImmutableSnapshots": "LIVE_IN_SUPABASE",
+    "prospectiveHoldoutFirewall": "LIVE_IN_SUPABASE",
+    "continualTrainingJobQueue": "LIVE_IN_SUPABASE",
+    "continualWorkerContract": "LIVE_IN_SUPABASE",
+    "unifiedApprovedMemoryV2": "LIVE_IN_SUPABASE",
+    "continualReplayTrainer": "READY_IN_BRANCH",
+    "serveAndLearnAdminStatus": "READY_IN_BRANCH"
   },
-  "nextAction": "Collect real Bác sĩ/Y sĩ contributions through /clinical-contribute-v1.html. Admin reviews each contribution. When the same case has two distinct approved contributor hashes, create a 72h adjudication session only for a previously approved verified clinician who is not either source annotator. Then adjudicate, lock holdout, compute gold metrics, run physical-device shadow, and only then perform manual promotion review."
+  "nextAction": "Keep serving normally. Collect real verified Bác sĩ/Y sĩ contributions. Approved evidence can enter live approved-memory retrieval immediately. For model-weight learning, wait for two independent contributors plus independent adjudication; only adjudicated usable groups outside prospective holdout enter immutable continual snapshots and queue shadow-candidate training. Promotion remains blocked until locked-gold metrics + physical-device shadow + manual review.",
+  "serveAndLearn": {
+    "status": "READY_WAITING_FOR_REAL_APPROVED_AND_ADJUDICATED_LABELS",
+    "servingLane": {
+      "availabilityIndependentFromTraining": true,
+      "runtimeMutationFromLearning": false,
+      "automaticModelSwap": false,
+      "currentProductionMain": "07ec84ddaa677c6695a2f1112b44baf37bbf9668"
+    },
+    "liveMemoryLane": {
+      "status": "READY",
+      "retrievalFunction": "ai_thiet_chan_find_learned_cases_v2",
+      "sources": [
+        "legacy-admin-approved-feedback",
+        "admin-approved-verified-clinician-contributions"
+      ],
+      "modelWeightsMutated": false
+    },
+    "modelLearningLane": {
+      "status": "READY_WAITING_FOR_ADJUDICATED_NON_HOLDOUT_GOLD",
+      "snapshotSchema": "aitc-continual-snapshot-v1",
+      "sourcePolicy": "verified-clinical-contributions-only -> independent adjudication",
+      "prospectiveHoldoutFirewall": "group_sha256_mod5_bucket0 excluded before training",
+      "replayDataset": "silver-textbook-teacher-v1",
+      "trainer": "ml/training/train_continual_roi_mlp.py",
+      "workerContract": "ai_thiet_chan_worker_*_continual_job_v1",
+      "outputActivation": "shadow-only",
+      "automaticPromotion": false
+    }
+  }
 }

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
 import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
 import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.mjs';
-import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext, suggestNextSymptomQuestion } from './case-retrieval.mjs';
+import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext, suggestNextSymptomQuestion } from '#case-retrieval';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

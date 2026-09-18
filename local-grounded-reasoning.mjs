@@ -24,7 +24,7 @@ function signalText(signal){
   const evidence=text(signal.evidence||signal.directEvidence);
   const confidence=Number(signal.confidence??signal.score);
   const pct=Number.isFinite(confidence)?` (${Math.round(Math.max(0,Math.min(1,confidence))*100)}%)`:'';
-  return [label?p=>p:null].filter(Boolean), label?(evidence?`${label}${pct}: ${evidence}`:`${label}${pct}`):'';
+  return label?(evidence?`${label}${pct}: ${evidence}`:`${label}${pct}`):'';
 }
 function morphologyText(top={}){
   const morphology=top.morphology&&typeof top.morphology==='object'?top.morphology:{};

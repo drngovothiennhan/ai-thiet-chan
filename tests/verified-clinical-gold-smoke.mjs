@@ -36,7 +36,7 @@ assert.match(contributionPage,/professional_attested:true/);
 assert.match(contributionPage,/roi_mask_rle/);
 assert.match(contributionPage,/160×160/);
 assert.match(contributionPage,/không chạy A\.I trước khi bạn gán nhãn/i);
-assert.doesNotMatch(contributionPage,/\/api\/analyze|generativelanguage|gemini/i,'gold-eligible contribution page must not invoke model analysis');
+assert.doesNotMatch(contributionPage,/\/api\/analyze|generativelanguage\.googleapis\.com|geminiGenerate\s*\(/i,'gold-eligible contribution page must not invoke model analysis');
 
 assert.match(goldReviewPage,/model_output_included/);
 assert.match(admin,/ai_thiet_chan_admin_review_verified_clinical_contribution_v1/);

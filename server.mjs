@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, TONGUE_KNOWLEDGE, knowledgeForQuery } from './knowledge.mjs';
 import { applyAcademicFusion, ACADEMIC_HEALTH } from './academic-server.mjs';
 import { analyzeLocalVision, LOCAL_VISION_HEALTH } from './local-vision-engine.mjs';
-import { caseRetrievalHealth, retrieveSimilarCases, formatCaseRetrievalContext } from './case-retrieval.mjs';
+import { caseRetrievalRuntimeHealth, retrieveSimilarCasesRuntime, formatCaseRetrievalContext } from './case-retrieval.mjs';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -354,12 +354,12 @@ function validateImage(image,label){
   return base64;
 }
 
-app.get('/api/health',(req,res)=>res.json({
+app.get('/api/health',async(req,res)=>res.json({
   ok:true,app:'A.I Thiệt Chẩn',architecture:'independent-web',legacyPlatform:false,version:VERSION,build:BUILD.slice(0,12),
   providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
   vision:{provider:'local',engine:LOCAL_VISION_HEALTH.engine,geminiVision:false,analysisRequiresProvider:false,inputContract:LOCAL_VISION_HEALTH.inputContract,semanticMode:LOCAL_VISION_HEALTH.semanticMode},
   consultation:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'post-analysis-reasoning-only',resilience:{primary:'gemini-3.8-flash',directFallback:'gemini-3.6-flash',gatewayAvailable:Boolean(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN),gatewayEnabled:String(process.env.AI_GATEWAY_ENABLED||'auto').toLowerCase()!=='false',gatewayModel:String(process.env.AITC_AI_GATEWAY_PRIMARY_MODEL||process.env.AI_GATEWAY_PRIMARY_MODEL||'openai/gpt-5.6-sol'),localKnowledgeFallback:true,visionSentToLlm:false}},
-  caseReasoningRetrieval:caseRetrievalHealth(),
+  caseReasoningRetrieval:await caseRetrievalRuntimeHealth(),
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,
@@ -419,13 +419,13 @@ app.post('/api/chat',async(req,res)=>{
     const contextText=llmContext?JSON.stringify(llmContext):'Chưa có kết quả phân tích hình lưỡi.';
     const hasAssessment=Boolean(llmContext);
     const retrievedKnowledge=hasAssessment?knowledgeForQuery(`${contextText}\n${message}`,{limit:18}):TONGUE_KNOWLEDGE;
-    const caseRetrieval=hasAssessment?retrieveSimilarCases(`${contextText}\n${message}`,{limit:4}):null;
+    const caseRetrieval=hasAssessment?await retrieveSimilarCasesRuntime(`${contextText}\n${message}`,{limit:4}):null;
     const retrievedCases=caseRetrieval?formatCaseRetrievalContext(caseRetrieval):'';
     const caseRetrievalSection=retrievedCases?`\n\nCA TƯƠNG TỰ TỪ ${caseRetrieval.corpusId} (retrieval top-k, không phải gold):\n${retrievedCases}`:'';
     const prompt=`[CHAT_GROUNDING_PROTOCOL]\nBạn là chatbot Gemini của A.I Thiệt Chẩn. Gemini chỉ phân tích KẾT QUẢ CẤU TRÚC do tầng thị giác cục bộ cung cấp; Gemini không được xem ảnh và không được tạo thêm quan sát hình ảnh. Ưu tiên tuyệt đối hệ tri thức được cung cấp, kết quả quan sát cấu trúc của ca hiện tại và dữ kiện Thập vấn do người dùng cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nQUY TẮC HÌNH THÁI ƯU TIÊN: medianSulcus (rãnh giữa) và fissure (nứt) là hai trường khác nhau. Không được gọi rãnh giữa là nứt chỉ vì có một đường dọc giữa. legacyDarkLineSignal chỉ là tín hiệu điểm/đường tối thô và KHÔNG đủ để kết luận nứt. Nếu morphology.fissure.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt. Không suy đoán độ sâu nứt từ ảnh 2D. Chỉ mô tả branching/pattern/location khi trường tương ứng khác unknown.\n\nGIỌNG VĂN: dùng thuật ngữ, cách gọi và nhịp diễn đạt của tài liệu/hệ tri thức đã cung cấp khi có nội dung tương ứng; không thay bằng từ ngữ chat đời thường nếu tài liệu đã có thuật ngữ chuẩn. Nếu bối cảnh có combined.academicFusion.atlasLanguage.applied=true và câu hỏi liên quan trực tiếp đến dấu đó, giữ nguyên trường wording của tài liệu khi diễn đạt phần đối chiếu.\n\nQUY TẮC CA TƯƠNG TỰ: nếu phần CA TƯƠNG TỰ xuất hiện, đó chỉ là các ca được SQLite FTS5 truy hồi để đối chiếu cách lập luận. Chúng không phải gold, không được dùng để tự tạo thêm triệu chứng, không biến đáp án lịch sử trong corpus thành chẩn đoán cho ca hiện tại, và không được sao chép khuyến nghị thuốc/phương vào tư vấn cá thể. Chỉ nêu tương đồng/khác biệt khi dữ kiện hiện tại thực sự hỗ trợ.\n\nQUY TẮC NGOÀI TÀI LIỆU: nếu toàn bộ nội dung y học/YHCT trong câu trả lời đều được hỗ trợ trực tiếp bởi HỆ TRI THỨC hoặc dữ kiện ca hiện tại, dòng đầu phải là GROUNDING=IN. Nếu có bất kỳ phần trả lời nào dựa trên kiến thức chung của Gemini mà không có trong HỆ TRI THỨC/dữ kiện ca hiện tại, vẫn được trả lời nhưng dòng đầu phải là GROUNDING=OUT. Không tự ghi ký hiệu [A.I]; máy chủ sẽ gắn ký hiệu đó ở cuối câu trả lời. Không bịa nguồn hoặc giả vờ nội dung ngoài tài liệu là nội dung đã nạp.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}${caseRetrievalSection}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối phần nội dung có thể thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng tài liệu/trang thực sự đã dùng trong lập luận; nếu không có nguồn cụ thể thì không tạo mục nguồn.`;
     const raw=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
     const normalized=normalizeChatReply(raw);
-    return res.json({ok:true,reply:normalized.reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,grounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge',applicationRateLimited:false,caseRetrieval:caseRetrieval?{corpusId:caseRetrieval.corpusId,engine:caseRetrieval.engine,active:caseRetrieval.active,returned:caseRetrieval.returned,limit:caseRetrieval.limit,terms:caseRetrieval.terms,errorCode:caseRetrieval.errorCode}: {active:false,returned:0,reason:'assessment-required'}});
+    return res.json({ok:true,reply:normalized.reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,grounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge',applicationRateLimited:false,caseRetrieval:caseRetrieval?{corpusId:caseRetrieval.corpusId,engine:caseRetrieval.engine,active:caseRetrieval.active,returned:caseRetrieval.returned,limit:caseRetrieval.limit,terms:caseRetrieval.terms,errorCode:caseRetrieval.errorCode,mode:caseRetrieval.mode||'local'}: {active:false,returned:0,reason:'assessment-required'}});
   }catch(err){console.error('chat_error',err?.message||err);return res.status(502).json({error:'CHAT_FAILED',message:err?.message||'Unknown error'});}
 });
 

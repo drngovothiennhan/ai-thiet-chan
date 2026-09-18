@@ -24,6 +24,56 @@ function replaceGeminiModel(url,model=GEMINI_MODEL){
 function isGeminiGenerate(url){
   return url.includes('generativelanguage.googleapis.com')&&url.includes(':generateContent');
 }
+const circuitState=new Map();
+function gatewayCredential(){return String(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||'').trim();}
+function gatewayAvailable(){return AI_GATEWAY_ENABLED!=='false'&&Boolean(gatewayCredential());}
+function circuitInfo(model){
+  const state=circuitState.get(model)||{failures:0,openedUntil:0,lastStatus:0};
+  if(state.openedUntil&&state.openedUntil<=Date.now()){state.openedUntil=0;state.failures=0;state.lastStatus=0;circuitState.set(model,state);}
+  return state;
+}
+function circuitOpen(model){return circuitInfo(model).openedUntil>Date.now();}
+function openCircuit(model,status,ms){
+  const state=circuitInfo(model);
+  state.failures=Math.max(1,state.failures||0);
+  state.lastStatus=Number(status)||0;
+  state.openedUntil=Math.max(state.openedUntil||0,Date.now()+Math.max(1,Number(ms)||1));
+  circuitState.set(model,state);
+  console.warn('gemini_circuit_open',JSON.stringify({model,status:state.lastStatus,failures:state.failures,openMs:Math.max(0,state.openedUntil-Date.now())}));
+}
+function recordModelSuccess(model){circuitState.set(model,{failures:0,openedUntil:0,lastStatus:200});}
+function recordTransientFailure(model,status,retryAfterMs=0){
+  const state=circuitInfo(model);state.failures=(state.failures||0)+1;state.lastStatus=Number(status)||0;
+  if(Number(status)===429)openCircuit(model,status,Math.max(GEMINI_CIRCUIT_429_MS,retryAfterMs||0));
+  else if(state.failures>=2)openCircuit(model,status,GEMINI_CIRCUIT_503_MS);
+  else circuitState.set(model,state);
+}
+function parseRetryAfterMs(value){
+  const text=String(value||'').trim();if(!text)return 0;
+  const seconds=Number(text);if(Number.isFinite(seconds))return Math.max(0,Math.round(seconds*1000));
+  const at=Date.parse(text);return Number.isFinite(at)?Math.max(0,at-Date.now()):0;
+}
+function parseRetryDelayMs(value){
+  if(typeof value==='string'){const s=value.match(/^([0-9.]+)s$/i);if(s)return Math.round(Number(s[1])*1000);const ms=value.match(/^([0-9.]+)ms$/i);if(ms)return Math.round(Number(ms[1]));}
+  if(value&&typeof value==='object'){const seconds=Number(value.seconds||0),nanos=Number(value.nanos||0);if(Number.isFinite(seconds)&&Number.isFinite(nanos))return Math.max(0,Math.round(seconds*1000+nanos/1e6));}
+  return 0;
+}
+async function transientDiagnostics(response){
+  const retryHeaderMs=parseRetryAfterMs(response?.headers?.get?.('retry-after'));
+  let body=null;try{body=await response.clone().json();}catch{}
+  const err=body?.error||{},details=Array.isArray(err.details)?err.details:[];let retryDetailMs=0;const quotaViolations=[];
+  for(const detail of details){
+    const type=String(detail?.['@type']||'');
+    if(/RetryInfo$/i.test(type))retryDetailMs=Math.max(retryDetailMs,parseRetryDelayMs(detail.retryDelay));
+    if(/QuotaFailure$/i.test(type))for(const v of Array.isArray(detail.violations)?detail.violations:[])quotaViolations.push({subject:String(v?.subject||'').slice(0,180),description:String(v?.description||'').slice(0,240),quotaMetric:String(v?.quotaMetric||'').slice(0,180),quotaId:String(v?.quotaId||'').slice(0,180),quotaDimensions:v?.quotaDimensions&&typeof v.quotaDimensions==='object'?v.quotaDimensions:undefined});
+  }
+  return {status:Number(response?.status)||0,errorStatus:String(err.status||'').slice(0,80),errorCode:Number(err.code)||0,message:String(err.message||'').replace(/[?&]key=[^&\s]+/gi,'?key=[redacted]').slice(0,260),retryAfterMs:Math.max(retryHeaderMs,retryDetailMs),quotaViolations:quotaViolations.slice(0,6)};
+}
+function backoffMs(sequence,retryAfterMs=0){
+  if(retryAfterMs>0)return Math.min(retryAfterMs,GEMINI_RETRY_MAX_MS);
+  const raw=Math.min(GEMINI_RETRY_MAX_MS,GEMINI_RETRY_BASE_MS*Math.pow(2,Math.max(0,sequence)));
+  return raw?Math.max(0,Math.round(raw*(0.75+Math.random()*0.5))):0;
+}
 async function isTransientGeminiFailure(response){
   if(!response) return true;
   if([408,409,425,429,500,502,503,504].includes(response.status)) return true;

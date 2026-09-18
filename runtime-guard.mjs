@@ -2,10 +2,18 @@ const nativeFetch=globalThis.fetch?.bind(globalThis);
 
 const GEMINI_MODEL='gemini-3.8-flash';
 const GEMINI_TEXT_FALLBACK_MODEL='gemini-3.6-flash';
-const GEMINI_TEXT_TIMEOUT_MS=12_000;
-const GEMINI_TEXT_MAX_ATTEMPTS=2;
+const GEMINI_TEXT_TIMEOUT_MS=Math.max(2000,Number(process.env.GEMINI_TEXT_TIMEOUT_MS||8000));
+const GEMINI_TOTAL_BUDGET_MS=Math.max(GEMINI_TEXT_TIMEOUT_MS,Number(process.env.GEMINI_TOTAL_BUDGET_MS||18000));
+const GEMINI_RETRY_BASE_MS=Math.max(0,Number(process.env.GEMINI_RETRY_BASE_MS||900));
+const GEMINI_RETRY_MAX_MS=Math.max(GEMINI_RETRY_BASE_MS,Number(process.env.GEMINI_RETRY_MAX_MS||4000));
+const GEMINI_CIRCUIT_503_MS=Math.max(5000,Number(process.env.GEMINI_CIRCUIT_503_MS||30000));
+const GEMINI_CIRCUIT_429_MS=Math.max(10000,Number(process.env.GEMINI_CIRCUIT_429_MS||60000));
+const AI_GATEWAY_TIMEOUT_MS=Math.max(2000,Number(process.env.AI_GATEWAY_TIMEOUT_MS||8000));
+const AI_GATEWAY_PRIMARY_MODEL=String(process.env.AI_GATEWAY_PRIMARY_MODEL||'openai/gpt-5.6-sol').trim();
+const AI_GATEWAY_ENABLED=String(process.env.AI_GATEWAY_ENABLED||'auto').trim().toLowerCase();
 process.env.GEMINI_MODEL=GEMINI_MODEL;
 process.env.GEMINI_TEXT_FALLBACK_MODEL=GEMINI_TEXT_FALLBACK_MODEL;
+process.env.AITC_AI_GATEWAY_PRIMARY_MODEL=AI_GATEWAY_PRIMARY_MODEL;
 
 function requestUrl(input){
   return typeof input==='string'?input:input?.url||String(input||'');

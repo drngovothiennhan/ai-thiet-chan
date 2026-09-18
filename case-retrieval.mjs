@@ -14,15 +14,13 @@ const MAX_CONTEXT_CHARS = 7600;
 let state = { initialized:false, configured:false, ready:false, db:null, statement:null, records:0, sourceCounts:{}, errorCode:null };
 
 const BILINGUAL_HINTS = [
-  [/lưỡi|tongue/iu,['舌','tongue']],
-  [/lưỡi đỏ|đỏ nhạt|đỏ sẫm|red tongue/iu,['舌红','tongue','red']],
-  [/nhợt|pale/iu,['舌淡','pale']],
-  [/tím|purple|cyanotic/iu,['舌紫','purple']],
-  [/rêu|coating/iu,['苔','coating']],
-  [/rêu vàng|vàng|yellow/iu,['苔黄','yellow']],
-  [/rêu trắng|trắng|white/iu,['苔白','white']],
-  [/rêu dày|dày|thick/iu,['苔厚','thick']],
-  [/rêu mỏng|mỏng|thin/iu,['苔薄','thin']],
+  [/lưỡi đỏ|đỏ nhạt|đỏ sẫm|red tongue/iu,['舌红','red tongue']],
+  [/nhợt|pale/iu,['舌淡','pale tongue']],
+  [/tím|purple|cyanotic/iu,['舌紫','purple tongue']],
+  [/rêu vàng|vàng|yellow/iu,['苔黄','yellow coating']],
+  [/rêu trắng|trắng|white/iu,['苔白','white coating']],
+  [/rêu dày|dày|thick/iu,['苔厚','thick coating']],
+  [/rêu mỏng|mỏng|thin/iu,['苔薄','thin coating']],
   [/khô|dry/iu,['舌干','dry']],
   [/nhuận|ẩm|moist/iu,['舌润','moist']],
   [/nứt|fissure|crack/iu,['裂纹','fissure']],
@@ -61,6 +59,10 @@ export function buildCaseRetrievalTerms(input){
     if(pattern.test(text)) for(const hint of hints) addTerm(out,seen,hint);
     if(out.length>=MAX_QUERY_TERMS) break;
   }
+  const hasTongueFeature=out.some(term=>term.startsWith('舌')||/tongue/i.test(term));
+  if(!hasTongueFeature&&/lưỡi|tongue/iu.test(text)){addTerm(out,seen,'舌');addTerm(out,seen,'tongue');}
+  const hasCoatingFeature=out.some(term=>term.startsWith('苔')||/coating/i.test(term));
+  if(!hasCoatingFeature&&/rêu|coating/iu.test(text)){addTerm(out,seen,'苔');addTerm(out,seen,'coating');}
   const cjk=text.match(/[\p{Script=Han}]{2,12}/gu)||[];
   for(const token of cjk){addTerm(out,seen,token);if(out.length>=MAX_QUERY_TERMS)break;}
   const latin=text.normalize('NFKC').match(/[\p{L}\p{N}][\p{L}\p{N}-]{3,}/gu)||[];

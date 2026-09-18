@@ -29,7 +29,8 @@ try{
   if(appJs.includes('aiThietChanGeminiKey')||appJs.includes('x-gemini-key'))throw new Error('client Gemini key path must stay absent');
 
   const consultation=await text('/consultation.js');
-  requireMarkers(consultation,['questions=[','Hàn – nhiệt','Đại – tiểu tiện','[THAP_VAN_CONTEXT]',"import('/clinical-learning.js?v=2.9.0')"],'consultation');
+  requireMarkers(consultation,['MAX_TURNS=4','[ADAPTIVE_SYMPTOM_INTAKE]','Bổ sung triệu chứng','Bạn có triệu chứng gì thêm không',"requestClient.register('consultation'","import('/clinical-learning.js?v=2.9.0')"],'consultation');
+  if(consultation.includes('const questions=[')||consultation.includes('[THAP_VAN_CONTEXT]'))throw new Error('fixed Thap Van flow must stay removed');
 
   const learning=await text('/clinical-learning.js');
   requireMarkers(learning,['Góp ý ca lâm sàng','ai_thiet_chan_submit_feedback_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_find_learned_cases_v2','Bác sĩ','Y sĩ'],'clinical learning');

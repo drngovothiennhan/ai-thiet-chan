@@ -1,0 +1,95 @@
+name: Cloud Run Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Cloud Run region
+        required: true
+        default: asia-southeast1
+      service_name:
+        description: Cloud Run service name
+        required: true
+        default: ai-thiet-chan-migration
+      min_instances:
+        description: Minimum instances
+        required: true
+        default: '0'
+      max_instances:
+        description: Maximum instances
+        required: true
+        default: '2'
+      allow_unauthenticated:
+        description: Allow public access
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: cloud-run-migration
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate deployment configuration
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GCP_GEMINI_SECRET: ${{ vars.GCP_GEMINI_SECRET }}
+        run: |
+          set -euo pipefail
+          for name in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT GCP_GEMINI_SECRET; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub environment variable: $name"
+              exit 1
+            fi
+          done
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy source to Cloud Run
+        shell: bash
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GEMINI_SECRET: ${{ vars.GCP_GEMINI_SECRET }}
+          REGION: ${{ inputs.region }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          MIN_INSTANCES: ${{ inputs.min_instances }}
+          MAX_INSTANCES: ${{ inputs.max_instances }}
+          PUBLIC_ACCESS: ${{ inputs.allow_unauthenticated }}
+        run: |
+          set -euo pipefail
+          ACCESS_FLAG="--no-allow-unauthenticated"
+          if [ "$PUBLIC_ACCESS" = "true" ]; then
+            ACCESS_FLAG="--allow-unauthenticated"
+          fi
+
+          gcloud run deploy "$SERVICE_NAME"             --source .             --project "$PROJECT_ID"             --region "$REGION"             --platform managed             --port 8080             --min "$MIN_INSTANCES"             --max "$MAX_INSTANCES"             --set-env-vars "RENDER_GIT_COMMIT=${GITHUB_SHA}"             --set-secrets "GEMINI_API_KEY=${GEMINI_SECRET}:latest"             "$ACCESS_FLAG"
+
+      - name: Verify deployed service
+        shell: bash
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ inputs.region }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe "$SERVICE_NAME"             --project "$PROJECT_ID"             --region "$REGION"             --format='value(status.url)')"
+          echo "Cloud Run URL: $URL"
+          curl --fail --silent --show-error "$URL/api/health" > /tmp/health.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));if(!h.ok||h.app!=='A.I Thiệt Chẩn'||!h.providerConfigured)process.exit(1);console.log(JSON.stringify({ok:h.ok,app:h.app,version:h.version,providerConfigured:h.providerConfigured,model:h.model}))"
+          curl --fail --silent --show-error "$URL/" > /dev/null

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const contributionSql=fs.readFileSync('db/migrations/20260918_ai_thiet_chan_verified_clinical_contribution_gold_v1.sql','utf8');
 const adjudicatorSql=fs.readFileSync('db/migrations/20260918_ai_thiet_chan_verified_adjudicator_bridge_v1.sql','utf8');
+const trainingV3=fs.readFileSync('db/migrations/20260918_ai_thiet_chan_ml_training_readiness_v3.sql','utf8');
 const contributionPage=fs.readFileSync('public/clinical-contribute-v1.html','utf8');
 const goldReviewPage=fs.readFileSync('public/gold-review-v1.html','utf8');
 const admin=fs.readFileSync('public/admin-center.js','utf8');
@@ -24,6 +25,9 @@ assert.match(adjudicatorSql,/ai_thiet_chan_verified_gold_experts_v1/);
 assert.match(adjudicatorSql,/approved_verified_expert_required/);
 assert.match(adjudicatorSql,/role,'adjudication'/);
 assert.match(adjudicatorSql,/policy','adjudicator must be an Admin-approved verified clinical contributor and distinct from both source annotators'/);
+assert.match(trainingV3,/ai_thiet_chan_ml_training_ready_v3/);
+assert.match(trainingV3,/verified_clinical_contribution_v1/);
+assert.match(trainingV3,/app_professional_attestation_admin_approved/);
 
 assert.match(contributionPage,/Mã hành nghề \/ mã xác nhận chuyên môn/);
 assert.match(contributionPage,/professional_id_hash/);

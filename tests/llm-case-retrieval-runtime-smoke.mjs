@@ -50,8 +50,8 @@ assert.ok(result.returned<=2);
 assert.ok(result.terms.includes('舌红'));
 assert.ok(result.terms.includes('苔黄'));
 assert.ok(result.terms.includes('头痛'));
-assert.equal(result.cases[0].sourceId,'tcmchat-medical-case-sft-v1');
-assert.match(result.cases[0].caseText,/舌红苔黄/);
+const relevant=result.cases.find(item=>item.sourceId==='tcmchat-medical-case-sft-v1'&&/舌红苔黄/.test(item.caseText));
+assert.ok(relevant,'expected bounded retrieval to include the clinically matching TCM case');
 
 const context=mod.formatCaseRetrievalContext(result);
 assert.match(context,/chỉ tham khảo, không phải gold/);

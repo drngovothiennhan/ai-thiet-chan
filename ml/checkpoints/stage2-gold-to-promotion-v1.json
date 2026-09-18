@@ -100,13 +100,13 @@
     "continualCandidatesAutoActivate": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T03:21:00Z",
-  "lastVerifiedHead": "df9161dc7802e06840de7f97770375f104f23eb5",
+  "updatedAt": "2026-09-18T03:42:00Z",
+  "lastVerifiedHead": "7b34356134e930c7aa03892f5c546076d232acaf",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
-    "run": 35302814353,
+    "run": 35304126950,
     "conclusion": "success",
-    "head": "df9161dc7802e06840de7f97770375f104f23eb5"
+    "head": "7b34356134e930c7aa03892f5c546076d232acaf"
   },
   "infrastructure": {
     "independentGoldContract": "READY",
@@ -141,9 +141,11 @@
     "llmObservationContextV2": "READY_IN_BRANCH",
     "morphologyExpertLabelValidation": "LIVE_IN_SUPABASE",
     "morphologyContributionUI": "READY_IN_BRANCH",
-    "morphologyAdjudicationUI": "READY_IN_BRANCH"
+    "morphologyAdjudicationUI": "READY_IN_BRANCH",
+    "openAccessPubmedPmcCorpusV1": "READY_IN_BRANCH",
+    "ontologyAwareRagV1": "READY_IN_BRANCH"
   },
-  "nextAction": "Collect real verified morphology labels from Bác sĩ/Y sĩ. Highest-value next model work is a dedicated local morphology classifier that separates median sulcus from fissure and then branching/pattern/toothmarks/body-shape. Until enough verified labels exist, these fields remain unknown and the LLM must not infer them.",
+  "nextAction": "Priority 1 knowledge task completed for v1: expand the open-access corpus next with legal oral-medicine sources for normal variants/red flags, then continue collecting verified Bác sĩ/Y sĩ morphology labels for dedicated Local Vision models. User-provided teaching materials will be ingested later as a separate owner-provided corpus.",
   "serveAndLearn": {
     "status": "READY_WAITING_FOR_REAL_APPROVED_AND_ADJUDICATED_LABELS",
     "servingLane": {
@@ -193,6 +195,29 @@
       "P3 approved clinical memory matching on structured morphology — PARTIAL",
       "P4 Thap Van evidence fusion with explicit source attribution — READY_FOR_NEXT_ITERATION",
       "P5 text-LLM reliability/failover independent of vision — PRESERVE"
+    ]
+  },
+  "openAccessKnowledge": {
+    "status": "LOADED_IN_BRANCH_RAG",
+    "knowledgeVersion": "thiet-chan-kb-2026-09-18.5doc+oa16-v1",
+    "corpusId": "aitc-open-access-tongue-v1",
+    "sourceCount": 16,
+    "ontologyId": "aitc-tongue-ontology-v1",
+    "sourcePolicy": "PubMed/PMC open-access/full-text-permitted sources only for v1; metadata + short paraphrased evidence; no article bodies or figures vendored",
+    "legalHandling": {
+      "ccBy": "attribution metadata retained; paraphrased evidence and ontology derivation allowed",
+      "ccByNcNd": "metadata + factual/paraphrased evidence only; no full-text/adapted figures/tables"
+    },
+    "runtime": {
+      "ontologyAwareRetrieval": true,
+      "userProvidedFiveDocCorpusPreserved": true,
+      "diseaseAssociationSourcesDiagnosisRule": "association-only; never diagnose modern disease from tongue image",
+      "goldLabelsUnaffected": true
+    },
+    "files": [
+      "knowledge-open-access.mjs",
+      "knowledge-ontology.mjs",
+      "docs/OPEN-ACCESS-TONGUE-KB-V1.md"
     ]
   }
 }

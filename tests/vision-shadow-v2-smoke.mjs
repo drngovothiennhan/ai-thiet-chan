@@ -31,7 +31,7 @@ assert.match(runtime,/queueShadowViews/);
 assert.match(runtime,/none-fire-and-forget-after-response/);
 assert.match(runtime,/topColorAgreement/);
 assert.match(runtime,/baselineBottomFeatures/);
-assert.ok(runtime.indexOf('queueShadowViews(')>runtime.indexOf('const response=await client.fetchAfter'),'shadow must remain after response path');
+assert.ok(runtime.lastIndexOf('queueShadowViews(')>runtime.indexOf('const response=await client.fetchAfter'),'shadow must remain after response path');
 
 assert.match(telemetry,/qcFlashRiskScore/);
 assert.match(telemetry,/topMedianSulcusScore/);

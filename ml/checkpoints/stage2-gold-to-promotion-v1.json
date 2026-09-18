@@ -100,13 +100,13 @@
     "continualCandidatesAutoActivate": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T01:14:30Z",
-  "lastVerifiedHead": "b5171250c821d1cf10a41d0e6fef672a48cf0669",
+  "updatedAt": "2026-09-18T03:21:00Z",
+  "lastVerifiedHead": "df9161dc7802e06840de7f97770375f104f23eb5",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
-    "run": 489,
+    "run": 35302814353,
     "conclusion": "success",
-    "head": "b5171250c821d1cf10a41d0e6fef672a48cf0669"
+    "head": "df9161dc7802e06840de7f97770375f104f23eb5"
   },
   "infrastructure": {
     "independentGoldContract": "READY",
@@ -137,9 +137,13 @@
     "continualWorkerContract": "LIVE_IN_SUPABASE",
     "unifiedApprovedMemoryV2": "LIVE_IN_SUPABASE",
     "continualReplayTrainer": "READY_IN_BRANCH",
-    "serveAndLearnAdminStatus": "READY_IN_BRANCH"
+    "serveAndLearnAdminStatus": "READY_IN_BRANCH",
+    "llmObservationContextV2": "READY_IN_BRANCH",
+    "morphologyExpertLabelValidation": "LIVE_IN_SUPABASE",
+    "morphologyContributionUI": "READY_IN_BRANCH",
+    "morphologyAdjudicationUI": "READY_IN_BRANCH"
   },
-  "nextAction": "Keep serving normally. Collect real verified Bác sĩ/Y sĩ contributions. Approved evidence can enter live approved-memory retrieval immediately. For model-weight learning, wait for two independent contributors plus independent adjudication; only adjudicated usable groups outside prospective holdout enter immutable continual snapshots and queue shadow-candidate training. Promotion remains blocked until locked-gold metrics + physical-device shadow + manual review.",
+  "nextAction": "Collect real verified morphology labels from Bác sĩ/Y sĩ. Highest-value next model work is a dedicated local morphology classifier that separates median sulcus from fissure and then branching/pattern/toothmarks/body-shape. Until enough verified labels exist, these fields remain unknown and the LLM must not infer them.",
   "serveAndLearn": {
     "status": "READY_WAITING_FOR_REAL_APPROVED_AND_ADJUDICATED_LABELS",
     "servingLane": {
@@ -168,5 +172,27 @@
       "outputActivation": "shadow-only",
       "automaticPromotion": false
     }
+  },
+  "llmAnalysis": {
+    "status": "STRUCTURED_CONTEXT_V2_READY",
+    "observationContext": "aitc-llm-observation-context-v2",
+    "featureVector": "tongue-dual-view-feature-vector-v2",
+    "rawImageToLlm": false,
+    "visualAuthority": "local-vision-only",
+    "morphology": {
+      "medianSulcusSeparatedFromFissure": true,
+      "legacyDarkLineSignalCannotBecomeFissure": true,
+      "fissureDepthFrom2DForbidden": true,
+      "expertLabelSchema": "tongue-morphology-label-v1",
+      "expertCollection": "READY_IN_CLINICAL_CONTRIBUTION_AND_ADJUDICATION_UI"
+    },
+    "priorityOrder": [
+      "P0 structured visual observation contract — COMPLETE",
+      "P1 dedicated local morphology models — WAITING_FOR_REAL_VERIFIED_LABELS",
+      "P2 coating/surface morphology models — NEXT_AFTER_P1",
+      "P3 approved clinical memory matching on structured morphology — PARTIAL",
+      "P4 Thap Van evidence fusion with explicit source attribution — READY_FOR_NEXT_ITERATION",
+      "P5 text-LLM reliability/failover independent of vision — PRESERVE"
+    ]
   }
 }

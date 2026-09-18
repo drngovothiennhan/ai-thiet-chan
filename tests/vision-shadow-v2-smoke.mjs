@@ -34,6 +34,11 @@ assert.match(runtime,/baselineBottomFeatures/);
 assert.match(runtime,/baselineTopFissure/);
 assert.match(runtime,/baselineBottomVesselCandidateRatio/);
 assert.match(runtime,/baselineBottomDarkPurpleRatio/);
+assert.match(runtime,/const shadowTop=/);
+assert.match(runtime,/const shadowBottom=/);
+assert.match(runtime,/status:'enqueue-error'/);
+assert.match(runtime,/none-primary-response-preserved/);
+assert.doesNotMatch(runtime,/queueShadowViews\(top,bottom/,'shadow queue must not reference analyzeViews-local variables from deviceLayer');
 assert.ok(runtime.lastIndexOf('queueShadowViews(')>runtime.indexOf('const response=await client.fetchAfter'),'shadow must remain after response path');
 
 assert.match(telemetry,/ai_thiet_chan_vision_shadow_record_v2/);

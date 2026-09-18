@@ -91,6 +91,104 @@ function normalizeChatReply(text){
   if(outside)reply=[reply,'[A.I]'].filter(Boolean).join('\n');
   return {reply,outsideKnowledge:outside};
 }
+function normalizeTongueMorphology(value,legacyFissureText=''){
+  const src=value&&typeof value==='object'?value:{};
+  const median=src.medianSulcus&&typeof src.medianSulcus==='object'?src.medianSulcus:{};
+  const fissure=src.fissure&&typeof src.fissure==='object'?src.fissure:{};
+  const toothmarks=src.toothmarks&&typeof src.toothmarks==='object'?src.toothmarks:{};
+  const swelling=src.swellingOrThinness&&typeof src.swellingOrThinness==='object'?src.swellingOrThinness:{};
+  const allowedStatus=new Set(['unknown','absent','possible','likely','confirmed']);
+  const status=v=>allowedStatus.has(String(v||''))?String(v):'unknown';
+  return {
+    schemaVersion:'tongue-morphology-observation-v2',
+    medianSulcus:{
+      status:status(median.status),
+      prominence:String(median.prominence||'unknown'),
+      orientation:String(median.orientation||'unknown'),
+      source:String(median.source||'unknown')
+    },
+    fissure:{
+      status:status(fissure.status),
+      branching:String(fissure.branching||'unknown'),
+      pattern:String(fissure.pattern||'unknown'),
+      location:String(fissure.location||'unknown'),
+      width:String(fissure.width||'unknown'),
+      depth:String(fissure.depth||'not-assessable-from-2d-image'),
+      legacyDarkLineSignal:Boolean(fissure.legacyDarkLineSignal),
+      source:String(fissure.source||'unknown'),
+      interpretationPolicy:String(fissure.interpretationPolicy||'Rãnh giữa không được tự động đồng nhất với nứt lưỡi; tín hiệu đường tối đơn độc không đủ để kết luận nứt.')
+    },
+    toothmarks:{status:status(toothmarks.status),source:String(toothmarks.source||'unknown')},
+    swellingOrThinness:{status:status(swelling.status),source:String(swelling.source||'unknown')},
+    legacyFissureText:String(legacyFissureText||'')
+  };
+}
+function llmSafeAssessmentContext(context){
+  if(!context||typeof context!=='object') return null;
+  const top=context.top&&typeof context.top==='object'?context.top:{};
+  const bottom=context.bottom&&typeof context.bottom==='object'?context.bottom:null;
+  const combined=context.combined&&typeof context.combined==='object'?context.combined:{};
+  const approved=Array.isArray(context.approvedClinicalKnowledge)?context.approvedClinicalKnowledge.slice(0,5).map(x=>({
+    similarity:Number(x?.similarity||0),
+    exactImageMatch:Boolean(x?.exactImageMatch),
+    approvedAt:x?.approvedAt||null,
+    professionalTitle:String(x?.professionalTitle||''),
+    knowledgeRevision:x?.knowledgeRevision||null,
+    clinicalNote:String(x?.clinicalNote||''),
+    verifiedClinicalAnnotation:x?.verifiedClinicalAnnotation&&typeof x.verifiedClinicalAnnotation==='object'?x.verifiedClinicalAnnotation:null,
+    verificationBasis:String(x?.verificationBasis||''),
+    source:String(x?.source||'')
+  })):[];
+  return {
+    schemaVersion:'aitc-llm-observation-context-v2',
+    policy:{
+      imageInputToLlm:false,
+      visualAuthority:'local-vision-only',
+      unknownMustRemainUnknown:true,
+      medianSulcusIsNotAutomaticallyFissure:true,
+      legacyDarkLineSignalIsNotFissureDiagnosis:true,
+      fissureDepthFrom2dImageForbidden:true
+    },
+    mode:context.mode==='general'?'general':'normal',
+    top:{
+      quality:top.quality||'poor',
+      confidence:clampConfidence(top.confidence),
+      visualValidity:top.visualValidity||{},
+      tongueColor:String(top.tongueColor||'Không xác định'),
+      shape:String(top.shape||'Không xác định'),
+      coatingColor:String(top.coatingColor||'Không xác định'),
+      coatingThickness:String(top.coatingThickness||'Không xác định'),
+      coatingTexture:String(top.coatingTexture||'Không xác định'),
+      moisture:String(top.moisture||'Không xác định'),
+      morphology:normalizeTongueMorphology(top.morphology,top.fissures),
+      toothmarks:String(top.toothmarks||'Không xác định'),
+      pricklesSpots:String(top.pricklesSpots||'Không xác định'),
+      stasisMarks:String(top.stasisMarks||'Không xác định'),
+      otherVisibleFeatures:ensureStringArray(top.otherVisibleFeatures),
+      theoryAssessment:top.theoryAssessment||{},
+      limitations:ensureStringArray(top.limitations)
+    },
+    bottom:bottom?{
+      quality:bottom.quality||'poor',
+      confidence:clampConfidence(bottom.confidence),
+      visualValidity:bottom.visualValidity||{},
+      undersideColor:String(bottom.undersideColor||'Không xác định'),
+      vessels:bottom.vessels||{},
+      otherVisibleFeatures:ensureStringArray(bottom.otherVisibleFeatures),
+      limitations:ensureStringArray(bottom.limitations)
+    }:null,
+    combined:{
+      confidence:clampConfidence(combined.confidence),
+      summary:String(combined.summary||''),
+      generalSignals:ensureSignalArray(combined.generalSignals),
+      stomachPatternSignals:ensureSignalArray(combined.stomachPatternSignals),
+      cannotConclude:ensureStringArray(combined.cannotConclude),
+      academicFusion:combined.academicFusion&&typeof combined.academicFusion==='object'?combined.academicFusion:null
+    },
+    approvedClinicalKnowledge:approved,
+    knowledgeVersion:String(context.knowledgeVersion||KNOWLEDGE_VERSION)
+  };
+}
 
 function normalizeTop(top,qc,mode){
   const out=top&&typeof top==='object'?top:{};
@@ -111,6 +209,12 @@ function normalizeTop(top,qc,mode){
     stomachPatternSignals:ensureSignalArray(out.theoryAssessment.stomachPatternSignals),
     cannotConclude:ensureStringArray(out.theoryAssessment.cannotConclude)
   };
+  out.morphology=normalizeTongueMorphology(out.morphology,out.fissures);
+  const fissureStatus=out.morphology.fissure.status;
+  out.fissures=fissureStatus==='confirmed'?'Có nứt lưỡi đã được tầng thị giác xác nhận.'
+    :fissureStatus==='likely'?'Nghi nứt lưỡi; cần đối chiếu thêm.'
+    :out.morphology.fissure.legacyDarkLineSignal?'Có tín hiệu đường tối/rãnh; chưa đủ căn cứ gọi là nứt lưỡi.'
+    :'Chưa đủ căn cứ đánh giá nứt lưỡi.';
   out.otherVisibleFeatures=ensureStringArray(out.otherVisibleFeatures);
   out.limitations=ensureStringArray(out.limitations);
   out.confidence=Number((out.confidence*qcFactor(qc)).toFixed(3));
@@ -190,8 +294,8 @@ function normalizeAssessment(raw,{mode,topQc,bottomQc}){
   assessment.ml={
     pipeline:['capture-qc','view-validity','top-feature-extraction','sublingual-vessel-description','knowledge-mapping','combined-assessment'],
     featureVector:{
-      schemaVersion:'tongue-dual-view-feature-vector-v1',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
-      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
+      schemaVersion:'tongue-dual-view-feature-vector-v2',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
+      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
       bottom:bottom?{visual:{undersideColor:bottom.undersideColor||'',vessels:bottom.vessels||{},otherVisibleFeatures:bottom.otherVisibleFeatures||[]},validity:bottom.visualValidity,qc:bottomQc||{},confidence:bottom.confidence}:null,
       combined:{confidence:combined.confidence,generalSignals:combined.generalSignals,stomachPatternSignals:combined.stomachPatternSignals}
     },
@@ -308,10 +412,12 @@ app.post('/api/chat',async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const {assessment,analysis,message}=req.body||{};if(!message||typeof message!=='string') return res.status(400).json({error:'MESSAGE_REQUIRED'});
-    const context=assessment||analysis;const contextText=context?JSON.stringify(context):'Chưa có kết quả phân tích hình lưỡi.';
-    const hasAssessment=Boolean(context);
+    const context=assessment||analysis;
+    const llmContext=llmSafeAssessmentContext(context);
+    const contextText=llmContext?JSON.stringify(llmContext):'Chưa có kết quả phân tích hình lưỡi.';
+    const hasAssessment=Boolean(llmContext);
     const retrievedKnowledge=hasAssessment?knowledgeForQuery(`${contextText}\n${message}`,{limit:18}):TONGUE_KNOWLEDGE;
-    const prompt=`[CHAT_GROUNDING_PROTOCOL]\nBạn là chatbot Gemini của A.I Thiệt Chẩn. Gemini phụ trách trả lời và phân tích hội thoại. Ưu tiên tuyệt đối hệ tri thức được cung cấp, kết quả quan sát của ca hiện tại và dữ kiện Thập vấn do người dùng cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nGIỌNG VĂN: dùng thuật ngữ, cách gọi và nhịp diễn đạt của tài liệu/hệ tri thức đã cung cấp khi có nội dung tương ứng; không thay bằng từ ngữ chat đời thường nếu tài liệu đã có thuật ngữ chuẩn. Nếu bối cảnh có combined.academicFusion.atlasLanguage.applied=true và câu hỏi liên quan trực tiếp đến dấu đó, giữ nguyên trường wording của tài liệu khi diễn đạt phần đối chiếu.\n\nQUY TẮC NGOÀI TÀI LIỆU: nếu toàn bộ nội dung y học/YHCT trong câu trả lời đều được hỗ trợ trực tiếp bởi HỆ TRI THỨC hoặc dữ kiện ca hiện tại, dòng đầu phải là GROUNDING=IN. Nếu có bất kỳ phần trả lời nào dựa trên kiến thức chung của Gemini mà không có trong HỆ TRI THỨC/dữ kiện ca hiện tại, vẫn được trả lời nhưng dòng đầu phải là GROUNDING=OUT. Không tự ghi ký hiệu [A.I]; máy chủ sẽ gắn ký hiệu đó ở cuối câu trả lời. Không bịa nguồn hoặc giả vờ nội dung ngoài tài liệu là nội dung đã nạp.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối phần nội dung có thể thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng tài liệu/trang thực sự đã dùng trong lập luận; nếu không có nguồn cụ thể thì không tạo mục nguồn.`;
+    const prompt=`[CHAT_GROUNDING_PROTOCOL]\nBạn là chatbot Gemini của A.I Thiệt Chẩn. Gemini chỉ phân tích KẾT QUẢ CẤU TRÚC do tầng thị giác cục bộ cung cấp; Gemini không được xem ảnh và không được tạo thêm quan sát hình ảnh. Ưu tiên tuyệt đối hệ tri thức được cung cấp, kết quả quan sát cấu trúc của ca hiện tại và dữ kiện Thập vấn do người dùng cung cấp. Không tự thêm triệu chứng, mạch chẩn, chẩn đoán bệnh hay kê đơn. Nếu là ca tổng quát, phân biệt rõ dữ liệu từ mặt trên và mặt dưới lưỡi. Nếu người dùng hỏi về một thể YHCT, nêu dấu nào nhìn thấy và dấu nào còn thiếu trong tứ chẩn.\n\nQUY TẮC HÌNH THÁI ƯU TIÊN: medianSulcus (rãnh giữa) và fissure (nứt) là hai trường khác nhau. Không được gọi rãnh giữa là nứt chỉ vì có một đường dọc giữa. legacyDarkLineSignal chỉ là tín hiệu điểm/đường tối thô và KHÔNG đủ để kết luận nứt. Nếu morphology.fissure.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt. Không suy đoán độ sâu nứt từ ảnh 2D. Chỉ mô tả branching/pattern/location khi trường tương ứng khác unknown.\n\nGIỌNG VĂN: dùng thuật ngữ, cách gọi và nhịp diễn đạt của tài liệu/hệ tri thức đã cung cấp khi có nội dung tương ứng; không thay bằng từ ngữ chat đời thường nếu tài liệu đã có thuật ngữ chuẩn. Nếu bối cảnh có combined.academicFusion.atlasLanguage.applied=true và câu hỏi liên quan trực tiếp đến dấu đó, giữ nguyên trường wording của tài liệu khi diễn đạt phần đối chiếu.\n\nQUY TẮC NGOÀI TÀI LIỆU: nếu toàn bộ nội dung y học/YHCT trong câu trả lời đều được hỗ trợ trực tiếp bởi HỆ TRI THỨC hoặc dữ kiện ca hiện tại, dòng đầu phải là GROUNDING=IN. Nếu có bất kỳ phần trả lời nào dựa trên kiến thức chung của Gemini mà không có trong HỆ TRI THỨC/dữ kiện ca hiện tại, vẫn được trả lời nhưng dòng đầu phải là GROUNDING=OUT. Không tự ghi ký hiệu [A.I]; máy chủ sẽ gắn ký hiệu đó ở cuối câu trả lời. Không bịa nguồn hoặc giả vờ nội dung ngoài tài liệu là nội dung đã nạp.\n\nHỆ TRI THỨC ${KNOWLEDGE_VERSION}:\n${retrievedKnowledge}\n\nBối cảnh phân tích: ${contextText}\nCâu hỏi người dùng: ${message}\nTrả lời bằng tiếng Việt theo hướng học tập/tham khảo. Nếu đã có kết quả thiệt chẩn, cuối phần nội dung có thể thêm mục “Nguồn đối chiếu” và chỉ liệt kê đúng tài liệu/trang thực sự đã dùng trong lập luận; nếu không có nguồn cụ thể thì không tạo mục nguồn.`;
     const raw=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.15});
     const normalized=normalizeChatReply(raw);
     return res.json({ok:true,reply:normalized.reply,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,grounding:normalized.outsideKnowledge?'ai-general':'supplied-knowledge',applicationRateLimited:false});
@@ -322,7 +428,8 @@ app.post('/api/report',aiRateLimit,async(req,res)=>{
   try{
     const key=apiKey();if(!key) return res.status(428).json({error:'AI_PROVIDER_NOT_CONFIGURED'});
     const {mode='normal',assessment,analysis,topQc,bottomQc,qc}=req.body||{};const data=assessment||analysis;if(!data) return res.status(400).json({error:'ANALYSIS_REQUIRED'});
-    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu dưới đây. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang. Dùng giọng văn và thuật ngữ của hệ tri thức; nếu analysis.combined.academicFusion.atlasLanguage.applied=true thì giữ nguyên wording tương ứng trong phần đối chiếu hình ảnh.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích: ${JSON.stringify(data)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
+    const llmData=llmSafeAssessmentContext(data);
+    const prompt=`Tạo báo cáo tổng kết ca ngắn gọn bằng tiếng Việt từ dữ liệu CẤU TRÚC dưới đây. Gemini không được tạo thêm quan sát hình ảnh. Với hình thái rãnh/nứt: rãnh giữa (medianSulcus) không tự động đồng nghĩa với nứt; legacyDarkLineSignal không đủ để kết luận nứt; nếu fissure.status=unknown phải ghi chưa đủ căn cứ; không suy đoán độ sâu từ ảnh 2D. Với ca bình thường: trình bày mặt trên lưỡi và nhận định tổng hợp. Với ca tổng quát: bắt buộc tách (1) chất lượng ảnh mặt trên; (2) quan sát mặt trên; (3) chất lượng ảnh mặt dưới; (4) quan sát mạch máu/tĩnh mạch dưới lưỡi; (5) nhận định kết hợp; (6) giới hạn. Không thêm bệnh danh, triệu chứng, mạch chẩn, điều trị hay phương thuốc không có trong đầu vào. Không biến tín hiệu thiệt tượng thành chẩn đoán xác định. Không hiển thị tên tài liệu, nguồn tham khảo, mã citation hoặc số trang. Dùng giọng văn và thuật ngữ của hệ tri thức; nếu analysis.combined.academicFusion.atlasLanguage.applied=true thì giữ nguyên wording tương ứng trong phần đối chiếu hình ảnh.\nMode: ${mode}\nQC mặt trên: ${JSON.stringify(topQc||qc||{})}\nQC mặt dưới: ${JSON.stringify(bottomQc||null)}\nPhân tích cấu trúc: ${JSON.stringify(llmData)}\nKnowledge: ${KNOWLEDGE_VERSION}`;
     const report=await geminiGenerate(key,[{role:'user',parts:[{text:prompt}]}],{temperature:0.05});
     return res.json({ok:true,report,model:MODEL,knowledgeVersion:KNOWLEDGE_VERSION});
   }catch(err){console.error('report_error',err?.message||err);return res.status(err?.status===429?429:502).json({error:'REPORT_FAILED',message:err?.message||'Unknown error'});}

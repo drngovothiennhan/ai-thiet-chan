@@ -154,7 +154,10 @@
             coverageDelta:Number.isFinite(coverage)&&Number.isFinite(baseline)?Number((coverage-baseline).toFixed(6)):null,
             baselineTopColor:baselineColor||null,
             topColorAgreement:baselineColor&&topCandidate?baselineColor===topCandidate:null,
+            baselineTopFissure:typeof context.baselineTop?.fissure==='boolean'?context.baselineTop.fissure:null,
             baselineBottomFeatures:Boolean(context.baselineBottom),
+            baselineBottomVesselCandidateRatio:Number.isFinite(Number(context.baselineBottom?.vesselCandidateRatio))?Number(context.baselineBottom.vesselCandidateRatio):null,
+            baselineBottomDarkPurpleRatio:Number.isFinite(Number(context.baselineBottom?.darkPurpleRatio))?Number(context.baselineBottom.darkPurpleRatio):null,
             pipelineImpact:'none-fire-and-forget-after-response',
             authority:false
           });

@@ -38,3 +38,12 @@ Continue from the latest commit on branch `restructure-local-vision-v1`; do not 
 - If retrieval is unavailable or yields no supported missing symptom, response falls back to the neutral question “Bạn còn triệu chứng hoặc khó chịu nào khác không?” with `evidenceBased=false`.
 - Final synthesis remains on the existing `/api/chat` path. Existing Gemini/provider resilience is not globally changed.
 - Real per-request latency is logged as `symptom_rag_question.elapsedMs`; no speedup claim is allowed until measured on live requests.
+
+## Physical-device shadow telemetry persistence gate
+- Supabase migration `add_vision_shadow_telemetry_v2` applied.
+- Dedicated table: `public.ai_thiet_chan_vision_shadow_events_v2`.
+- Dedicated RPC: `public.ai_thiet_chan_vision_shadow_record_v2(jsonb)`.
+- Direct table access is revoked from anon/authenticated; RLS remains enabled. Browser writes only through the bounded SECURITY DEFINER RPC.
+- Stored fields are numeric/categorical shadow comparisons only. No raw image, base64 payload, EXIF, location, image digest, user id, or student/member identity is stored by this telemetry path.
+- Baseline comparison fields added for ROI coverage, top color/fissure signal, bottom vessel candidate ratio and dark-purple ratio.
+- This gate only records shadow evidence. It does not promote any candidate or alter production visual authority.

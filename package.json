@@ -14,5 +14,8 @@
   },
   "dependencies": {
     "express": "^5.1.0"
+  },
+  "imports": {
+    "#case-retrieval": "./case-retrieval.mjs"
   }
 }

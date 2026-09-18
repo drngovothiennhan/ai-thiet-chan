@@ -73,3 +73,15 @@ The first PMC seed contains six CC BY 4.0 case reports selected for TCM/integrat
 7. Do not merge/promote production solely because corpus preparation passes.
 
 No fabricated clinical counts, no fabricated accuracy, and no synthetic gold.
+
+
+## Stage 4 — PMC rights expansion + portable retrieval snapshot
+- Added `llm/case-reasoning/seeds/pmc-ccby-expanded.v1.json` with 14 additional rights-verified CC BY 4.0 TCM/integrated-medicine cases.
+- Explicitly excluded CC BY-NC, CC BY-NC-ND and non-CC special-permission records from this training seed.
+- Total curated PMC seed after initial + expansion: 20 case reports.
+- Added `scripts/case-reasoning-build-sqlite.py` to build a portable SQLite FTS5 retrieval snapshot from normalized JSONL sources.
+- Snapshot builder deduplicates again across sources using content SHA-256 and emits a manifest with source counts, input hashes and database SHA-256.
+- The snapshot is an offline/RAG artifact; it is not bundled into production and does not gate app availability.
+
+## Next locked step
+Run the isolated network data job on a dedicated non-production branch: download/checksum TCMChat -> normalize/deduplicate -> normalize the two PMC seeds -> build SQLite FTS5 snapshot -> compress artifacts -> copy the artifact bundle to Google Drive cold storage. Production remains untouched.

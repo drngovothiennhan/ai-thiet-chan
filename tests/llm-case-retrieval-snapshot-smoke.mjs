@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'aitc-index-'));
+const in1=path.join(tmp,'a.jsonl'), in2=path.join(tmp,'b.jsonl');
+const db=path.join(tmp,'index.sqlite'), manifest=path.join(tmp,'manifest.json');
+const mk=(id,source,text,hash)=>JSON.stringify({schemaVersion:'aitc-case-record-v1',corpusId:'AITC-LLM-Case-Reasoning-v1',sourceId:source,sourceRecordId:id,task:'case_reasoning',caseText:text,target:'reason carefully',provenance:{license:'CC-BY-4.0',pmid:id},hashes:{contentSha256:hash,simhash64:'0000000000000001'}});
+fs.writeFileSync(in1,mk('1','pmc','tongue coating syndrome diagnosis','a'.repeat(64))+'\n');
+fs.writeFileSync(in2,mk('2','tcmchat','fatigue appetite syndrome','b'.repeat(64))+'\n'+mk('dup','x','duplicate','a'.repeat(64))+'\n');
+const run=spawnSync('python3',['scripts/case-reasoning-build-sqlite.py','--input',in1,'--input',in2,'--output',db,'--manifest',manifest],{encoding:'utf8'});
+assert.equal(run.status,0,run.stderr||run.stdout);
+const m=JSON.parse(fs.readFileSync(manifest,'utf8'));
+assert.equal(m.records,2);
+assert.equal(m.crossSourceDuplicatesSkipped,1);
+assert.equal(m.engine,'sqlite-fts5');
+assert.equal(m.clinicalGoldOperationalRequirement,false);
+assert.ok(fs.statSync(db).size>0);
+console.log('llm case retrieval snapshot smoke: PASS');

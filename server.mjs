@@ -357,7 +357,7 @@ app.get('/api/health',(req,res)=>res.json({
   ok:true,app:'A.I Thiệt Chẩn',architecture:'independent-web',legacyPlatform:false,version:VERSION,build:BUILD.slice(0,12),
   providerConfigured:Boolean(apiKey()),sharedProvider:true,clientSuppliedKeyAccepted:false,model:MODEL,consultationModel:MODEL,knowledgeVersion:KNOWLEDGE_VERSION,
   vision:{provider:'local',engine:LOCAL_VISION_HEALTH.engine,geminiVision:false,analysisRequiresProvider:false,inputContract:LOCAL_VISION_HEALTH.inputContract,semanticMode:LOCAL_VISION_HEALTH.semanticMode},
-  consultation:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'post-analysis-reasoning-only'},
+  consultation:{provider:'Gemini',configured:Boolean(apiKey()),model:MODEL,role:'post-analysis-reasoning-only',resilience:{primary:'gemini-3.8-flash',directFallback:'gemini-3.6-flash',gatewayAvailable:Boolean(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN),gatewayEnabled:String(process.env.AI_GATEWAY_ENABLED||'auto').toLowerCase()!=='false',gatewayModel:String(process.env.AITC_AI_GATEWAY_PRIMARY_MODEL||process.env.AI_GATEWAY_PRIMARY_MODEL||'openai/gpt-5.6-sol'),localKnowledgeFallback:true,visionSentToLlm:false}},
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,

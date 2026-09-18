@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>A.I Thiệt Chẩn — Đóng góp ca lâm sàng xác nhận chuyên môn</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light dark}
+body{margin:0;background:#f4f6f8;color:#111}main{max-width:820px;margin:auto;padding:16px 14px 48px}
+section{background:#fff;border:1px solid #d9dde3;border-radius:14px;padding:14px;margin:12px 0}
+h1{font-size:1.35rem;margin:.2rem 0}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:grid;gap:6px;font-weight:650;margin:8px 0}input,select,textarea{font:inherit;padding:9px;border:1px solid #ccd3dc;border-radius:10px;box-sizing:border-box;width:100%}
+textarea{min-height:90px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{border:0;border-radius:10px;padding:10px 13px;font:inherit;font-weight:700;background:#111;color:#fff}
+button.secondary{background:#e9edf2;color:#111}.canvas-wrap{position:relative;width:min(100%,640px);aspect-ratio:1/1;margin:auto;background:#111;border-radius:12px;overflow:hidden;touch-action:none}
+.canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}.status{padding:8px 10px;border-radius:10px;background:#eef1f4}.good{background:#dff5e7}.warn{background:#fff0c9}.bad{background:#ffe0df}
+.preview{max-width:240px;border-radius:10px;display:block;margin-top:8px}.muted{color:#68727e;font-size:.9rem}.hidden{display:none!important}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}section{background:#161b22;border-color:#30363d}button.secondary{background:#30363d;color:#e6edf3}input,select,textarea{background:#0d1117;color:#e6edf3;border-color:#30363d}.good{background:#153b27}.warn{background:#4a3512}.bad{background:#4a1f1f}.muted{color:#9da7b3}}
+</style>
+</head><body><main>
+<div class="row"><button id="back" class="secondary" type="button">← Quay lại app</button><strong>HIU CLB YHCT</strong></div>
+<h1>Đóng góp ca lâm sàng · xác nhận Bác sĩ/Y sĩ</h1>
+<p class="muted">Luồng này không chạy A.I trước khi bạn gán nhãn. Nhãn chỉ có thể trở thành bằng chứng gold sau khi chuyên môn được xác nhận trên app và Admin duyệt. Không nhập tên, số hồ sơ hoặc thông tin định danh người bệnh.</p>
+
+<section>
+<h2>1. Xác nhận người đóng góp</h2>
+<div class="grid">
+<label>Họ và tên chuyên gia<input id="name" maxlength="160" autocomplete="name" required></label>
+<label>Chức danh<select id="title"><option value="">Chọn</option><option value="bac_si">Bác sĩ</option><option value="y_si">Y sĩ</option></select></label>
+</div>
+<label>Mã hành nghề / mã xác nhận chuyên môn<input id="professionalId" type="password" autocomplete="off" placeholder="Chỉ dùng để tạo mã băm chống trùng; không lưu chuỗi gốc"></label>
+<label><span><input id="attest" type="checkbox" style="width:auto"> Tôi xác nhận thông tin chức danh chuyên môn nêu trên là đúng và chịu trách nhiệm về nhãn chuyên môn tôi gửi.</span></label>
+</section>
+
+<section>
+<h2>2. Ảnh ca lâm sàng</h2>
+<label>Ảnh mặt trên lưỡi *<input id="topFile" type="file" accept="image/*" capture="environment"></label>
+<img id="topPreview" class="preview hidden" alt="Ảnh mặt trên">
+<label>Ảnh mặt dưới (không bắt buộc)<input id="bottomFile" type="file" accept="image/*" capture="environment"></label>
+<img id="bottomPreview" class="preview hidden" alt="Ảnh mặt dưới">
+<p class="muted">Ảnh được gửi trực tiếp vào kho ca học tập sau khi bấm Gửi. Trang này không gọi Gemini/LLM/Vision để gợi ý nhãn.</p>
+</section>
+
+<section>
+<h2>3. Nhãn ROI độc lập 160×160</h2>
+<div id="canvasEmpty" class="status warn">Chọn ảnh mặt trên trước.</div>
+<div id="canvasBlock" class="hidden">
+<div class="canvas-wrap"><canvas id="imageCanvas" width="160" height="160"></canvas><canvas id="maskCanvas" width="160" height="160"></canvas></div>
+<div class="row" style="margin-top:10px">
+<button id="paint" class="secondary" type="button">Tô ROI</button>
+<button id="erase" class="secondary" type="button">Xóa nét</button>
+<button id="clear" class="secondary" type="button">Xóa mask</button>
+<label style="display:flex;align-items:center;gap:6px;margin:0">Cỡ bút <input id="brush" type="range" min="2" max="18" value="7" style="width:140px"></label>
+</div>
+<div class="row">
+<label style="display:flex;align-items:center;gap:6px"><input id="present" type="checkbox" checked style="width:auto"> Có lưỡi trong ảnh</label>
+<label>Chất lượng<select id="quality"><option value="usable">usable</option><option value="uncertain">uncertain</option><option value="reject">reject</option></select></label>
+</div>
+</div>
+<label>Ghi chú chuyên môn không định danh<textarea id="note" maxlength="5000" placeholder="Mô tả lý do chọn vùng, chất lượng ảnh hoặc nhận xét phục vụ học tập. Không ghi thông tin người bệnh."></textarea></label>
+</section>
+
+<section>
+<h2>4. Gửi xác nhận</h2>
+<button id="submit" type="button">Gửi ca lâm sàng để Admin duyệt</button>
+<div id="status" class="status hidden"></div>
+<p class="muted">Một chuyên gia chỉ tính một nhãn độc lập cho cùng một ca. Gold vẫn cần ít nhất hai contributor hash khác nhau và adjudication độc lập.</p>
+</section>
+</main>
+<script>
+(function(){'use strict';
+var SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
+var SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
+var $=function(id){return document.getElementById(id)},W=160,H=160,mask=new Uint8Array(W*H),mode='paint',drawing=false,topData='',bottomData='',topMime='image/jpeg',bottomMime='image/jpeg';
+var imageCanvas=$('imageCanvas'),imageCtx=imageCanvas.getContext('2d'),maskCanvas=$('maskCanvas'),maskCtx=maskCanvas.getContext('2d');
+function status(t,k){var e=$('status');e.className='status '+(k||'');e.textContent=t;e.classList.remove('hidden')}
+async function rpc(name,payload){
+  var r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':'Bearer '+SUPABASE_KEY},body:JSON.stringify(payload)});
+  var d=await r.json().catch(function(){return null});if(!r.ok)throw new Error((d&&d.message)||(d&&d.hint)||(d&&d.error)||('HTTP '+r.status));return d;
+}
+function fileData(file){return new Promise(function(resolve,reject){var rd=new FileReader();rd.onload=function(){resolve(String(rd.result||''))};rd.onerror=reject;rd.readAsDataURL(file)})}
+async function sha256Text(text){var dig=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(text||'')));return Array.from(new Uint8Array(dig)).map(function(v){return v.toString(16).padStart(2,'0')}).join('')}
+function renderMask(){maskCtx.clearRect(0,0,W,H);var im=maskCtx.createImageData(W,H);for(var i=0;i<mask.length;i++)if(mask[i]){var j=i*4;im.data[j]=255;im.data[j+1]=32;im.data[j+2]=32;im.data[j+3]=105}maskCtx.putImageData(im,0,0)}
+function drawAt(cx,cy){var r=maskCanvas.getBoundingClientRect(),x=(cx-r.left)*W/r.width,y=(cy-r.top)*H/r.height,rad=Number($('brush').value);for(var yy=Math.max(0,Math.floor(y-rad));yy<=Math.min(H-1,Math.ceil(y+rad));yy++)for(var xx=Math.max(0,Math.floor(x-rad));xx<=Math.min(W-1,Math.ceil(x+rad));xx++)if((xx-x)*(xx-x)+(yy-y)*(yy-y)<=rad*rad)mask[yy*W+xx]=mode==='paint'?1:0;renderMask()}
+maskCanvas.addEventListener('pointerdown',function(e){drawing=true;maskCanvas.setPointerCapture(e.pointerId);drawAt(e.clientX,e.clientY)});
+maskCanvas.addEventListener('pointermove',function(e){if(drawing)drawAt(e.clientX,e.clientY)});maskCanvas.addEventListener('pointerup',function(){drawing=false});maskCanvas.addEventListener('pointercancel',function(){drawing=false});
+$('paint').onclick=function(){mode='paint'};$('erase').onclick=function(){mode='erase'};$('clear').onclick=function(){mask.fill(0);renderMask()};
+function encodeRle(){var counts=[],value=0,count=0;for(var i=0;i<mask.length;i++){var bit=mask[i]?1:0;if(bit===value){count++;continue}counts.push(count);count=1;value=bit}counts.push(count);return {size:[H,W],counts:counts,order:'row-major',startsWith:0}}
+function maskCount(){var n=0;for(var i=0;i<mask.length;i++)n+=mask[i]?1:0;return n}
+function drawTop(data){var im=new Image();im.onload=function(){imageCtx.clearRect(0,0,W,H);imageCtx.drawImage(im,0,0,W,H);mask.fill(0);renderMask();$('canvasEmpty').classList.add('hidden');$('canvasBlock').classList.remove('hidden')};im.src=data}
+$('topFile').onchange=async function(){var f=this.files&&this.files[0];if(!f)return;topMime=f.type||'image/jpeg';topData=await fileData(f);$('topPreview').src=topData;$('topPreview').classList.remove('hidden');drawTop(topData)};
+$('bottomFile').onchange=async function(){var f=this.files&&this.files[0];if(!f){bottomData='';return}bottomMime=f.type||'image/jpeg';bottomData=await fileData(f);$('bottomPreview').src=bottomData;$('bottomPreview').classList.remove('hidden')};
+$('back').onclick=function(){location.href='/'};
+$('submit').onclick=async function(){
+  var name=$('name').value.trim(),title=$('title').value,pid=$('professionalId').value.trim(),attested=$('attest').checked,present=$('present').checked,quality=$('quality').value,note=$('note').value.trim();
+  if(name.length<2||!['bac_si','y_si'].includes(title)||pid.length<4||!attested||!topData){status('Thiếu họ tên, chức danh, mã xác nhận chuyên môn, xác nhận trách nhiệm hoặc ảnh mặt trên.','warn');return}
+  if(present&&maskCount()===0){status('Đã chọn “Có lưỡi trong ảnh” nhưng ROI đang rỗng.','warn');return}
+  var annotation={tongue_present:present,roi_mask_rle:present?encodeRle():null,image_quality:quality,notes:note||null,coordinate_space:{width:W,height:H,order:'row-major'}};
+  var btn=$('submit');btn.disabled=true;status('Đang gửi…','warn');
+  try{
+    var pidHash=await sha256Text(title+'|'+pid.toLowerCase());
+    var out=await rpc('ai_thiet_chan_submit_verified_clinical_contribution_v1',{
+      p_top_image_data_url:topData,p_bottom_image_data_url:bottomData||'',p_top_mime_type:topMime,p_bottom_mime_type:bottomMime,
+      p_contributor_name:name,p_professional_title:title,p_professional_id_hash:pidHash,p_professional_attested:true,p_annotation:annotation,p_clinical_note:note
+    });
+    status('Đã gửi thành công. Ca đang chờ Admin duyệt. ID: '+String(out.id||'').slice(0,8),'good');
+    sessionStorage.removeItem('aitcClinicalContributionDraft');
+  }catch(e){status('Chưa gửi được: '+e.message,'bad')}finally{btn.disabled=false}
+};
+})();
+</script>
+</body></html>

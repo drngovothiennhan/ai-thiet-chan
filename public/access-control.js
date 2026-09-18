@@ -27,12 +27,16 @@
     const path=apiPath(input);
     if(!path)return nativeFetch(input,init);
     const headers=accessHeaders(init.headers||(input instanceof Request?input.headers:undefined));
-    return nativeFetch(input,{...init,headers}).then(response=>{
+    const request=input instanceof Request?new Request(input,{...init,headers}):input;
+    const nextInit=input instanceof Request?undefined:{...init,headers};
+    return nativeFetch(request,nextInit).then(response=>{
       if(path==='/api/analyze')setTimeout(()=>refresh(),0);
       return response;
     });
   };
-  requestClient.register('access-control',__aitcStage3bFetch,400);
+  // Auth is intentionally the final application layer before the raw network fetch.
+  // This prevents downstream image/request rewrites from dropping Authorization.
+  requestClient.register('access-control',__aitcStage3bFetch,40);
 
   function ensureUi(){
     const actions=document.querySelector('.topbar-actions');
@@ -109,8 +113,12 @@
     try{
       const response=await nativeFetch('/api/access/status',{cache:'no-store',headers:accessHeaders()});
       const data=await response.json().catch(()=>({}));
+      if(response.status===401&&data?.error==='STUDENT_SESSION_INVALID'&&token()){
+        setToken('');
+        return refresh();
+      }
       if(!response.ok)throw new Error(data?.message||data?.error||`HTTP ${response.status}`);
-      if(data?.role==='guest'&&token())setToken('');
+      if(data?.role==='guest'&&token())throw new Error('AUTH_STATE_DOWNGRADE_BLOCKED');
       paint(data);
     }catch{
       if(!state.access)paint({role:'guest',limit:5});

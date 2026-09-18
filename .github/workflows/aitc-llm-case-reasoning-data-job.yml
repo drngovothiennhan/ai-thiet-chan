@@ -1,0 +1,101 @@
+name: AITC LLM Case Reasoning Data Job
+
+on:
+  push:
+    branches:
+      - 'data-job/aitc-llm-case-reasoning-v1'
+    paths:
+      - '.github/workflows/aitc-llm-case-reasoning-data-job.yml'
+      - 'scripts/case-reasoning-ingest.mjs'
+      - 'scripts/case-reasoning-build-sqlite.py'
+      - 'llm/case-reasoning/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aitc-llm-case-reasoning-v1
+  cancel-in-progress: false
+
+jobs:
+  build-corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout isolated data-job branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prepare workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work/raw work/normalized work/index work/meta
+
+      - name: Download pinned TCMChat medical_case source
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://huggingface.co/datasets/ZJUFanLab/TCMChat-dataset-600k/resolve/main/sft/train/medical_case.json?download=true'
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --max-time 1200             --output work/raw/tcmchat-medical_case.json "$URL"
+          test -s work/raw/tcmchat-medical_case.json
+
+      - name: Verify upstream SHA-256 before ingest
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'd35080e447631909c54f4018a7add449627415b1c01ac8b02eb376b6059b0e10  work/raw/tcmchat-medical_case.json' | sha256sum --check
+
+      - name: Normalize and deduplicate TCMChat
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/case-reasoning-ingest.mjs             --source-id tcmchat-medical-case-sft-v1             --input work/raw/tcmchat-medical_case.json             --output work/normalized/tcmchat-medical-case.v1.jsonl             --state work/meta/tcmchat-ingest-state.json             --expected-sha256 d35080e447631909c54f4018a7add449627415b1c01ac8b02eb376b6059b0e10
+
+      - name: Normalize curated PMC CC-BY seeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/case-reasoning-ingest.mjs             --source-id pmc-ccby-cc0-case-reports-v1             --input llm/case-reasoning/seeds/pmc-ccby-initial.v1.json             --output work/normalized/pmc-ccby-initial.v1.jsonl             --state work/meta/pmc-initial-ingest-state.json
+          node scripts/case-reasoning-ingest.mjs             --source-id pmc-ccby-cc0-case-reports-v1             --input llm/case-reasoning/seeds/pmc-ccby-expanded.v1.json             --output work/normalized/pmc-ccby-expanded.v1.jsonl             --state work/meta/pmc-expanded-ingest-state.json
+
+      - name: Build portable SQLite FTS5 retrieval snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/case-reasoning-build-sqlite.py             --input work/normalized/tcmchat-medical-case.v1.jsonl             --input work/normalized/pmc-ccby-initial.v1.jsonl             --input work/normalized/pmc-ccby-expanded.v1.jsonl             --output work/index/AITC-LLM-Case-Reasoning-v1.sqlite             --manifest work/index/retrieval-manifest.v1.json
+
+      - name: Compress cold-storage payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -9 -k work/raw/tcmchat-medical_case.json
+          gzip -9 -k work/normalized/tcmchat-medical-case.v1.jsonl
+          gzip -9 -k work/normalized/pmc-ccby-initial.v1.jsonl
+          gzip -9 -k work/normalized/pmc-ccby-expanded.v1.jsonl
+          rm work/raw/tcmchat-medical_case.json
+          rm work/normalized/tcmchat-medical-case.v1.jsonl
+          rm work/normalized/pmc-ccby-initial.v1.jsonl
+          rm work/normalized/pmc-ccby-expanded.v1.jsonl
+          cp llm/case-reasoning/source-registry.v1.json work/meta/source-registry.v1.json
+          cp llm/case-reasoning/seeds/tcmchat-medical-case.remote.v1.json work/meta/tcmchat-source.v1.json
+          (cd work && find . -type f -print0 | sort -z | xargs -0 sha256sum > meta/checksums.sha256)
+          du -ah work | sort -h > work/meta/sizes.txt
+
+      - name: Upload one-day handoff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AITC-LLM-Case-Reasoning-v1
+          path: work/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 6

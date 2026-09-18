@@ -33,7 +33,10 @@ const manifest=Object.freeze({
     Object.freeze({id:'tongue-presence',kind:'derived-classification',required:true,artifactId:'tongue-roi-mlp-bootstrap-v1',derivedFrom:'tongue-roi-coverage',labels:Object.freeze(['not-tongue','tongue']),threshold:.018,shadowOnly:true}),
     Object.freeze({id:'tongue-roi',kind:'segmentation',required:true,artifactId:'tongue-roi-mlp-bootstrap-v1',labels:Object.freeze(['background','tongue']),threshold:.8,shadowOnly:true}),
     Object.freeze({id:'top-features',kind:'multi-label-classification',required:true,artifactId:null,labels:Object.freeze(['tongue-color','coating-color','coating-thickness','fissure','toothmark','spot']),threshold:null}),
-    Object.freeze({id:'bottom-features',kind:'multi-label-classification',required:false,artifactId:null,labels:Object.freeze(['vessel-visible','vessel-color','vessel-prominence']),threshold:null})
+    Object.freeze({id:'bottom-features',kind:'multi-label-classification',required:false,artifactId:null,labels:Object.freeze(['vessel-visible','vessel-color','vessel-prominence']),threshold:null}),
+    Object.freeze({id:'qc-roi-shadow-v2',kind:'measurement-candidates',required:false,artifactId:null,labels:Object.freeze(['glare','flash-risk','sharpness-proxy','roi-coverage']),threshold:null,shadowOnly:true,authority:false}),
+    Object.freeze({id:'bottom-observation-shadow-v2',kind:'candidate-classification',required:false,artifactId:null,labels:Object.freeze(['underside-frame','vessel-visibility','bilateral-balance','dark-purple-ratio']),threshold:null,shadowOnly:true,authority:false}),
+    Object.freeze({id:'top-morphology-shadow-v2',kind:'candidate-classification',required:false,artifactId:null,labels:Object.freeze(['median-sulcus','fissure','flash-robust-color','moisture-proxy']),threshold:null,shadowOnly:true,authority:false})
   ]),
   safety:Object.freeze({
     noProviderVision:true,

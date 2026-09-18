@@ -143,6 +143,8 @@
         const context=shadowContext;shadowContext=null;shadowBusy=false;
         if(data.ok&&data.result){
           const coverage=Number(data.result.coverage),baseline=Number(context.baselineCoverage);
+          const topCandidate=String(data.result?.topFeatures?.topCandidates?.color?.labelCandidate||'');
+          const baselineColor=String(context.baselineTop?.tongue||'');
           publishShadow({
             ...data.result,
             workerVersion:String(data.workerVersion||''),
@@ -150,7 +152,11 @@
             tier:profile.tier,
             baselineCoverage:Number.isFinite(baseline)?baseline:null,
             coverageDelta:Number.isFinite(coverage)&&Number.isFinite(baseline)?Number((coverage-baseline).toFixed(6)):null,
-            pipelineImpact:'none-fire-and-forget-after-response'
+            baselineTopColor:baselineColor||null,
+            topColorAgreement:baselineColor&&topCandidate?baselineColor===topCandidate:null,
+            baselineBottomFeatures:Boolean(context.baselineBottom),
+            pipelineImpact:'none-fire-and-forget-after-response',
+            authority:false
           });
         }else{
           publishShadow({status:'error',error:String(data.error||'SHADOW_MODEL_FAILED'),mode:context.mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
@@ -160,8 +166,8 @@
       return shadowWorker;
     }catch{return null;}
   }
-  function queueShadow(dataUrl,{mode='normal',baselineCoverage=null}={}){
-    if(typeof dataUrl!=='string'||dataUrl.length<100)return false;
+  function queueShadowViews(topDataUrl,bottomDataUrl,{mode='normal',baselineCoverage=null,baselineTop=null,baselineBottom=null}={}){
+    if(typeof topDataUrl!=='string'||topDataUrl.length<100)return false;
     if(shadowBusy){
       publishShadow({status:'skipped-busy',mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
       return false;
@@ -169,14 +175,14 @@
     const worker=ensureShadowWorker();
     if(!worker)return false;
     const id=`s${Date.now().toString(36)}-${++shadowSeq}`;
-    shadowBusy=true;shadowContext={id,mode,baselineCoverage};
+    shadowBusy=true;shadowContext={id,mode,baselineCoverage,baselineTop,baselineBottom};
     shadowTimer=setTimeout(()=>{
       if(!shadowContext||shadowContext.id!==id)return;
       try{shadowWorker?.terminate?.();}catch{}
       shadowWorker=null;shadowBusy=false;shadowContext=null;shadowTimer=null;
       publishShadow({status:'timeout',mode,tier:profile.tier,pipelineImpact:'none-fire-and-forget-after-response'});
     },5000);
-    worker.postMessage({id,dataUrl,role:'top'});
+    worker.postMessage({id,topDataUrl,bottomDataUrl:typeof bottomDataUrl==='string'?bottomDataUrl:'',role:'dual'});
     return true;
   }
   function runWorker(dataUrl,role,timeoutMs=12_000){
@@ -252,7 +258,7 @@
     const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
     const rewritten=new Request(request,{headers,body:JSON.stringify(body)});
     const response=await client.fetchAfter('device-compute',rewritten);
-    queueShadow(top,{mode:body?.mode==='general'?'general':'normal',baselineCoverage:Number(deviceAnalysis?.top?.signature?.coverage)});
+    queueShadowViews(top,bottom,{mode:body?.mode==='general'?'general':'normal',baselineCoverage:Number(deviceAnalysis?.top?.signature?.coverage),baselineTop:deviceAnalysis?.top?.coarseVisual||null,baselineBottom:deviceAnalysis?.bottom?.bottomFeatures||null});
     return response;
   }
   function tryRegister(){

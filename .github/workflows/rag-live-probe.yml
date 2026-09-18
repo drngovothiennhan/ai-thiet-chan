@@ -1,9 +1,10 @@
 name: AITC RAG Live Probe
 
 on:
-  push:
+  pull_request:
     branches:
-      - restructure-local-vision-v1
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:

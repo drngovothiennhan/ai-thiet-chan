@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const engine=fs.readFileSync('local-vision-engine.mjs','utf8');
 const server=fs.readFileSync('server.mjs','utf8');
+const reasoning=fs.readFileSync('local-grounded-reasoning.mjs','utf8');
 
 assert.match(engine,/tongue-morphology-observation-v2/);
 assert.match(engine,/medianSulcus/);
@@ -17,12 +18,16 @@ assert.match(server,/tongue-dual-view-feature-vector-v2/);
 assert.match(server,/medianSulcusIsNotAutomaticallyFissure:true/);
 assert.match(server,/legacyDarkLineSignalIsNotFissureDiagnosis:true/);
 assert.match(server,/fissureDepthFrom2dImageForbidden:true/);
-assert.match(server,/Gemini chỉ phân tích KẾT QUẢ CẤU TRÚC/);
-assert.match(server,/Gemini không được xem ảnh/);
-assert.match(server,/medianSulcus \(rãnh giữa\) và fissure \(nứt\) là hai trường khác nhau/);
-assert.match(server,/legacyDarkLineSignal chỉ là tín hiệu điểm\/đường tối thô và KHÔNG đủ để kết luận nứt/);
-assert.match(server,/morphology\.fissure\.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt/i);
+assert.match(server,/localGroundedChat/);
+assert.match(server,/localGroundedReport/);
+assert.match(server,/\[AUXILIARY_POST_ANALYSIS_ONLY\]/);
+assert.match(server,/Không xem ảnh và không tạo thêm quan sát hình ảnh/);
+assert.match(reasoning,/noImageObservation:true/);
+assert.match(reasoning,/unknownMustRemainUnknown:true/);
+assert.match(reasoning,/Rãnh giữa và nứt là hai trường khác nhau|tách rãnh giữa khỏi nứt/i);
+assert.match(reasoning,/legacyDarkLineSignal/);
+assert.match(reasoning,/chưa đủ căn cứ gọi là nứt/);
 assert.match(server,/const llmData=llmSafeAssessmentContext\(data\)/);
 assert.match(server,/Phân tích cấu trúc:/);
 
-console.log('LLM OBSERVATION CONTEXT PASS: local vision separates median sulcus from fissure; ambiguous dark-line signals stay non-diagnostic; Gemini receives structured context only and cannot invent image observations.');
+console.log('LLM OBSERVATION CONTEXT PASS: local vision and local-grounded reasoning separate median sulcus from fissure; optional Gemini receives structured text only and cannot invent image observations.');

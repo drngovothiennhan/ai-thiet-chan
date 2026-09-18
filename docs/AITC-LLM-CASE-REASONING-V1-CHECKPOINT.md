@@ -85,3 +85,30 @@ No fabricated clinical counts, no fabricated accuracy, and no synthetic gold.
 
 ## Next locked step
 Run the isolated network data job on a dedicated non-production branch: download/checksum TCMChat -> normalize/deduplicate -> normalize the two PMC seeds -> build SQLite FTS5 snapshot -> compress artifacts -> copy the artifact bundle to Google Drive cold storage. Production remains untouched.
+
+
+## Stage 5 — network ingest + Drive cold storage COMPLETE
+- Isolated data branch: `data-job/aitc-llm-case-reasoning-v1`
+- Data-job commit: `407d4104297c11b56b09d050478d77f9510b3d54`
+- GitHub Actions run: `35322356256` — **SUCCESS**
+- TCMChat source SHA-256 verified against pinned upstream hash before ingest.
+- TCMChat normalized accepted: **44,623**.
+- TCMChat rejected as exact duplicates: **1,491**.
+- TCMChat rejected as near duplicates: **1,926**.
+- PMC curated CC-compatible records: **20**.
+- SQLite FTS5 snapshot records: **44,643**.
+- Cross-source duplicates skipped at snapshot build: **0**.
+- Snapshot SHA-256: `68aa881b8e0c31935b8040095d2277d2940a55874209b7458d1433eb6b01781e`.
+- One-day GitHub handoff artifact: ID `10537966683`, size **48,867,888 bytes**, digest `sha256:caf750c635e7a94851f13e8fc69147eaecaabe47a04f9a32b8ae10acfb382c61`.
+- Persistent cold-storage bundle copied to Google Drive file ID `1aC64OiQNxel9ZoMlA7NacBKvPiBHiRBV`, size **48,867,888 bytes**.
+- Drive path: `A.I thiệt chẩn/03_Dataset_QC_Validated/AITC-LLM-Case-Reasoning-v1/AITC-LLM-Case-Reasoning-v1-20260918.zip`.
+- Only **one physical Drive copy** is retained to avoid wasting storage; the bundle contains compressed raw source, normalized data, manifests/checksums and the retrieval snapshot.
+- Production was not merged or promoted and the 84.6 MB raw dataset is not bundled into Vercel.
+
+## Resume from here
+1. Read `llm/case-reasoning/storage-manifest.v1.json` and this checkpoint first.
+2. Do **not** redownload/reprocess TCMChat unless the pinned source version/checksum changes.
+3. Do **not** copy the 48.9 MB bundle into Vercel runtime.
+4. When connecting retrieval to the app, expose only lightweight query results / selected case chunks; keep Drive as cold storage.
+5. Preserve `goldBlocksLlmOperation=false`; verified clinician evidence remains an optional advisory boost for this LLM lane.
+6. Keep Local Vision as sole image-observation authority.

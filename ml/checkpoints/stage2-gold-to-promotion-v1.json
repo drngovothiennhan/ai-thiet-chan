@@ -24,20 +24,25 @@
   ],
   "gates": {
     "independent_gold_annotation": {
-      "status": "BLOCKED_INPUT_REQUIRED",
-      "reason": "No independent clinician-approved gold annotations exist yet."
+      "status": "WAITING_FOR_INDEPENDENT_HUMAN_ANNOTATIONS",
+      "infrastructure": "READY",
+      "reason": "Live database has 0 clinician-approved/training-ready gold samples. ChatGPT must not fabricate expert labels."
     },
     "immutable_gold_holdout": {
-      "status": "BLOCKED_BY_PREVIOUS_GATE"
+      "status": "BLOCKED_BY_GOLD_ANNOTATION",
+      "infrastructure": "READY"
     },
     "gold_holdout_metrics": {
-      "status": "BLOCKED_BY_PREVIOUS_GATE"
+      "status": "BLOCKED_BY_LOCKED_GOLD_HOLDOUT",
+      "infrastructure": "READY"
     },
     "physical_device_shadow": {
-      "status": "BUILD_HARNESS_ONLY_UNTIL_GOLD_METRICS"
+      "status": "BLOCKED_UNTIL_GOLD_METRICS",
+      "infrastructure": "READY"
     },
     "manual_promotion_review": {
-      "status": "BLOCKED_BY_PREVIOUS_GATES"
+      "status": "HARD_BLOCKED_BY_PREVIOUS_GATES",
+      "infrastructure": "READY"
     }
   },
   "safety": {
@@ -48,5 +53,24 @@
     "fabricatedMetrics": false,
     "autoPromotion": false
   },
-  "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate."
+  "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
+  "updatedAt": "2026-09-18T00:04:17Z",
+  "lastVerifiedHead": "e393663cc097204be42ac012176c35ab75161644",
+  "ci": {
+    "workflow": "A.I Thiet Chan CI",
+    "run": 438,
+    "conclusion": "success",
+    "head": "e393663cc097204be42ac012176c35ab75161644"
+  },
+  "infrastructure": {
+    "independentGoldContract": "READY",
+    "blindPacketExport": "READY",
+    "independentAdjudication": "READY",
+    "immutableHoldoutContract": "READY",
+    "predeclaredHoldoutPolicy": "READY",
+    "goldMetricEvaluator": "READY",
+    "physicalShadowHarness": "READY",
+    "promotionEvidenceGate": "READY"
+  },
+  "nextAction": "Obtain at least two independent, model-blind expert annotations per eligible gold sample, then adjudicate with a third independent reviewer. Do not create holdout or metrics before this."
 }

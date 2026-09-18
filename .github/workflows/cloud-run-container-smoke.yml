@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'infra/cloud-run-migration-20260917'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:

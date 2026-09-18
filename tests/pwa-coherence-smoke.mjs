@@ -18,6 +18,11 @@ assert.match(sw,/cacheRequired/);
 assert.match(sw,/Promise\.allSettled\(OPTIONAL_SHELL/);
 assert.match(sw,/\/hardware-profile\.js/);
 assert.match(sw,/\/request-integrity\.js/);
+assert.match(sw,/const REQUIRED_SHELL=\[[^\]]*\/access-control\.js/);
+assert.match(sw,/const REQUIRED_SHELL=\[[^\]]*\/consultation-lock\.js/);
+assert.match(sw,/const REQUIRED_SHELL=\[[^\]]*\/request-integrity\.js/);
+const analyzeFetch=sw.slice(sw.indexOf("if(request.method==='POST'&&url.pathname==='/api/analyze')"),sw.indexOf("if(request.method!=='GET')"));
+assert.doesNotMatch(analyzeFetch,/status:403|response\.status!==429/,'service worker must preserve server auth/quota status codes');
 assert.match(sw,/AITC_ACTIVATE_UPDATE/);
 
 const installBody=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('activate'"));
@@ -27,5 +32,5 @@ assert.match(home,/AITCPWAUpdate/);
 assert.match(home,/updateReady/);
 assert.match(home,/AITC_ACTIVATE_UPDATE/);
 
-assert.ok(releaseId.startsWith('2026.09.18-'));
+assert.equal(releaseId,'2026.09.18-auth-cache-r2');
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, required/optional cache gates, and no forced reload or takeover.`);

@@ -92,8 +92,18 @@ function largestComponent(mask,w,h){
   if(best)for(const p of best)out[p]=1;
   return {mask:out,area:bestSize};
 }
+function encodeRle(mask,w,h){
+  const counts=[];let value=0,count=0;
+  for(let i=0;i<mask.length;i++){
+    const bit=mask[i]?1:0;
+    if(bit===value){count++;continue;}
+    counts.push(count);count=1;value=bit;
+  }
+  counts.push(count);
+  return {size:[h,w],counts,order:'row-major',startsWith:0};
+}
 
-async function analyzeDataUrl(dataUrl,role='top'){
+async function analyzeDataUrl(dataUrl,role='top',options={}){
   const started=performance.now();
   if(role!=='top')return Object.freeze({status:'not-applicable',runtimeVersion:VERSION,role});
   if(typeof createImageBitmap!=='function'||typeof OffscreenCanvas==='undefined')throw new Error('SHADOW_CANVAS_UNAVAILABLE');
@@ -127,7 +137,7 @@ async function analyzeDataUrl(dataUrl,role='top'){
     const component=largestComponent(rawMask,size,size);
     const coverage=component.area/(size*size);
     const maskDigest=await sha256(component.mask);
-    return Object.freeze({
+    const result={
       status:'complete',
       runtimeVersion:VERSION,
       modelId:model.modelId,
@@ -142,7 +152,9 @@ async function analyzeDataUrl(dataUrl,role='top'){
       clinicalGold:false,
       productionEligible:false,
       latencyMs:Math.round(performance.now()-started)
-    });
+    };
+    if(options?.includeMaskRle===true)result.roiMaskRle=encodeRle(component.mask,size,size);
+    return Object.freeze(result);
   }finally{try{bitmap.close?.();}catch{}}
 }
 

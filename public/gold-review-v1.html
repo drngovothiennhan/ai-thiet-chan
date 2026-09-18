@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>A.I Thiệt Chẩn — Gold Review v1</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light dark}
+body{margin:0;background:#f4f6f8;color:#111}main{max-width:820px;margin:auto;padding:16px 14px 48px}
+section{background:#fff;border:1px solid #d9dde3;border-radius:14px;padding:14px;margin:12px 0}
+h1{font-size:1.35rem;margin:.2rem 0}h2{font-size:1.05rem}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{border:0;border-radius:10px;padding:10px 13px;font:inherit;font-weight:650;background:#111;color:#fff}
+button.secondary{background:#e9edf2;color:#111}button.active{outline:3px solid #888}
+input,select,textarea{font:inherit;padding:8px;box-sizing:border-box;max-width:100%}textarea{width:100%;min-height:72px}
+.status{padding:5px 9px;border-radius:999px;background:#e9edf2;font-size:.85rem}.ok{background:#dff5e7}.warn{background:#fff0c9}.bad{background:#ffe0df}
+.canvas-wrap{position:relative;width:min(100%,640px);aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#111;margin:auto;touch-action:none}
+.canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:auto}#maskCanvas{cursor:crosshair}
+.previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.preview canvas{width:100%;aspect-ratio:1/1;border-radius:10px;background:#111}
+small{display:block;color:#666;margin-top:6px}.hidden{display:none!important}
+@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3}section{background:#161b22;border-color:#30363d}button.secondary,.status{background:#30363d;color:#e6edf3}small{color:#9da7b3}.ok{background:#153b27}.warn{background:#4a3512}.bad{background:#4a1f1f}}
+</style>
+</head><body><main>
+<h1>A.I THIỆT CHẨN — Gold Review v1</h1>
+<p>Phiên gán nhãn độc lập. Không hiển thị kết quả model. Không yêu cầu chẩn đoán bệnh.</p>
+<section id="auth"><h2>Phiên chuyên gia</h2><div class="row"><input id="token" type="password" autocomplete="off" placeholder="Reviewer token" style="flex:1;min-width:240px"><button id="open">Mở phiên</button></div><small>Token chỉ giữ trong session của tab này. URL sẽ được xóa token khỏi thanh địa chỉ sau khi mở.</small></section>
+<section id="task" class="hidden">
+  <div class="row"><strong id="role"></strong><span id="progress" class="status"></span><span id="status" class="status"></span></div>
+  <div id="sourceBlock" class="hidden"><h2>Hai nhãn độc lập để adjudication</h2><div id="sourcePreviews" class="previews"></div></div>
+  <h2>Ảnh mặt trên — vùng ROI 160×160</h2>
+  <div class="canvas-wrap"><canvas id="imageCanvas" width="160" height="160"></canvas><canvas id="maskCanvas" width="160" height="160"></canvas></div>
+  <div class="row" style="margin-top:10px">
+    <button id="paint" class="secondary active" type="button">Tô ROI</button>
+    <button id="erase" class="secondary" type="button">Xóa nét</button>
+    <button id="clear" class="secondary" type="button">Xóa mask</button>
+    <label>Cỡ bút <input id="brush" type="range" min="2" max="18" value="7"></label>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <label><input id="present" type="checkbox" checked> Có lưỡi trong ảnh</label>
+    <label>Chất lượng <select id="quality"><option value="usable">usable</option><option value="uncertain">uncertain</option><option value="reject">reject</option></select></label>
+  </div>
+  <label>Ghi chú<textarea id="notes" placeholder="Chỉ ghi lý do liên quan ranh giới ROI/chất lượng ảnh; không chẩn đoán."></textarea></label>
+  <div class="row"><button id="submit" type="button">Gửi nhãn bất biến</button><button id="reload" class="secondary" type="button">Tải lại nhiệm vụ</button></div>
+  <small id="blind"></small>
+</section>
+<section id="done" class="hidden"><h2>Hoàn tất / đang chờ</h2><p id="doneText"></p><button id="check" type="button">Kiểm tra nhiệm vụ tiếp theo</button></section>
+</main>
+<script>
+(function(){'use strict';
+var SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
+var SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
+var $=function(id){return document.getElementById(id)},W=160,H=160;
+var sessionToken='',current=null,mode='paint',drawing=false,mask=new Uint8Array(W*H);
+var imgCanvas=$('imageCanvas'),imgCtx=imgCanvas.getContext('2d');
+var maskCanvas=$('maskCanvas'),maskCtx=maskCanvas.getContext('2d');
+async function rpc(name,payload){
+  var r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{'content-type':'application/json','apikey':SUPABASE_KEY,'authorization':'Bearer '+SUPABASE_KEY},body:JSON.stringify(payload)});
+  var d=await r.json().catch(function(){return null});
+  if(!r.ok)throw new Error((d&&d.message)||(d&&d.hint)||(d&&d.error)||('HTTP '+r.status));
+  return d;
+}
+function badge(text,kind){var e=$('status');e.textContent=text;e.className='status '+(kind||'')}
+function setMode(v){mode=v;$('paint').classList.toggle('active',v==='paint');$('erase').classList.toggle('active',v==='erase')}
+function renderMask(){
+  maskCtx.clearRect(0,0,W,H);var im=maskCtx.createImageData(W,H);
+  for(var i=0;i<mask.length;i++)if(mask[i]){var j=i*4;im.data[j]=255;im.data[j+1]=32;im.data[j+2]=32;im.data[j+3]=105}
+  maskCtx.putImageData(im,0,0);
+}
+function drawAt(clientX,clientY){
+  var r=maskCanvas.getBoundingClientRect(),x=(clientX-r.left)*W/r.width,y=(clientY-r.top)*H/r.height,rad=Number($('brush').value);
+  var minX=Math.max(0,Math.floor(x-rad)),maxX=Math.min(W-1,Math.ceil(x+rad)),minY=Math.max(0,Math.floor(y-rad)),maxY=Math.min(H-1,Math.ceil(y+rad));
+  for(var yy=minY;yy<=maxY;yy++)for(var xx=minX;xx<=maxX;xx++)if((xx-x)*(xx-x)+(yy-y)*(yy-y)<=rad*rad)mask[yy*W+xx]=mode==='paint'?1:0;
+  renderMask();
+}
+maskCanvas.addEventListener('pointerdown',function(e){drawing=true;maskCanvas.setPointerCapture(e.pointerId);drawAt(e.clientX,e.clientY)});
+maskCanvas.addEventListener('pointermove',function(e){if(drawing)drawAt(e.clientX,e.clientY)});
+maskCanvas.addEventListener('pointerup',function(){drawing=false});maskCanvas.addEventListener('pointercancel',function(){drawing=false});
+$('paint').onclick=function(){setMode('paint')};$('erase').onclick=function(){setMode('erase')};$('clear').onclick=function(){mask.fill(0);renderMask()};
+function encodeRle(){
+  var counts=[],value=0,count=0;
+  for(var i=0;i<mask.length;i++){var bit=mask[i]?1:0;if(bit===value){count++;continue}counts.push(count);count=1;value=bit}
+  counts.push(count);return {size:[H,W],counts:counts,order:'row-major',startsWith:0};
+}
+function decodeRle(rle){
+  var out=new Uint8Array(W*H);if(!rle||!Array.isArray(rle.counts))return out;
+  var value=0,index=0;for(var i=0;i<rle.counts.length;i++){var n=Number(rle.counts[i])||0;if(value===1)out.fill(1,index,Math.min(out.length,index+n));index+=n;value=value?0:1}return out;
+}
+function countMask(){var n=0;for(var i=0;i<mask.length;i++)n+=mask[i]?1:0;return n}
+function loadImage(url,canvas,overlayMask){
+  return new Promise(function(resolve,reject){var im=new Image();im.onload=function(){var ctx=canvas.getContext('2d');ctx.clearRect(0,0,W,H);ctx.drawImage(im,0,0,W,H);if(overlayMask){var d=ctx.getImageData(0,0,W,H);for(var i=0;i<overlayMask.length;i++)if(overlayMask[i]){var j=i*4;d.data[j]=Math.min(255,d.data[j]*.45+160);d.data[j+1]*=.55;d.data[j+2]*=.55}ctx.putImageData(d,0,0)}resolve()};im.onerror=reject;im.src=url});
+}
+async function showSources(task){
+  var block=$('sourceBlock'),box=$('sourcePreviews');box.innerHTML='';var src=Array.isArray(task.source_annotations)?task.source_annotations:[];
+  if(task.role!=='adjudication'||!src.length){block.classList.add('hidden');return}
+  block.classList.remove('hidden');
+  for(var i=0;i<src.length;i++){
+    var wrap=document.createElement('div');wrap.className='preview';
+    var title=document.createElement('strong');title.textContent='Nhãn độc lập '+(i+1);
+    var c=document.createElement('canvas');c.width=W;c.height=H;
+    var meta=document.createElement('small'),ann=(src[i]&&src[i].annotation)||{};
+    meta.textContent='tongue_present='+String(ann.tongue_present)+' · quality='+(ann.image_quality||'unknown');
+    wrap.append(title,c,meta);box.append(wrap);await loadImage(task.image.top,c,decodeRle(ann.roi_mask_rle));
+  }
+}
+async function renderTask(task){
+  current=task;mask=new Uint8Array(W*H);renderMask();$('notes').value='';$('present').checked=true;$('quality').value='usable';
+  $('task').classList.remove('hidden');$('done').classList.add('hidden');
+  $('role').textContent=task.role==='adjudication'?'Adjudicator độc lập':'Chuyên gia gán nhãn độc lập';
+  var p=task.progress||{};$('progress').textContent=task.role==='adjudication'?String(p.done||0)+'/'+String(p.eligible||0):String(p.done||0)+'/'+String(p.total||0);
+  $('blind').textContent='Blind ID: '+String(task.blind_id||'')+'. Model output: KHÔNG HIỂN THỊ.';
+  await loadImage(task.image.top,imgCanvas);await showSources(task);badge('SẴN SÀNG','ok');
+}
+async function next(){
+  if(!sessionToken)return;badge('ĐANG TẢI','warn');
+  try{
+    var d=await rpc('ai_thiet_chan_gold_reviewer_next_v1',{p_token:sessionToken});
+    if(d&&d.complete||!(d&&d.blind_id)){
+      $('task').classList.add('hidden');$('done').classList.remove('hidden');
+      $('doneText').textContent=d&&d.role==='adjudication'&&d.waitingForIndependentAnnotations?'Đang chờ đủ hai nhãn độc lập cho các mẫu tiếp theo.':'Không còn nhiệm vụ hiện đủ điều kiện trong phiên này.';
+      return;
+    }
+    await renderTask(d);
+  }catch(e){badge('LỖI','bad');alert(e.message)}
+}
+async function submit(){
+  if(!(current&&current.blind_id))return;
+  var present=$('present').checked,quality=$('quality').value;
+  if(present&&countMask()===0){alert('Có lưỡi nhưng mask đang rỗng. Tô ROI hoặc bỏ chọn “Có lưỡi trong ảnh”.');return}
+  var annotation={tongue_present:present,roi_mask_rle:present?encodeRle():null,image_quality:quality,notes:$('notes').value.trim()||null,coordinate_space:{width:W,height:H,order:'row-major'}};
+  $('submit').disabled=true;badge('ĐANG GỬI','warn');
+  try{await rpc('ai_thiet_chan_gold_reviewer_submit_v1',{p_token:sessionToken,p_blind_id:current.blind_id,p_annotation:annotation});badge('ĐÃ LƯU','ok');await next()}
+  catch(e){badge('LỖI','bad');alert(e.message)}finally{$('submit').disabled=false}
+}
+async function openSession(){
+  var t=$('token').value.trim();if(!t)return;sessionToken=t;sessionStorage.setItem('aitcGoldReviewerToken',t);$('token').value='';history.replaceState(null,'',location.pathname);await next();
+}
+var qs=new URLSearchParams(location.search),qt=qs.get('t');if(qt){sessionStorage.setItem('aitcGoldReviewerToken',qt);history.replaceState(null,'',location.pathname)}
+var prior=sessionStorage.getItem('aitcGoldReviewerToken')||'';if(prior){sessionToken=prior;queueMicrotask(next)}
+$('open').onclick=openSession;$('token').addEventListener('keydown',function(e){if(e.key==='Enter')openSession()});
+$('submit').onclick=submit;$('reload').onclick=next;$('check').onclick=next;
+})();
+</script></body></html>

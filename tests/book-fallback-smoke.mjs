@@ -46,8 +46,11 @@ assert.match(server,/atlasLanguageThreshold/);
 assert.match(runtime,/groundingProtocol/);
 assert.match(runtime,/GROUNDING=IN/);
 
-assert.match(consultation,/Chatbot Gemini có thể được hỏi trực tiếp không giới hạn lượt ở tầng ứng dụng/);
-assert.doesNotMatch(consultation,/Bạn có thể bắt đầu Thập vấn hoặc chọn “Bỏ qua Thập vấn” để xem ngay nhận định hiện tại/);
+assert.match(consultation,/Không dùng bộ 10 câu cố định/);
+assert.match(consultation,/\[ADAPTIVE_SYMPTOM_INTAKE\]/);
+assert.match(consultation,/Bạn có triệu chứng gì thêm không/);
+assert.doesNotMatch(consultation,/const questions=\[/);
+assert.doesNotMatch(consultation,/\[THAP_VAN_CONTEXT\]/);
 assert.match(consultationLock,/uiName:'Trợ lý tham vấn'/);
 assert.match(consultationLock,/externalReasoning:'required'/);
 assert.match(consultationLock,/localFallbackForChat:false/);
@@ -64,7 +67,8 @@ assert.match(app,/normalizeChatReferences/);
 assert.match(app,/Nguồn đối chiếu/);
 assert.match(app,/TC\\d\+\|DY\\d\+\|MC\\d\+\|AT\\d\+\|PSY\\d\+/);
 assert.match(app,/appendBubble\(normalizeChatReferences/);
-assert.match(index,/Tham Vấn · Gemini/);
+assert.match(index,/Đối chiếu triệu chứng · Gemini/);
+assert.match(index,/Bổ sung triệu chứng/);
 assert.match(index,/vòm miệng\/lưỡi gà dùng làm mốc định hướng phía sau/);
 assert.match(index,/Giữ trọn lưỡi từ đầu đến gốc trong khung/);
 

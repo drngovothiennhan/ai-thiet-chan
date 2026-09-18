@@ -13,7 +13,17 @@
     "mlSamples": 22,
     "modelGeneratedUnverified": 22,
     "trainingReadyGold": 0,
-    "approvedFeedback": 0
+    "approvedFeedback": 0,
+    "goldPool": 22,
+    "goldGroups": 21,
+    "expertAnnotations": 0,
+    "adjudications": 0,
+    "goldReady": 0,
+    "holdoutVersions": 0,
+    "goldEvaluations": 0,
+    "deviceShadowEvidence": 0,
+    "promotionReviews": 0,
+    "activeReviewerSessions": 3
   },
   "lockedOrder": [
     "independent_gold_annotation",
@@ -24,13 +34,18 @@
   ],
   "gates": {
     "independent_gold_annotation": {
-      "status": "WAITING_FOR_INDEPENDENT_HUMAN_ANNOTATIONS",
-      "infrastructure": "READY",
-      "reason": "Live database has 0 clinician-approved/training-ready gold samples. ChatGPT must not fabricate expert labels."
+      "status": "COLLECTION_READY_WAITING_FOR_REAL_EXPERT_SUBMISSIONS",
+      "infrastructure": "LIVE_IN_SUPABASE",
+      "progress": {
+        "expertA": "0/22",
+        "expertB": "0/22",
+        "adjudicator": "0/0 eligible"
+      },
+      "reason": "Two independent expert sessions and one independent adjudicator session are live, but no real human annotation has been submitted. Do not fabricate labels."
     },
     "immutable_gold_holdout": {
-      "status": "BLOCKED_BY_GOLD_ANNOTATION",
-      "infrastructure": "READY"
+      "status": "BLOCKED_BY_REAL_GOLD_INPUT",
+      "infrastructure": "LIVE_IN_SUPABASE"
     },
     "gold_holdout_metrics": {
       "status": "BLOCKED_BY_LOCKED_GOLD_HOLDOUT",
@@ -42,7 +57,7 @@
     },
     "manual_promotion_review": {
       "status": "HARD_BLOCKED_BY_PREVIOUS_GATES",
-      "infrastructure": "READY"
+      "infrastructure": "LIVE_IN_SUPABASE"
     }
   },
   "safety": {
@@ -51,11 +66,13 @@
     "providerVision": false,
     "syntheticGoldLabels": false,
     "fabricatedMetrics": false,
-    "autoPromotion": false
+    "autoPromotion": false,
+    "reviewerTokensCommittedToRepo": false,
+    "productionInferenceChanged": false
   },
   "resumeRule": "Read this file first. Continue only from the first non-complete gate. Never recreate completed work or bypass a blocked gate.",
-  "updatedAt": "2026-09-18T00:04:17Z",
-  "lastVerifiedHead": "e393663cc097204be42ac012176c35ab75161644",
+  "updatedAt": "2026-09-18T00:18:30Z",
+  "lastVerifiedHead": "5fc7bfe806cced99b6dff312bc45fe4379b28459",
   "ci": {
     "workflow": "A.I Thiet Chan CI",
     "run": 438,
@@ -70,7 +87,9 @@
     "predeclaredHoldoutPolicy": "READY",
     "goldMetricEvaluator": "READY",
     "physicalShadowHarness": "READY",
-    "promotionEvidenceGate": "READY"
+    "promotionEvidenceGate": "READY",
+    "reviewerTokenSessions": "READY",
+    "reviewerWebUI": "READY_IN_BRANCH"
   },
-  "nextAction": "Obtain at least two independent, model-blind expert annotations per eligible gold sample, then adjudicate with a third independent reviewer. Do not create holdout or metrics before this."
+  "nextAction": "Have two independent domain experts complete the 22 blind ROI/presence labels, then have the third independent adjudicator resolve all eligible cases. Only then lock the holdout and compute metrics."
 }

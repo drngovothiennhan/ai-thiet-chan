@@ -47,3 +47,11 @@ Continue from the latest commit on branch `restructure-local-vision-v1`; do not 
 - Stored fields are numeric/categorical shadow comparisons only. No raw image, base64 payload, EXIF, location, image digest, user id, or student/member identity is stored by this telemetry path.
 - Baseline comparison fields added for ROI coverage, top color/fissure signal, bottom vessel candidate ratio and dark-purple ratio.
 - This gate only records shadow evidence. It does not promote any candidate or alter production visual authority.
+
+## Hotfix — physical-device shadow enqueue isolation
+- User physical-device test exposed a real client error: `ReferenceError: bottom is not defined`.
+- Root cause confirmed in `public/device-runtime.js`: the post-response shadow enqueue referenced `top`/`bottom` variables that exist only inside `analyzeViews()`, outside the `deviceLayer()` scope.
+- Fix derives `shadowTop`/`shadowBottom` from the already-parsed request body inside `deviceLayer()`.
+- Shadow enqueue is wrapped in its own try/catch so a future shadow-only failure cannot reject or replace a successful primary analysis response.
+- No production visual classifier, database corpus, Render retrieval service, or authority rule changed.
+- Failed physical-device attempt produced 0 shadow rows; no fake telemetry was inserted.

@@ -23,7 +23,8 @@ assert.match(contributionSql,/grant execute on function public\.ai_thiet_chan_ad
 
 assert.match(adjudicatorSql,/ai_thiet_chan_verified_gold_experts_v1/);
 assert.match(adjudicatorSql,/approved_verified_expert_required/);
-assert.match(adjudicatorSql,/role,'adjudication'/);
+assert.match(adjudicatorSql,/reviewer_hash,role,token_hash/);
+assert.match(adjudicatorSql,/e\.contributor_hash,'adjudication',v_token_hash/);
 assert.match(adjudicatorSql,/policy','adjudicator must be an Admin-approved verified clinical contributor and distinct from both source annotators'/);
 assert.match(trainingV3,/ai_thiet_chan_ml_training_ready_v3/);
 assert.match(trainingV3,/verified_clinical_contribution_v1/);

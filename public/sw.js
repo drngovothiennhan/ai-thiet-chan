@@ -4,7 +4,7 @@ let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';
 const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
-const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/request-client.js','/manifest.webmanifest','/icon.svg'];
+const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
 const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
@@ -12,8 +12,8 @@ const OPTIONAL_SHELL=[
   '/device-shadow-validation-v3.html',
   '/clinical-contribute-v1.html','/gold-review-v1.html',
   '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
-  '/book-fallback.js','/benchmark-telemetry.js','/consultation-lock.js','/request-integrity.js','/admin-enhancement-collapse.js',
-  '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/access-control.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
+  '/book-fallback.js','/benchmark-telemetry.js','/admin-enhancement-collapse.js',
+  '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
   '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
 ];
 const NAV_TIMEOUT_MS=2500;
@@ -92,10 +92,8 @@ self.addEventListener('fetch',event=>{
   const request=event.request,url=new URL(request.url);if(url.origin!==self.location.origin)return;
   if(request.method==='POST'&&url.pathname==='/api/analyze'){
     event.respondWith((async()=>{
-      const forwarded=await enrichAnalyzeRequest(request);const response=await fetch(forwarded);
-      if(response.status!==429)return response;
-      const body=await response.clone().text();const headers=new Headers(response.headers);headers.delete('retry-after');
-      return new Response(body,{status:403,statusText:'Forbidden',headers});
+      const forwarded=await enrichAnalyzeRequest(request);
+      return fetch(forwarded);
     })());return;
   }
   if(request.method!=='GET')return;

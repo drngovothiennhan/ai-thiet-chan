@@ -88,15 +88,15 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
   function adaptivePrompt({final=false}={}){
     const transcript=transcriptText()||'Người dùng chưa cung cấp thêm triệu chứng.';
     if(final){
-      return '[ADAPTIVE_SYMPTOM_INTAKE]\\n'
-        +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận:\\n'+transcript+'\\n\\n'
+      return '[ADAPTIVE_SYMPTOM_INTAKE]\n'
+        +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận:\n'+transcript+'\n\n'
         +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại, hệ tri thức và các CA TƯƠNG TỰ được truy hồi từ CSDL để tổng hợp đối chiếu. '
         +'Trình bày ngắn gọn: (1) dữ kiện thiệt chẩn đã quan sát; (2) triệu chứng người dùng đã xác nhận; '
         +'(3) điểm tương đồng/khác biệt có căn cứ với các ca được truy hồi; (4) nhận định YHCT chỉ ở mức tham khảo khi có đủ căn cứ; '
         +'(5) dữ kiện còn thiếu hoặc mâu thuẫn. Không tự thêm triệu chứng, không biến ca lịch sử thành chẩn đoán cho người dùng, không kê đơn và không sao chép phương thuốc từ corpus.';
     }
-    return '[ADAPTIVE_SYMPTOM_INTAKE]\\n'
-      +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận đến lúc này:\\n'+transcript+'\\n\\n'
+    return '[ADAPTIVE_SYMPTOM_INTAKE]\n'
+      +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận đến lúc này:\n'+transcript+'\n\n'
       +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại cùng các CA TƯƠNG TỰ được truy hồi từ CSDL để chọn ĐÚNG MỘT câu hỏi tiếp theo có giá trị phân biệt cao nhất. '
       +'Chỉ hỏi về triệu chứng hoặc đặc điểm diễn tiến chưa được người dùng xác nhận. Câu hỏi phải ngắn, tự nhiên, dễ trả lời; '
       +'ưu tiên kiểu “Bạn có ... không?”, “Bạn còn khó chịu ... không?” hoặc hỏi thời điểm/tính chất khi thật sự giúp phân biệt các ca tương tự. '
@@ -186,9 +186,9 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
           pendingPrompt='';
           pendingKind='';
         }else if(inquiry.transcript&&typeof body.message==='string'){
-          body.message='[ADAPTIVE_SYMPTOM_CONTEXT]\\n'
-            +'Triệu chứng/khó chịu người dùng đã xác nhận:\\n'+inquiry.transcript+'\\n\\n'
-            +'Câu hỏi hiện tại của người dùng: '+body.message+'\\n'
+          body.message='[ADAPTIVE_SYMPTOM_CONTEXT]\n'
+            +'Triệu chứng/khó chịu người dùng đã xác nhận:\n'+inquiry.transcript+'\n\n'
+            +'Câu hỏi hiện tại của người dùng: '+body.message+'\n'
             +'Ưu tiên đối chiếu kết quả thiệt chẩn, đúng dữ kiện người dùng đã xác nhận và các ca tương tự được truy hồi. '
             +'Không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn.';
         }

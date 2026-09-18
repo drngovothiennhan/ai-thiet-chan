@@ -34,5 +34,5 @@ jobs:
       - name: Live RAG current-head probe
         env:
           VERCEL_ENV: preview
-          AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS: "12000"
+          AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS: "15000"
         run: node tests/llm-case-retrieval-live-probe.mjs

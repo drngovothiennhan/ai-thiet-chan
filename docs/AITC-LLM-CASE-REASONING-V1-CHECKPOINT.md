@@ -112,3 +112,47 @@ Run the isolated network data job on a dedicated non-production branch: download
 4. When connecting retrieval to the app, expose only lightweight query results / selected case chunks; keep Drive as cold storage.
 5. Preserve `goldBlocksLlmOperation=false`; verified clinician evidence remains an optional advisory boost for this LLM lane.
 6. Keep Local Vision as sole image-observation authority.
+
+
+## Stage 6 — bounded SQLite retrieval -> RAG/consultation WIRED IN BRANCH
+- Resume base: checkpoint `e08203b1f11da802031f1d5dfd92d36ccd4648e0`.
+- TCMChat was **not redownloaded or reprocessed**. Verification used the existing persistent Drive bundle and extracted only its previously built SQLite retrieval snapshot.
+- Existing snapshot verified again before integration:
+  - SQLite file: `AITC-LLM-Case-Reasoning-v1.sqlite`
+  - file size: **149,078,016 bytes**
+  - SHA-256: `68aa881b8e0c31935b8040095d2277d2940a55874209b7458d1433eb6b01781e`
+  - records: **44,643**
+  - TCMChat records: **44,623**
+  - PMC records: **20**
+- Added `case-retrieval.mjs`:
+  - built-in Node `node:sqlite`, no new runtime dependency;
+  - database opened read-only and cached once per process;
+  - SQLite FTS5 + BM25 query;
+  - default top-k **4**, hard maximum **5**;
+  - only bounded selected case text / target / provenance is returned;
+  - per-case text is truncated and formatted retrieval context is capped at **7,600 characters**;
+  - failure is graceful when snapshot is not configured or not available.
+- Added bilingual retrieval hints for consultation text so Vietnamese/English tongue and symptom terms can query the predominantly Chinese TCMChat corpus without loading the corpus into request memory.
+- `/api/chat` now retrieves similar cases only after a structured assessment exists, inserts only the bounded top-k case context, and labels corpus targets as **reference-only / non-gold**.
+- Consultation prompt explicitly forbids turning historical case targets into a diagnosis for the current user, inventing missing symptoms, or copying historical drug/formula recommendations into individualized advice.
+- `/api/health` now exposes non-sensitive retrieval readiness metadata only: configured/ready, record count, source counts, top-k bounds and error code.
+- Runtime configuration is explicit through `AITC_CASE_RETRIEVAL_DB`; if absent, the current consultation path continues without snapshot retrieval.
+- Runtime smoke test: `tests/llm-case-retrieval-runtime-smoke.mjs`.
+- Code validation commit: `5d35458bd5de5c2f8432144c9f1a9600995a09e1`.
+- GitHub Actions run `35324156731` / CI #538: **SUCCESS**.
+- Two earlier CI runs were intentionally not treated as success:
+  - #535 failed because the new test incorrectly required one source to rank first under BM25;
+  - #537 failed because the synthetic Han-text fixture did not reproduce real FTS token boundaries;
+  - both test defects were corrected before CI #538 passed.
+- Production `main` was **not merged or promoted**.
+
+### Stage 6 current runtime boundary
+The retrieval code is ready on the branch, but the 149 MB SQLite snapshot is **not bundled into Git/Vercel and has not been provisioned/mounted into the current Vercel runtime**. Therefore no claim is made that Preview or Production is currently returning live SQLite case matches.
+
+### Resume from Stage 6
+1. Do not redownload TCMChat.
+2. Keep the Drive ZIP as cold storage; do not copy the full bundle into Vercel.
+3. Provision only the verified SQLite snapshot to a runtime/storage location that can be opened read-only by the consultation service, and set `AITC_CASE_RETRIEVAL_DB` there.
+4. Verify live `/api/health.caseReasoningRetrieval.ready=true` and a protected `/api/chat` request returning `caseRetrieval.returned > 0`.
+5. Keep retrieval top-k bounded and Local Vision as the sole image-observation authority.
+6. Do not merge/promote production until Preview verification is complete.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 
 process.env.VERCEL_ENV='preview';
-process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS='12000';
+process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS=process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS||'15000';
 delete process.env.AITC_CASE_RETRIEVAL_DB;
 
 const mod=await import('../case-retrieval.mjs?live-probe=1');

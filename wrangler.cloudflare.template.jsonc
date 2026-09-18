@@ -2,6 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "ai-thiet-chan-cf-preview",
   "main": "cloudflare/src/index.mjs",
+  "alias": {
+    "#case-retrieval": "./cloudflare/case-retrieval-remote.mjs"
+  },
   "compatibility_date": "2026-09-18",
   "assets": {
     "directory": "./public",

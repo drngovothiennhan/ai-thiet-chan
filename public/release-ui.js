@@ -74,6 +74,17 @@
     });
   }
 
+  function installClinicalContributionEntry(){
+    const panel=document.querySelector('#settingsDialog .settings-panel');
+    if(!panel||$('#aitcClinicalContributionEntry'))return;
+    const group=document.createElement('div');
+    group.id='aitcClinicalContributionEntry';
+    group.className='settings-group';
+    group.innerHTML='<strong>Đóng góp ca lâm sàng</strong><button id="aitcClinicalContributionBtn" class="btn ghost full" type="button">Bác sĩ/Y sĩ đóng góp nhãn xác nhận</button><p class="settings-note" style="margin-top:8px">Luồng độc lập, không hiển thị kết quả A.I trước khi gán nhãn. Nhãn chỉ thành gold sau khi Admin duyệt và vẫn cần hai chuyên gia độc lập + adjudication.</p>';
+    panel.appendChild(group);
+    $('#aitcClinicalContributionBtn')?.addEventListener('click',()=>{location.href='/clinical-contribute-v1.html';});
+  }
+
   const citationPattern=/\s*\[(?:TC1|DY1|MC1|AT1|PSY1)\s*,?\s*tr\.?\s*\d+\]\s*/gi;
   function cleanReferenceText(value){
     let text=String(value||'').replace(citationPattern,' ');
@@ -100,7 +111,7 @@
     $('#summaryText')?.closest('.summary-box')?.classList.add('evidence-summary');
   }
 
-  installStepper();installBottomNav();installNewCaseButton();markEvidenceFirst();observeReferenceBoundary();updateStepper();
+  installStepper();installBottomNav();installNewCaseButton();installClinicalContributionEntry();markEvidenceFirst();observeReferenceBoundary();updateStepper();
   const stateObserver=new MutationObserver(updateStepper);
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});
   document.addEventListener('change',()=>queueMicrotask(updateStepper));

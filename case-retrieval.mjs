@@ -186,7 +186,10 @@ export async function caseRetrievalRuntimeHealth(){
   if(local.ready) return {...local,mode:'local',remoteConfigured:Boolean(REMOTE_URL)};
   if(!REMOTE_URL) return {...local,mode:'disabled',remoteConfigured:false};
   const now=Date.now();
-  if(remoteHealthCache.value){\n    const ttl=remoteHealthCache.value.ready?30_000:3_000;\n    if(now-remoteHealthCache.at<ttl) return remoteHealthCache.value;\n  }
+  if(remoteHealthCache.value){
+    const ttl=remoteHealthCache.value.ready?30_000:3_000;
+    if(now-remoteHealthCache.at<ttl) return remoteHealthCache.value;
+  }
   try{
     const data=await remoteFetchJson('/health',{method:'GET',headers:{}});
     const value={

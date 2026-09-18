@@ -6,6 +6,7 @@
     "#case-retrieval": "./cloudflare/case-retrieval-remote.mjs"
   },
   "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

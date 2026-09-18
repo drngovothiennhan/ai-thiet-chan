@@ -1,9 +1,7 @@
 name: Cloudflare Refresh Claim
 
 on:
-  push:
-    branches:
-      - cloudflare-rebuild-v1
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -204,7 +204,14 @@ begin
   from public.ai_thiet_chan_gold_annotations_v1
   where sample_id=p_sample_id and annotation_id=any(p_source_annotation_ids);
   if v_distinct < 2 then raise exception 'two_independent_annotators_required'; end if;
+  if exists(
+    select 1 from public.ai_thiet_chan_gold_annotations_v1
+    where sample_id=p_sample_id and annotation_id=any(p_source_annotation_ids) and annotator_hash=p_adjudicator_hash
+  ) then raise exception 'adjudicator_must_be_independent'; end if;
   if jsonb_typeof(coalesce(p_final_annotation,'null'::jsonb)) <> 'object' then raise exception 'final_annotation_required'; end if;
+  if jsonb_typeof(p_final_annotation->'tongue_present') <> 'boolean' then raise exception 'final_tongue_present_boolean_required'; end if;
+  if coalesce(p_final_annotation->>'image_quality','') not in ('usable','uncertain','reject') then raise exception 'final_image_quality_invalid'; end if;
+  if (p_final_annotation->>'tongue_present')::boolean and jsonb_typeof(p_final_annotation->'roi_mask_rle') <> 'object' then raise exception 'final_roi_mask_rle_required_when_tongue_present'; end if;
   v_sha:=encode(extensions.digest(convert_to(p_final_annotation::text,'UTF8'),'sha256'),'hex');
   insert into public.ai_thiet_chan_gold_adjudications_v1(sample_id,adjudicator_hash,source_annotation_ids,final_annotation,final_annotation_sha256)
   values(p_sample_id,p_adjudicator_hash,p_source_annotation_ids,p_final_annotation,v_sha)

@@ -32,7 +32,7 @@ function circuitInfo(model){
   if(state.openedUntil&&state.openedUntil<=Date.now()){state.openedUntil=0;state.failures=0;state.lastStatus=0;circuitState.set(model,state);}
   return state;
 }
-function circuitOpen(model){return circuitInfo(model).openedUntil>Date.now();}
+function circuitOpen(model){if(process.env.AITC_TEST_DISABLE_CIRCUIT==='1')return false;return circuitInfo(model).openedUntil>Date.now();}
 function openCircuit(model,status,ms){
   const state=circuitInfo(model);
   state.failures=Math.max(1,state.failures||0);
@@ -43,6 +43,7 @@ function openCircuit(model,status,ms){
 }
 function recordModelSuccess(model){circuitState.set(model,{failures:0,openedUntil:0,lastStatus:200});}
 function recordTransientFailure(model,status,retryAfterMs=0){
+  if(process.env.AITC_TEST_DISABLE_CIRCUIT==='1')return;
   const state=circuitInfo(model);state.failures=(state.failures||0)+1;state.lastStatus=Number(status)||0;
   if(Number(status)===429)openCircuit(model,status,Math.max(GEMINI_CIRCUIT_429_MS,retryAfterMs||0));
   else if(state.failures>=2)openCircuit(model,status,GEMINI_CIRCUIT_503_MS);

@@ -1,0 +1,35 @@
+name: Cloudflare Temporary Preview
+
+on:
+  push:
+    branches:
+      - cloudflare-rebuild-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  temporary-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install
+      - name: Verify Cloudflare scaffold
+        run: npm run check:cloudflare-scaffold
+      - name: Build temporary Cloudflare preview without account credentials
+        run: |
+          set -o pipefail
+          npx --yes wrangler@4.102.0 deploy --temporary --config wrangler.cloudflare.template.jsonc 2>&1 | tee wrangler-temporary-preview.log
+      - name: Preserve deployment output
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cloudflare-temporary-preview-output
+          path: wrangler-temporary-preview.log
+          if-no-files-found: ignore

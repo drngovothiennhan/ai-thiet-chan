@@ -21,7 +21,7 @@ assert.match(server,/Gemini chỉ phân tích KẾT QUẢ CẤU TRÚC/);
 assert.match(server,/Gemini không được xem ảnh/);
 assert.match(server,/medianSulcus \(rãnh giữa\) và fissure \(nứt\) là hai trường khác nhau/);
 assert.match(server,/legacyDarkLineSignal chỉ là tín hiệu điểm\/đường tối thô và KHÔNG đủ để kết luận nứt/);
-assert.match(server,/if morphology\.fissure\.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt/i);
+assert.match(server,/morphology\.fissure\.status=unknown thì phải nói chưa đủ căn cứ đánh giá nứt/i);
 assert.match(server,/const llmData=llmSafeAssessmentContext\(data\)/);
 assert.match(server,/Phân tích cấu trúc:/);
 

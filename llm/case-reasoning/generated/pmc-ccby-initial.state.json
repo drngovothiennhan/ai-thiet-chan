@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aitc-case-ingest-state-v1",
+  "corpusId": "AITC-LLM-Case-Reasoning-v1",
+  "sourceId": "pmc-ccby-cc0-case-reports-v1",
+  "inputPath": "llm/case-reasoning/seeds/pmc-ccby-initial.v1.json",
+  "inputSha256": "fb089a4fc7e14700a24e19e58ba06caa8427cd75ca8055628ff17e01f0c803a8",
+  "accepted": 6,
+  "rejected": {
+    "empty": 0,
+    "exactDuplicate": 0,
+    "nearDuplicate": 0
+  },
+  "outputPath": "llm/case-reasoning/generated/pmc-ccby-initial.v1.jsonl",
+  "outputSha256": "7b6eafc784853f5d3bc827aa8955edf171bd56d006d68d5ef8389573fc9c2d08",
+  "clinicalGoldOperationalRequirement": false,
+  "completedAt": "2026-09-18T07:46:01.466Z"
+}

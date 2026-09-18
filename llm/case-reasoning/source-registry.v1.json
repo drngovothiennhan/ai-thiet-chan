@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "aitc-case-source-registry-v1",
+  "corpusId": "AITC-LLM-Case-Reasoning-v1",
+  "createdAt": "2026-09-18",
+  "purpose": "Educational case-reasoning, retrieval and consultation support for A.I Thiet Chan. This corpus does not establish clinical diagnostic accuracy.",
+  "policy": {
+    "productionAvailabilityDependsOnClinicalGold": false,
+    "caseIngestionDependsOnClinicalGold": false,
+    "ragRetrievalDependsOnClinicalGold": false,
+    "educationalSftCandidateDependsOnClinicalGold": false,
+    "verifiedClinicianEvidenceRole": "optional_advisory_boost",
+    "verifiedClinicianEvidenceNote": "Doctor/physician-verified evidence may increase consultation confidence/provenance ranking later, but it is not an operational prerequisite.",
+    "visionPromotionPolicy": "unchanged_by_this_registry",
+    "noSyntheticGold": true,
+    "noImageToCloudLlm": true
+  },
+  "sources": [
+    {
+      "sourceId": "tcmchat-medical-case-sft-v1",
+      "kind": "public_sft_case_dataset",
+      "provider": "ZJUFanLab",
+      "dataset": "TCMChat-dataset-600k",
+      "datasetCard": "https://huggingface.co/datasets/ZJUFanLab/TCMChat-dataset-600k",
+      "file": "sft/train/medical_case.json",
+      "downloadUrl": "https://huggingface.co/datasets/ZJUFanLab/TCMChat-dataset-600k/resolve/main/sft/train/medical_case.json?download=true",
+      "reportedSize": "84.6 MB",
+      "sha256": "d35080e447631909c54f4018a7add449627415b1c01ac8b02eb376b6059b0e10",
+      "license": "Apache-2.0",
+      "language": [
+        "zh",
+        "en"
+      ],
+      "use": [
+        "case_reasoning_sft",
+        "retrieval",
+        "evaluation_dev"
+      ],
+      "trustTier": "open_dataset_silver",
+      "clinicalGold": false,
+      "ingestMode": "offline_download_then_normalize",
+      "notes": "Use text-only case records. Do not route images or inline media to cloud LLMs."
+    },
+    {
+      "sourceId": "pmc-ccby-cc0-case-reports-v1",
+      "kind": "open_access_case_reports",
+      "provider": "NCBI PubMed Central",
+      "discovery": "PubMed search + PMC rights verification",
+      "oaiEndpoint": "https://pmc.ncbi.nlm.nih.gov/api/oai/v1/mh/",
+      "licenseAllowlist": [
+        "CC0-1.0",
+        "CC-BY-3.0",
+        "CC-BY-4.0",
+        "CC-BY-SA-3.0",
+        "CC-BY-SA-4.0"
+      ],
+      "use": [
+        "case_reasoning_retrieval",
+        "case_structure_learning",
+        "evidence_grounding"
+      ],
+      "trustTier": "published_open_access",
+      "clinicalGold": false,
+      "ingestMode": "rights_verified_pmc_records_only",
+      "notes": "Every record must retain PMID/PMCID/DOI, license and source URL. License is checked per article before ingestion."
+    },
+    {
+      "sourceId": "aitc-verified-clinician-advisory-v1",
+      "kind": "internal_verified_clinician_evidence",
+      "provider": "A.I Thiet Chan",
+      "use": [
+        "optional_consultation_boost",
+        "future_evaluation"
+      ],
+      "trustTier": "verified_clinician_advisory",
+      "clinicalGold": true,
+      "operationalRequirement": false,
+      "trainingDefault": "off",
+      "notes": "Optional quality signal. It must not block application operation, source ingestion, retrieval or educational case-reasoning work."
+    }
+  ]
+}

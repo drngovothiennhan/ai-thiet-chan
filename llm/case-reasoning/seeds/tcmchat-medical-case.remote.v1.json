@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "aitc-remote-seed-v1",
+  "sourceId": "tcmchat-medical-case-sft-v1",
+  "createdAt": "2026-09-18",
+  "status": "registered_remote_source",
+  "dataset": "ZJUFanLab/TCMChat-dataset-600k",
+  "file": "sft/train/medical_case.json",
+  "downloadUrl": "https://huggingface.co/datasets/ZJUFanLab/TCMChat-dataset-600k/resolve/main/sft/train/medical_case.json?download=true",
+  "reportedSize": "84.6 MB",
+  "sha256": "d35080e447631909c54f4018a7add449627415b1c01ac8b02eb376b6059b0e10",
+  "license": "Apache-2.0",
+  "ingestCommand": "node scripts/case-reasoning-ingest.mjs --source-id tcmchat-medical-case-sft-v1 --input medical_case.json --output llm/case-reasoning/generated/tcmchat-medical-case.v1.jsonl --state llm/case-reasoning/generated/tcmchat-medical-case.state.json",
+  "note": "The 84.6 MB upstream file is intentionally not vendored into Git. The importer verifies the pinned SHA-256 before normalization."
+}

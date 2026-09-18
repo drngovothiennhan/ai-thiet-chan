@@ -38,6 +38,18 @@ small{display:block;color:#666;margin-top:6px}.hidden{display:none!important}
     <label><input id="present" type="checkbox" checked> Có lưỡi trong ảnh</label>
     <label>Chất lượng <select id="quality"><option value="usable">usable</option><option value="uncertain">uncertain</option><option value="reject">reject</option></select></label>
   </div>
+  <div id="morphologyFields">
+    <h3>Adjudication hình thái</h3>
+    <small>Rãnh giữa và nứt được quyết định riêng. Không gán độ sâu nứt từ ảnh 2D.</small>
+    <div class="row">
+      <label>Rãnh giữa <select id="medianSulcus"><option value="uncertain">Không chắc</option><option value="none">Không rõ/không thấy</option><option value="mild">Nhẹ</option><option value="prominent">Rõ</option><option value="not_visible">Không quan sát được</option></select></label>
+      <label>Nứt nhìn thấy <select id="fissureStatus"><option value="uncertain">Không chắc</option><option value="absent">Không thấy</option><option value="possible">Có thể</option><option value="present">Có</option></select></label>
+      <label>Phân nhánh <select id="fissureBranching"><option value="uncertain">Không chắc</option><option value="not_applicable">Không áp dụng</option><option value="absent">Không</option><option value="present">Có</option></select></label>
+      <label>Kiểu nứt <select id="fissurePattern"><option value="uncertain">Không chắc</option><option value="not_applicable">Không áp dụng</option><option value="midline_only">Chỉ dọc giữa</option><option value="branched">Phân nhánh</option><option value="multiple">Nhiều rãnh</option><option value="network">Dạng mạng</option><option value="other">Khác</option></select></label>
+      <label>Dấu răng <select id="toothmarks"><option value="uncertain">Không chắc</option><option value="absent">Không thấy</option><option value="present">Có</option></select></label>
+      <label>Hình thể thân lưỡi <select id="bodyShape"><option value="uncertain">Không chắc</option><option value="normal">Bình thường</option><option value="swollen">Bệu/to</option><option value="thin">Gầy/mỏng</option></select></label>
+    </div>
+  </div>
   <label>Ghi chú<textarea id="notes" placeholder="Chỉ ghi lý do liên quan ranh giới ROI/chất lượng ảnh; không chẩn đoán."></textarea></label>
   <div class="row"><button id="submit" type="button">Gửi nhãn bất biến</button><button id="reload" class="secondary" type="button">Tải lại nhiệm vụ</button></div>
   <small id="blind"></small>
@@ -97,12 +109,13 @@ async function showSources(task){
     var title=document.createElement('strong');title.textContent='Nhãn độc lập '+(i+1);
     var c=document.createElement('canvas');c.width=W;c.height=H;
     var meta=document.createElement('small'),ann=(src[i]&&src[i].annotation)||{};
-    meta.textContent='tongue_present='+String(ann.tongue_present)+' · quality='+(ann.image_quality||'unknown');
+    var fm=(ann.morphology&&ann.morphology.fissure)||{},mm=(ann.morphology&&ann.morphology.medianSulcus)||{};
+    meta.textContent='tongue_present='+String(ann.tongue_present)+' · quality='+(ann.image_quality||'unknown')+' · rãnh giữa='+(mm.prominence||'unknown')+' · nứt='+(fm.visualStatus||'unknown')+' · branching='+(fm.branching||'unknown');
     wrap.append(title,c,meta);box.append(wrap);await loadImage(task.image.top,c,decodeRle(ann.roi_mask_rle));
   }
 }
 async function renderTask(task){
-  current=task;mask=new Uint8Array(W*H);renderMask();$('notes').value='';$('present').checked=true;$('quality').value='usable';
+  current=task;mask=new Uint8Array(W*H);renderMask();$('notes').value='';$('present').checked=true;$('quality').value='usable';$('medianSulcus').value='uncertain';$('fissureStatus').value='uncertain';$('fissureBranching').value='uncertain';$('fissurePattern').value='uncertain';$('toothmarks').value='uncertain';$('bodyShape').value='uncertain';
   $('task').classList.remove('hidden');$('done').classList.add('hidden');
   $('role').textContent=task.role==='adjudication'?'Adjudicator độc lập':'Chuyên gia gán nhãn độc lập';
   var p=task.progress||{};$('progress').textContent=task.role==='adjudication'?String(p.done||0)+'/'+String(p.eligible||0):String(p.done||0)+'/'+String(p.total||0);
@@ -125,7 +138,14 @@ async function submit(){
   if(!(current&&current.blind_id))return;
   var present=$('present').checked,quality=$('quality').value;
   if(present&&countMask()===0){alert('Có lưỡi nhưng mask đang rỗng. Tô ROI hoặc bỏ chọn “Có lưỡi trong ảnh”.');return}
-  var annotation={tongue_present:present,roi_mask_rle:present?encodeRle():null,image_quality:quality,notes:$('notes').value.trim()||null,coordinate_space:{width:W,height:H,order:'row-major'}};
+  var morphology=present?{
+    schemaVersion:'tongue-morphology-label-v1',
+    medianSulcus:{prominence:$('medianSulcus').value},
+    fissure:{visualStatus:$('fissureStatus').value,branching:$('fissureBranching').value,pattern:$('fissurePattern').value,depth:'not_collected_from_2d'},
+    toothmarks:{status:$('toothmarks').value},
+    bodyShape:{status:$('bodyShape').value}
+  }:null;
+  var annotation={tongue_present:present,roi_mask_rle:present?encodeRle():null,image_quality:quality,morphology:morphology,notes:$('notes').value.trim()||null,coordinate_space:{width:W,height:H,order:'row-major'}};
   $('submit').disabled=true;badge('ĐANG GỬI','warn');
   try{await rpc('ai_thiet_chan_gold_reviewer_submit_v1',{p_token:sessionToken,p_blind_id:current.blind_id,p_annotation:annotation});badge('ĐÃ LƯU','ok');await next()}
   catch(e){badge('LỖI','bad');alert(e.message)}finally{$('submit').disabled=false}

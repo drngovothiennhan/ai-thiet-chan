@@ -13,7 +13,8 @@ globalThis.fetch=async input=>{
   if(mode==='fallback-success'&&/gemini-3\.6-flash/.test(url)){
     return new Response(JSON.stringify({candidates:[{content:{role:'model',parts:[{text:'fallback model response'}]},finishReason:'STOP'}]}),{status:200,headers:{'content-type':'application/json'}});
   }
-  const status=/gemini-3\.8-flash/.test(url)?503:429;
+  const isPrimary=/gemini-3\.8-flash/.test(url);
+  const status=transientProfile==='timeout'?(isPrimary?504:429):transientProfile==='rate-limit'?(isPrimary?429:504):(isPrimary?503:429);
   return new Response(JSON.stringify({error:{code:status,status:status===429?'RESOURCE_EXHAUSTED':'UNAVAILABLE',message:'high demand'}}),{status,headers:{'content-type':'application/json'}});
 };
 

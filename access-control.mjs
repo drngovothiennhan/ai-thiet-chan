@@ -82,16 +82,31 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     }
   }
 
+  function studentSessionError(kind){
+    const invalid=kind==='invalid';
+    const error=new Error(invalid?'Phiên đăng nhập sinh viên không còn hợp lệ. Vui lòng đăng nhập lại.':'Chưa xác minh được phiên sinh viên. Vui lòng thử lại.');
+    error.status=invalid?401:503;
+    error.code=invalid?'STUDENT_SESSION_INVALID':'STUDENT_SESSION_UNAVAILABLE';
+    return error;
+  }
+
   async function resolveStudent(req){
     if(req.adminAccess){return null;}
     const token=bearerToken(req);
+    req.studentAccessError=null;
     if(!token){req.studentAccess=null;return null;}
     try{
       const data=await rpc('ai_thiet_chan_student_verify_v1',{p_token:token});
-      req.studentAccess=data?.role==='student'?data:null;
+      if(data?.role!=='student'){
+        req.studentAccess=null;
+        req.studentAccessError='invalid';
+        return null;
+      }
+      req.studentAccess=data;
       return req.studentAccess;
-    }catch{
+    }catch(err){
       req.studentAccess=null;
+      req.studentAccessError=/invalid_session/i.test(String(err?.message||''))?'invalid':'unavailable';
       return null;
     }
   }
@@ -110,6 +125,7 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
     try{
       if(req.adminAccess?.role==='admin') return res.json({role:'admin',unlimited:true});
       if(req.studentAccess?.role==='student') return res.json(req.studentAccess);
+      if(bearerToken(req)) throw studentSessionError(req.studentAccessError==='invalid'?'invalid':'unavailable');
       const quota=await rpc('ai_thiet_chan_guest_status_v1',{p_guest_key:guestKey(req)});
       return res.json(quota);
     }catch(err){
@@ -156,6 +172,7 @@ export function installAccessControl(app,{supabaseUrl,supabaseKey,requestIdentit
   async function consumeCaseAccess(req){
     if(req.adminAccess?.role==='admin') return {ok:true,role:'admin',unlimited:true};
     if(req.studentAccess?.role==='student') return {ok:true,role:'student',unlimited:true};
+    if(bearerToken(req)) throw studentSessionError(req.studentAccessError==='invalid'?'invalid':'unavailable');
     const key=guestKey(req);
     const quota=await rpc('ai_thiet_chan_guest_status_v1',{p_guest_key:key});
     const remaining=Number(quota?.remaining);

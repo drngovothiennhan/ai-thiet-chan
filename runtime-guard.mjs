@@ -226,7 +226,34 @@ async function timedFetch(input,init,url,timeoutMs){
     throw err;
   }finally{clearTimeout(timer);}
 }
-const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const sleep=ms=>ms>0?new Promise(resolve=>setTimeout(resolve,ms)):Promise.resolve();
+function textMessagesForGateway(payload={}){
+  const messages=[];
+  for(const content of Array.isArray(payload.contents)?payload.contents:[]){
+    const text=(Array.isArray(content?.parts)?content.parts:[]).map(part=>typeof part?.text==='string'?part.text:'').filter(Boolean).join('\n');
+    if(!text)continue;
+    messages.push({role:content?.role==='model'?'assistant':'user',content:text});
+  }
+  return messages;
+}
+async function gatewayFallbackResponse(payload,startedAt){
+  if(!gatewayAvailable())return null;
+  const credential=gatewayCredential(),messages=textMessagesForGateway(payload);if(!messages.length)return null;
+  const remaining=Math.max(0,GEMINI_TOTAL_BUDGET_MS-(Date.now()-startedAt));if(remaining<1000)return null;
+  const timeout=Math.min(AI_GATEWAY_TIMEOUT_MS,remaining),gatewayStarted=Date.now();
+  try{
+    const response=await timedFetch('https://ai-gateway.vercel.sh/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+credential},body:JSON.stringify({model:AI_GATEWAY_PRIMARY_MODEL,messages,stream:false,temperature:Number(payload?.generationConfig?.temperature??0.15),max_tokens:1600})},'https://ai-gateway.vercel.sh/v1/chat/completions',timeout);
+    const elapsedMs=Date.now()-gatewayStarted,data=await response.json().catch(()=>({}));
+    if(!response.ok){console.warn('ai_gateway_failure',JSON.stringify({status:response.status,model:AI_GATEWAY_PRIMARY_MODEL,elapsedMs,message:String(data?.error?.message||'').slice(0,220)}));return null;}
+    const text=String(data?.choices?.[0]?.message?.content||'').trim();if(!text)return null;
+    const usedModel=String(data?.model||AI_GATEWAY_PRIMARY_MODEL).slice(0,120);
+    console.info('ai_gateway_fallback_complete',JSON.stringify({model:usedModel,status:response.status,elapsedMs,totalMs:Date.now()-startedAt}));
+    return new Response(JSON.stringify({candidates:[{content:{role:'model',parts:[{text}]},finishReason:'STOP'}],gatewayFallback:{active:true,model:usedModel,elapsedMs}}),{status:200,headers:{'content-type':'application/json','x-ai-fallback':'vercel-ai-gateway','x-ai-gateway-model':usedModel,'x-ai-upstream-ms':String(elapsedMs)}});
+  }catch(err){
+    console.warn('ai_gateway_transport_failure',JSON.stringify({model:AI_GATEWAY_PRIMARY_MODEL,error:err?.message||String(err),elapsedMs:Date.now()-gatewayStarted,totalMs:Date.now()-startedAt}));
+    return null;
+  }
+}
 async function geminiResilientFetch(input,init,url){
   const startedAt=Date.now();
   const payload=requestPayload(init);

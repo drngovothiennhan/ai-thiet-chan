@@ -1,6 +1,6 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
 // Previous cache marker retained for regression compatibility: ai-thiet-chan-v2.9.15-rollback-mobile-layout
-// Spatial vision generation marker: 2026.09.19-vision-mentor-r2
+// Spatial vision generation marker: 2026.09.19-vision-mentor-r2-data1
 let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';
@@ -15,7 +15,7 @@ const OPTIONAL_SHELL=[
   '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
   '/book-fallback.js','/benchmark-telemetry.js','/admin-enhancement-collapse.js',
   '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
-  '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
+  '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-atlas-thiet-chan-1.js','/academic-atlas-thiet-chan-2.js','/academic-atlas-thiet-chan-3.js','/academic-atlas-thiet-chan-4.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
 ];
 const NAV_TIMEOUT_MS=2500;
 

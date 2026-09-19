@@ -11,7 +11,8 @@ export const TONGUE_ONTOLOGY_V1 = Object.freeze([
   {id:'surface.texture',label:'Kết cấu bề mặt',aliases:['kết cấu','texture','bề mặt']},
   {id:'surface.fissure',label:'Rãnh/nứt',aliases:['nứt','rãnh nứt','fissure','crack','cracked tongue','rãnh giữa','median sulcus']},
   {id:'surface.toothmarks',label:'Dấu răng',aliases:['dấu răng','hằn răng','tooth marks','tooth-marked']},
-  {id:'surface.spots',label:'Điểm/gai/ban',aliases:['điểm đỏ','gai đỏ','ban','ứ điểm','ecchymosis','red dots','spots']},
+  {id:'surface.spots',label:'Điểm/gai đỏ',aliases:['điểm đỏ','gai đỏ','red dots','prickles','spots']},
+  {id:'surface.stasis_spots',label:'Ứng viên điểm ứ/ban ứ sẫm tím',aliases:['điểm ứ','ứ điểm','ban ứ','ecchymosis','petechiae','tím sẫm','mảng tím','stasis spot','stasis patch']},
   {id:'coating.core',label:'Rêu lưỡi',aliases:['rêu lưỡi','tongue coating','fur']},
   {id:'coating.color',label:'Màu rêu',aliases:['rêu trắng','rêu vàng','rêu xám','rêu đen','coating color']},
   {id:'coating.segmentation',label:'Phân đoạn rêu',aliases:['phân đoạn rêu','coating segmentation','vùng rêu']},
@@ -21,6 +22,7 @@ export const TONGUE_ONTOLOGY_V1 = Object.freeze([
   {id:'coating.biologic_basis',label:'Cơ sở sinh học rêu',aliases:['biểu mô bong','vi khuẩn miệng','nước bọt','saliva','oral bacteria']},
   {id:'coating.peeling',label:'Rêu bong/tróc',aliases:['bong rêu','tróc rêu','peeling coating','geographic']},
   {id:'sublingual.veins',label:'Tĩnh mạch dưới lưỡi',aliases:['tĩnh mạch dưới lưỡi','mạch dưới lưỡi','sublingual veins','varices','giãn tĩnh mạch']},
+  {id:'sublingual.color',label:'Màu mạch dưới lưỡi',aliases:['màu mạch dưới lưỡi','xanh tím','tím đỏ','tím sẫm','sublingual vein color','vein color']},
   {id:'vision.segmentation',label:'Phân đoạn thân lưỡi',aliases:['phân đoạn','segmentation','tongue segmentation']},
   {id:'vision.pipeline',label:'Pipeline thị giác',aliases:['tiền xử lý','phát hiện','phân đoạn','trích đặc trưng','phân loại','pipeline','feature extraction']},
   {id:'dataset.annotation',label:'Nhãn chuyên gia',aliases:['annotation','nhãn chuyên gia','gold label','adjudication']},
@@ -55,7 +57,7 @@ export function ontologyTokensForQuery(query){
 }
 
 export const TONGUE_ONTOLOGY_MANIFEST = Object.freeze({
-  id:'aitc-tongue-ontology-v3',
+  id:'aitc-tongue-ontology-v4',
   nodeCount:TONGUE_ONTOLOGY_V1.length,
   principle:'Observation -> standardized feature -> evidence/limitation -> conditional YHCT interpretation; disease-specific papers remain association-only.',
   imageAuthority:'Local Vision',

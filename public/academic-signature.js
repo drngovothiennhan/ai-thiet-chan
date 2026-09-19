@@ -1,5 +1,9 @@
 import {ATLAS_A} from './academic-atlas-a.js';
 import {ATLAS_B} from './academic-atlas-b.js';
+import {THIET_CHAN_USER_ATLAS_1} from './academic-atlas-thiet-chan-1.js';
+import {THIET_CHAN_USER_ATLAS_2} from './academic-atlas-thiet-chan-2.js';
+import {THIET_CHAN_USER_ATLAS_3} from './academic-atlas-thiet-chan-3.js';
+import {THIET_CHAN_USER_ATLAS_4} from './academic-atlas-thiet-chan-4.js';
 import {ACADEMIC_PAGE_SECTIONS,ACADEMIC_PAGE_VECTOR_KEYS,ACADEMIC_PAGE_CORPUS} from './academic-page-meta.js';
 import {ACADEMIC_PAGE_ATLAS_1} from './academic-page-atlas-1.js';
 import {ACADEMIC_PAGE_ATLAS_2} from './academic-page-atlas-2.js';
@@ -17,7 +21,8 @@ function pageRecord(row){
 }
 export const PAGE_CORPUS=PAGE_ROWS.map(pageRecord);
 export const PAGE_ATLAS=PAGE_CORPUS.filter(r=>r.d);
-export const ATLAS=[...ATLAS_A,...ATLAS_B,...PAGE_ATLAS];
+export const THIET_CHAN_USER_ATLAS=[...THIET_CHAN_USER_ATLAS_1,...THIET_CHAN_USER_ATLAS_2,...THIET_CHAN_USER_ATLAS_3,...THIET_CHAN_USER_ATLAS_4];
+export const ATLAS=[...ATLAS_A,...ATLAS_B,...THIET_CHAN_USER_ATLAS,...PAGE_ATLAS];
 export {ACADEMIC_PAGE_CORPUS};
 
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});}

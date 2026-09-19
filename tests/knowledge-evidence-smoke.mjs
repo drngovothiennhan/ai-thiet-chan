@@ -8,15 +8,15 @@ import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontol
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-20.6doc+oa23-surface-phenotype-v3');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,29);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-20.6doc+oa28-stasis-ventral-topography-v4');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,34);
 assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
-assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,23);
-assert.equal(OPEN_ACCESS_POLICY.sourceCount,23);
+assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,28);
+assert.equal(OPEN_ACCESS_POLICY.sourceCount,28);
 assert.equal(OPEN_ACCESS_POLICY.fullTextVendored,false);
 assert.ok(TONGUE_ONTOLOGY_V1.length>=25);
-assert.equal(TONGUE_ONTOLOGY_MANIFEST.id,'aitc-tongue-ontology-v3');
-for(const id of ['OA01-E01','OA05-E01','OA08-E01','OA12-E01','OA16-E04','OA17-E02','OA18-E02','OA19-E01','OA20-E01','OA21-E01','OA22-E01','OA23-E01']) assert.ok(OPEN_ACCESS_EVIDENCE.some(e=>e.id===id),`open-access evidence missing id: ${id}`);
+assert.equal(TONGUE_ONTOLOGY_MANIFEST.id,'aitc-tongue-ontology-v4');
+for(const id of ['OA01-E01','OA05-E01','OA08-E01','OA12-E01','OA16-E04','OA17-E02','OA18-E02','OA19-E01','OA20-E01','OA21-E01','OA22-E01','OA23-E01','OA24-E01','OA25-E01','OA26-E01','OA27-E01','OA28-E01']) assert.ok(OPEN_ACCESS_EVIDENCE.some(e=>e.id===id),`open-access evidence missing id: ${id}`);
 for(const title of ['Thiệt chẩn hoàn chỉnh','Đông y chẩn đoán bệnh trên lưỡi','Chẩn đoán bằng mạch chẩn và thiệt chẩn','Thiệt chẩn bằng hình ảnh','Tâm bệnh học']) assert.ok(KNOWLEDGE_SOURCES.some(x=>x.includes(title)),`missing knowledge source: ${title}`);
 for(const id of ['TC1-005','TC1-048','DY1-012','DY1-027']) assert.ok(TONGUE_EVIDENCE.some(e=>e.id===id),`base evidence corpus missing id: ${id}`);
 for(const id of ['MC1-077','MC1-083','AT1-001','AT1-022','TCATLAS1-003','TCATLAS1-010','TCATLAS1-012','TCATLAS1-018','TCATLAS1-020','TCATLAS1-033','TCATLAS1-036','TCATLAS1-037','TCATLAS1-039','PSY1-014','PSY1-044']) assert.ok(EXTENDED_EVIDENCE.some(e=>e.id===id),`extended evidence corpus missing id: ${id}`);
@@ -52,6 +52,16 @@ const texture=knowledgeForQuery('tính chất rêu nhầy nhớt vữa hủ thô
 assert.ok(texture.includes('[OA22, PMID 36212950]'),'coating texture retrieval should surface multi-label evidence');
 assert.ok(texture.includes('[OA23, PMID 34896205]'),'coating texture retrieval should surface greasy-coating evidence');
 assert.ok(texture.includes('dính chặt')||texture.includes('dễ cạo'),'coating texture knowledge must state static-image manipulation limits');
+const stasis=knowledgeForQuery('ban ứ điểm ứ sẫm tím ecchymosis huyết ứ và vị trí trên lưỡi',{limit:18});
+assert.ok(stasis.includes('[OA24, PMID 38083193]'),'stasis retrieval should surface ecchymosis segmentation evidence');
+assert.ok(stasis.includes('[OA25, PMID 36185091]'),'stasis/spot retrieval should surface region-aware blob evidence');
+assert.ok(stasis.includes('[OA28, PMID 35392642]'),'stasis retrieval should surface multi-feature expert-consensus evidence');
+assert.ok(stasis.includes('không')&&/huyết ứ|chẩn đoán/i.test(stasis),'stasis evidence must retain non-diagnostic guardrails');
+const veinColor=knowledgeForQuery('màu mạch tĩnh mạch dưới lưỡi xanh tím tím đỏ tím sẫm',{limit:18});
+assert.ok(veinColor.includes('[OA26, PMID 38083316]'),'sublingual color retrieval should surface segmentation/color-analysis evidence');
+assert.ok(veinColor.includes('[OA27, PMID 12088588]'),'sublingual color retrieval should surface chromatic-feature evidence');
+assert.ok(veinColor.includes('[OA28, PMID 35392642]'),'sublingual color retrieval should surface blood-stasis association limits');
+assert.ok(veinColor.includes('không đủ')||veinColor.includes('không được'),'vessel color must not become varices/stasis diagnosis');
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
-console.log('KNOWLEDGE EVIDENCE SMOKE PASS: user sources plus OA23 surface-phenotype evidence are grounded; toothmark, shape and coating-texture retrieval carry explicit observation limits.');
+console.log('KNOWLEDGE EVIDENCE SMOKE PASS: OA28 corpus grounds surface phenotype, ecchymosis, sublingual color and TCM topography while preserving non-diagnostic limits.');

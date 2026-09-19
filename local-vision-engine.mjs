@@ -72,6 +72,9 @@ function topObservation(signature,qc,matches){
   const best=Array.isArray(matches)&&matches.length?matches[0]:null;
   const morphology=buildTongueMorphology(signature,qc);
   const spatialPolicy=interpretSpatialObservation(signature?.spatial||{},qc);
+  const tongueColor=spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN);
+  const coatingColor=spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN);
+  const coatingThickness=spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN);
   const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
@@ -89,10 +92,10 @@ function topObservation(signature,qc,matches){
       occlusion:'unknown',
       colorReliability:colorReliability(qc)
     },
-    tongueColor:c.tongue||UNKNOWN,
+    tongueColor,
     shape:UNKNOWN,
-    coatingColor:c.coat||UNKNOWN,
-    coatingThickness:c.thick||UNKNOWN,
+    coatingColor,
+    coatingThickness,
     coatingDistribution,
     coatingTexture:UNKNOWN,
     moisture:UNKNOWN,
@@ -108,31 +111,42 @@ function topObservation(signature,qc,matches){
     ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
     confidence,
-    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+(c.tongue||UNKNOWN)+', rêu '+(c.coat||UNKNOWN)+' '+(c.thick||UNKNOWN)+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
+    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+tongueColor+', rêu '+coatingColor+' '+coatingThickness+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
     limitations
   };
 }
 function bottomObservation(verification,qc){
   const f=verification?.deviceCompute?.bottomFeatures||null;
   const verified=Boolean(verification?.deviceCompute?.bottomVerified);
+  const bilateral=Boolean(verified&&grade(qc)!=='poor'&&f?.bilateralSignal===true);
   const confidence=verified?Number(Math.min(.45,grade(qc)==='good'?.42:grade(qc)==='fair'?.30:.16).toFixed(3)):.12;
   const notes=[];
-  if(f)notes.push('Đặc trưng định lượng mặt dưới: vesselCandidateRatio='+f.vesselCandidateRatio+', darkPurpleRatio='+f.darkPurpleRatio+', meanCentralLuminance='+f.meanCentralLuminance+'.');
+  if(bilateral)notes.push('Ghi nhận tín hiệu cấu trúc mạch dưới lưỡi hai bên theo tương phản cục bộ; đây là quan sát hình ảnh, không phải kết luận ứ trệ hay giãn mạch.');
+  if(f)notes.push('Đặc trưng định lượng mặt dưới: vesselCandidateRatio='+f.vesselCandidateRatio+', darkPurpleRatio='+f.darkPurpleRatio+', bilateralBalance='+(f.bilateralBalance??'n/a')+'.');
   return {
     quality:grade(qc),
     visualValidity:{
-      undersideVisible:verified?null:false,
-      vesselsVisible:null,
+      undersideVisible:bilateral?true:(verified?null:false),
+      vesselsVisible:bilateral?true:null,
       framing:framing(qc),
       occlusion:'unknown',
       colorReliability:colorReliability(qc)
     },
     undersideColor:UNKNOWN,
-    vessels:{visible:false,color:UNKNOWN,prominence:UNKNOWN,dilation:UNKNOWN,tortuosity:UNKNOWN,stasisSigns:UNKNOWN,measurement:'Chỉ mô tả định tính khi có mô hình quan sát đã được kiểm định và chuẩn kích thước phù hợp.'},
+    vessels:{
+      visible:bilateral,
+      color:UNKNOWN,
+      prominence:UNKNOWN,
+      dilation:UNKNOWN,
+      tortuosity:UNKNOWN,
+      stasisSigns:UNKNOWN,
+      bilateralSignal:bilateral,
+      measurement:'Chỉ mô tả cấu trúc nhìn thấy; không suy diễn kích thước, giãn, ngoằn ngoèo hoặc ứ trệ khi chưa có mô hình/chuẩn đo phù hợp.'
+    },
     otherVisibleFeatures:notes,
     confidence,
-    summary:verified?'Đã xác minh ảnh mặt dưới và trích xuất đặc trưng định lượng; chưa ánh xạ sang kết luận hình thái khi chưa có mô hình chuyên biệt.':'Chưa xác minh được đầy đủ payload mặt dưới.',
-    limitations:['Không suy diễn đặc điểm mạch dưới lưỡi từ đặc trưng số khi chưa có bộ phân loại đã được kiểm định.']
+    summary:bilateral?'Ảnh mặt dưới đã xác minh; ghi nhận tín hiệu cấu trúc mạch hai bên, chưa suy diễn dấu bệnh lý.':verified?'Đã xác minh ảnh mặt dưới và trích xuất đặc trưng định lượng; chưa đủ tín hiệu chuyên biệt để mô tả mạch.':'Chưa xác minh được đầy đủ payload mặt dưới.',
+    limitations:['Quan sát mặt dưới chỉ dùng cho đặc trưng nhìn thấy; không quy đổi trực tiếp thành chẩn đoán YHCT, giãn mạch hay ứ trệ.']
   };
 }
 export function analyzeLocalVision(body={},options={}){

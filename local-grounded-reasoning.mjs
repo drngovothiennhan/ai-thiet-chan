@@ -63,6 +63,38 @@ function surfacePhenotypeText(top={}){
   };
   return 'dấu răng '+render(node('toothmarks'))+'; hình thể '+render(node('shape'))+'; kết cấu rêu '+render(node('coatingTexture'));
 }
+function stasisObservationText(top={}){
+  const obs=top.stasisSpotObservation&&typeof top.stasisSpotObservation==='object'?top.stasisSpotObservation:{};
+  const small=obs.smallSpots&&typeof obs.smallSpots==='object'?obs.smallSpots:{};
+  const patches=obs.patches&&typeof obs.patches==='object'?obs.patches:{};
+  const m=obs.metrics&&typeof obs.metrics==='object'?obs.metrics:{};
+  const parts=[];
+  if(small.status==='possible')parts.push(text(small.label)||'ứng viên điểm ứ');
+  if(patches.status==='possible')parts.push(text(patches.label)||'ứng viên ban ứ');
+  if(!parts.length)parts.push('ban/điểm ứ '+(text(top.stasisMarks)||UNKNOWN));
+  if(Number.isFinite(Number(m.componentCount)))parts.push('thành phần='+Math.max(0,Math.round(Number(m.componentCount))));
+  if(Number.isFinite(Number(m.acceptedAreaRatio)))parts.push('diện tích ứng viên='+Math.round(Math.max(0,Math.min(1,Number(m.acceptedAreaRatio)))*1000)/10+'% ROI');
+  if(Number.isFinite(Number(m.meanPurpleDelta)))parts.push('chênh sắc tím tương đối='+Number(m.meanPurpleDelta).toFixed(3));
+  if(Number.isFinite(Number(m.meanDarkContrast)))parts.push('tương phản tối tương đối='+Number(m.meanDarkContrast).toFixed(3));
+  return parts.join('; ');
+}
+function regionalYhctText(combined={},top={}){
+  const edu=combined.educationalSuggestions&&typeof combined.educationalSuggestions==='object'?combined.educationalSuggestions:{};
+  const hints=Array.isArray(edu.regionalHints)?edu.regionalHints:(Array.isArray(top.tongueTopography)?top.tongueTopography:[]);
+  if(!hints.length)return '';
+  const rows=hints.slice(0,4).map(x=>{
+    const region=text(x.regionLabel)||text(x.region)||'vùng lưỡi';
+    const zangFu=Array.isArray(x.zangFu)?x.zangFu.map(text).filter(Boolean).join('–'):'';
+    return zangFu?region+' ↔ '+zangFu:region;
+  });
+  return 'Đối chiếu đồ hình YHCT: '+rows.join('; ')+'. Đây là bản đồ lý luận, không phải ranh giới giải phẫu hay chẩn đoán bệnh tạng phủ.';
+}
+function syndromeSuggestionText(combined={}){
+  const edu=combined.educationalSuggestions&&typeof combined.educationalSuggestions==='object'?combined.educationalSuggestions:{};
+  const hints=Array.isArray(edu.syndromeHints)?edu.syndromeHints:[];
+  if(!hints.length)return 'Gợi ý thể/chứng YHCT: chưa đủ lớp bằng chứng để nâng mức gợi ý.';
+  return 'Gợi ý thể/chứng YHCT — không thay thế chẩn đoán lâm sàng: '+hints.slice(0,4).map(x=>text(x.label)).filter(Boolean).join(' | ')+'.';
+}
 function topObservation(top={}){
   return [
     `chất lưỡi ${text(top.tongueColor)||UNKNOWN}`,
@@ -72,15 +104,24 @@ function topObservation(top={}){
     morphologyText(top),
     `dấu răng ${text(top.toothmarks)||UNKNOWN}`,
     `điểm/gai ${text(top.pricklesSpots)||UNKNOWN}`,
-    `dấu ứ ${text(top.stasisMarks)||UNKNOWN}`
+    `dấu ứ ${text(top.stasisMarks)||UNKNOWN}`,
+    `chỉ số ban/điểm ứ: ${stasisObservationText(top)}`
   ].join('; ');
 }
 function bottomObservation(bottom={}){
   const vessels=bottom.vessels&&typeof bottom.vessels==='object'?bottom.vessels:{};
+  const colorObs=vessels.colorObservation&&typeof vessels.colorObservation==='object'?vessels.colorObservation:{};
+  const colorMetrics=colorObs.metrics&&typeof colorObs.metrics==='object'?colorObs.metrics:{};
+  const indices=[];
+  if(Number.isFinite(Number(colorObs.samplePixels)))indices.push('mẫu màu mạch='+Math.max(0,Math.round(Number(colorObs.samplePixels))));
+  if(Number.isFinite(Number(colorMetrics.bluePurpleRatio)))indices.push('xanh-tím='+Math.round(Math.max(0,Math.min(1,Number(colorMetrics.bluePurpleRatio)))*100)+'%');
+  if(Number.isFinite(Number(colorMetrics.redPurpleRatio)))indices.push('tím-đỏ='+Math.round(Math.max(0,Math.min(1,Number(colorMetrics.redPurpleRatio)))*100)+'%');
+  if(Number.isFinite(Number(colorMetrics.darkPurpleRatio)))indices.push('tím sẫm='+Math.round(Math.max(0,Math.min(1,Number(colorMetrics.darkPurpleRatio)))*100)+'%');
   return [
     `màu mặt dưới ${text(bottom.undersideColor)||UNKNOWN}`,
     `mạch nhìn thấy: ${vessels.visible===true?'có':vessels.visible===false?'chưa xác nhận':'chưa xác định'}`,
     `màu mạch ${text(vessels.color)||UNKNOWN}`,
+    ...(indices.length?[`chỉ số màu kỹ thuật: ${indices.join(', ')}`]:[]),
     `mức nổi ${text(vessels.prominence)||UNKNOWN}`,
     `giãn ${text(vessels.dilation)||UNKNOWN}`,
     `uốn lượn ${text(vessels.tortuosity)||UNKNOWN}`
@@ -145,8 +186,11 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const sources=sourceEvidence(assessment,knowledgeText,4);
   const reply=[];
 
-  if(/dau rang|han rang|tooth ?mark|scallop/.test(q)){
-    reply.push('Thiệt tượng bờ lưỡi: '+surfacePhenotypeText(top)+'.');
+  if(/ban u|diem u|u diem|ecchymosis|petechiae|huyet u|blood stasis/.test(q)){
+    reply.push('Thiệt tượng ban/điểm ứ: '+stasisObservationText(top)+'.');
+    reply.push('Detector tách ứng viên sẫm-tím khỏi tín hiệu đỏ/gai và định vị theo vùng tương đối; đây là chỉ số kỹ thuật, không phải ngưỡng lâm sàng.');
+    const regional=regionalYhctText(combined,top);if(regional)reply.push(regional);
+  }else if(/dau rang|han rang|tooth ?mark|scallop/.test(q)){    reply.push('Thiệt tượng bờ lưỡi: '+surfacePhenotypeText(top)+'.');
     reply.push('Dấu răng chỉ được diễn giải khi Local Vision thấy các lõm lặp lại ở bờ lưỡi sau QC; dấu này không tự đồng nghĩa Tỳ hư hay bất kỳ thể bệnh nào.');
     if(top?.surfacePhenotype?.toothmarks?.status==='unknown')reply.push('Tín hiệu bờ lưỡi hiện chưa đạt gate; giữ Không xác định.');
   }else if(/beu|map|to|gay|mong|hinh the|swollen|bulgy|thin tongue|shape/.test(q)){
@@ -176,6 +220,8 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   }
 
   if(text(combined.summary))reply.push('Tổng hợp theo dữ kiện hiện có: '+text(combined.summary));
+  const regional=regionalYhctText(combined,top);if(regional&&!reply.includes(regional))reply.push(regional);
+  reply.push(syndromeSuggestionText(combined));
   const cs=caseSummary(caseRetrieval);if(cs)reply.push(cs);
   if(limits.length)reply.push('Giới hạn: '+limits.join(' '));
   if(/nguon|tai lieu|tham khao|citation/.test(q)&&sources.length)reply.push('Nguồn đối chiếu: '+sources.join(' | '));
@@ -199,16 +245,18 @@ export function localGroundedReport({assessment,mode='normal',topQc={},bottomQc=
   const lines=[
     'BÁO CÁO THIỆT CHẨN — QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN',
     `1. Chất lượng ảnh mặt trên: ${text(top.quality)||text(topQc.grade)||'chưa xác định'}.`,
-    '2. Thiệt tượng mặt trên: '+topObservation(top)+'.'
+    '2. Thiệt tượng mặt trên: '+topObservation(top)+'.',
+    '3. '+(regionalYhctText(combined,top)||'Đối chiếu đồ hình YHCT: chưa có feature định vị đủ điều kiện.'),
+    '4. '+syndromeSuggestionText(combined)
   ];
   if(mode==='general'||bottom){
-    lines.push(`3. Chất lượng ảnh mặt dưới: ${text(bottom?.quality)||text(bottomQc.grade)||'chưa xác định'}.`);
-    lines.push('4. Thiệt tượng mặt dưới: '+(bottom?bottomObservation(bottom):'chưa đủ dữ liệu')+'.');
+    lines.push(`5. Chất lượng ảnh mặt dưới: ${text(bottom?.quality)||text(bottomQc.grade)||'chưa xác định'}.`);
+    lines.push('6. Thiệt tượng mặt dưới: '+(bottom?bottomObservation(bottom):'chưa đủ dữ liệu')+'.');
+    lines.push('7. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
+    lines.push('8. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
+  }else{
     lines.push('5. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
     lines.push('6. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
-  }else{
-    lines.push('3. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
-    lines.push('4. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
   }
   return Object.freeze({ok:true,report:lines.join('\n'),engine:LOCAL_REASONING_HEALTH.engine,grounding:'local-grounded',acceptedSignalCount:signals.length});
 }

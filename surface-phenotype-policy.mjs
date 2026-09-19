@@ -30,7 +30,7 @@ export function interpretSurfacePhenotype(features={},qc={}){
   const maxDepth=unit(finite(t.maxNotchDepthRatio)/.06);
   const notchCount=Math.max(0,Math.min(8,Math.round(finite(t.totalNotches))));
   const bilateral=Boolean(t.bilateralSignal);
-  const toothSignal=unit(maxDepth*.48+unit(notchCount/4)*.34+(bilateral?.18:0))*edgeSupport;
+  const toothSignal=unit(maxDepth*.48+unit(notchCount/4)*.34+(bilateral ? .18 : 0))*edgeSupport;
   const toothVisible=edgeSupport>=.55&&notchCount>=2&&finite(t.maxNotchDepthRatio)>=.022&&toothSignal>=.58;
   const toothmarks=Object.freeze({
     status:toothVisible?'possible':'unknown',

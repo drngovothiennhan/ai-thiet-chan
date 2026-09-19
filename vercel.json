@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "*": false,
-      "main": true
+      "main": true,
+      "preview/full-update-20260920": true
     }
   }
 }

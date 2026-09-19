@@ -7,6 +7,7 @@ export const VISUAL_MENTOR_GATE=Object.freeze({
   minimumSupportPerField:10,
   minimumMicroAgreement:.95,
   minimumMacroAgreement:.95,
+  minimumPerFieldAgreement:.95,
   requireZeroSafetyLeaks:true,
   clinicalAccuracy:false,
   interpretation:'engineering structured-observation agreement with independent mentor labels; not clinical diagnostic accuracy'
@@ -78,9 +79,11 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
   const insufficient=VISUAL_MENTOR_FIELDS.filter(field=>fields[field].support<policy.minimumSupportPerField);
   const macroAgreement=supported.length?supported.reduce((sum,field)=>sum+fields[field].agreement,0)/supported.length:null;
   const microAgreement=microSupport?microMatches/microSupport:null;
+  const lowAgreementFields=VISUAL_MENTOR_FIELDS.filter(field=>fields[field].support>=policy.minimumSupportPerField&&fields[field].agreement<policy.minimumPerFieldAgreement);
   const gates={
     minimumRows:rows.length>=policy.minimumRows,
     perFieldSupport:insufficient.length===0,
+    perFieldAgreement:lowAgreementFields.length===0,
     microAgreement:microAgreement!==null&&microAgreement>=policy.minimumMicroAgreement,
     macroAgreement:macroAgreement!==null&&macroAgreement>=policy.minimumMacroAgreement,
     failClosedSafety:policy.requireZeroSafetyLeaks?safetyLeaks===0:true
@@ -98,6 +101,7 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
     macro:{supportedFieldCount:supported.length,agreement:macroAgreement},
     fields,
     insufficientSupportFields:insufficient,
+    lowAgreementFields,
     mentorUnknownSlots,
     safetyLeaks,
     safetyLeakSamples,
@@ -106,6 +110,7 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
       minimumSupportPerField:policy.minimumSupportPerField,
       minimumMicroAgreement:policy.minimumMicroAgreement,
       minimumMacroAgreement:policy.minimumMacroAgreement,
+      minimumPerFieldAgreement:policy.minimumPerFieldAgreement,
       requireZeroSafetyLeaks:policy.requireZeroSafetyLeaks
     },
     gates,

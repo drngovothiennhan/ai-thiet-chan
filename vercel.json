@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "*": false,
-      "main": true
+      "main": true,
+      "vision/mentor-multicase-r2-20260919": true
     }
   }
 }

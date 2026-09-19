@@ -40,13 +40,23 @@ function fieldValue(obj,field){return obj&&Object.prototype.hasOwnProperty.call(
 
 export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
   if(!Array.isArray(rows)||!rows.length)throw new Error('VISUAL_MENTOR_ROWS_REQUIRED');
-  const seen=new Set();
+  const seen=new Set(),manifestDigests=new Set(),candidateVersions=new Set();
+  const SHA=/^[0-9a-f]{64}$/i;
   const fields=Object.fromEntries(VISUAL_MENTOR_FIELDS.map(field=>[field,{support:0,matches:0,mismatches:0,agreement:null}]));
   let microSupport=0,microMatches=0,safetyLeaks=0,usableRows=0,poorQcRows=0,mentorUnknownSlots=0;
   const safetyLeakSamples=[];
   for(const row of rows){
     if(row?.schemaVersion!=='aitc-visual-mentor-row-v1')throw new Error('VISUAL_MENTOR_SCHEMA_INVALID');
     if(row?.independentHoldout!==true)throw new Error('INDEPENDENT_HOLDOUT_REQUIRED');
+    if(row?.mentorLocked!==true||row?.mentorBlindToCandidate!==true)throw new Error('MENTOR_BLIND_LOCK_REQUIRED');
+    const imageSha=String(row?.imageSha256||''),groupHash=String(row?.groupHash||''),manifestSha=String(row?.holdoutManifestSha256||'');
+    if(!SHA.test(imageSha))throw new Error('IMAGE_SHA256_REQUIRED');
+    if(!SHA.test(groupHash))throw new Error('GROUP_HASH_REQUIRED');
+    if(!SHA.test(manifestSha))throw new Error('HOLDOUT_MANIFEST_SHA256_REQUIRED');
+    manifestDigests.add(manifestSha.toLowerCase());
+    const candidateVersion=String(row?.candidateVersion||'');if(!candidateVersion)throw new Error('CANDIDATE_VERSION_REQUIRED');
+    candidateVersions.add(candidateVersion);
+    const role=String(row?.role||'');if(!['dorsal','ventral'].includes(role))throw new Error('ROLE_INVALID');
     const id=String(row.sampleId||'');if(!id)throw new Error('SAMPLE_ID_REQUIRED');
     if(seen.has(id))throw new Error('DUPLICATE_SAMPLE_ID');seen.add(id);
     const mentor=row.mentor&&typeof row.mentor==='object'?row.mentor:{};
@@ -54,7 +64,9 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
     const qc=String(row?.qc?.grade||'poor');
     if(qc==='poor'){
       poorQcRows++;
-      for(const field of VISUAL_MENTOR_FIELDS){
+      if(manifestDigests.size!==1)throw new Error('MIXED_HOLDOUT_MANIFESTS');
+  if(candidateVersions.size!==1)throw new Error('MIXED_CANDIDATE_VERSIONS');
+    for(const field of VISUAL_MENTOR_FIELDS){
         const cv=fieldValue(candidate,field);
         if(known(cv)){safetyLeaks++;if(safetyLeakSamples.length<25)safetyLeakSamples.push({sampleId:id,field,reason:'candidate-known-on-poor-qc'});}
       }
@@ -95,6 +107,8 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
     metricSemantics:policy.interpretation,
     clinicalAccuracy:false,
     rowCount:rows.length,
+    holdoutManifestSha256:[...manifestDigests][0],
+    candidateVersion:[...candidateVersions][0],
     usableRows,
     poorQcRows,
     micro:{support:microSupport,matches:microMatches,agreement:microAgreement},

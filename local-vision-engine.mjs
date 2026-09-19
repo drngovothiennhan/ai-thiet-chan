@@ -1,6 +1,7 @@
 import {coarse,matchAtlas} from './public/academic-signature.js';
 import {verifyClientVisualPayload} from './academic-server.mjs';
 import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from './spatial-observation-policy.mjs';
+import {interpretVentralObservation,VENTRAL_OBSERVATION_POLICY_VERSION} from './ventral-observation-policy.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -118,7 +119,8 @@ function topObservation(signature,qc,matches){
 function bottomObservation(verification,qc){
   const f=verification?.deviceCompute?.bottomFeatures||null;
   const verified=Boolean(verification?.deviceCompute?.bottomVerified);
-  const bilateral=Boolean(verified&&grade(qc)!=='poor'&&f?.bilateralSignal===true);
+  const ventral=interpretVentralObservation(f||{},qc);
+  const bilateral=Boolean(verified&&ventral.bilateralStructureVisible===true);
   const confidence=verified?Number(Math.min(.45,grade(qc)==='good'?.42:grade(qc)==='fair'?.30:.16).toFixed(3)):.12;
   const notes=[];
   if(bilateral)notes.push('Ghi nhận tín hiệu cấu trúc mạch dưới lưỡi hai bên theo tương phản cục bộ; đây là quan sát hình ảnh, không phải kết luận ứ trệ hay giãn mạch.');
@@ -141,6 +143,7 @@ function bottomObservation(verification,qc){
       tortuosity:UNKNOWN,
       stasisSigns:UNKNOWN,
       bilateralSignal:bilateral,
+      policyVersion:VENTRAL_OBSERVATION_POLICY_VERSION,
       measurement:'Chỉ mô tả cấu trúc nhìn thấy; không suy diễn kích thước, giãn, ngoằn ngoèo hoặc ứ trệ khi chưa có mô hình/chuẩn đo phù hợp.'
     },
     otherVisibleFeatures:notes,

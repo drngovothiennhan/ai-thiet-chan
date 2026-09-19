@@ -2,7 +2,7 @@ import {matchAtlas,coarse} from './academic-signature.js';
 import {GROUND_TRUTH_PROFILE,classifyGlobalContext} from './ground-truth-profile.js';
 import './academic-vision.js';
 
-const VERSION='device-analysis-worker-v2';
+const VERSION='device-analysis-worker-v3';
 const GROUND_TRUTH=GROUND_TRUTH_PROFILE;
 
 function compactMatch(m){
@@ -47,31 +47,62 @@ async function inspectPixels(dataUrl,role){
     const canvas=new OffscreenCanvas(w,h),ctx=canvas.getContext('2d',{willReadFrequently:true});
     if(!ctx)return {globalFeatures:null,bottomFeatures:null};
     ctx.drawImage(bitmap,0,0,w,h);
-    const px=ctx.getImageData(0,0,w,h).data;
+    const px=ctx.getImageData(0,0,w,h).data,lumaMap=new Float32Array(w*h);
     let sr=0,sg=0,sb=0,ss=0,sv=0,n=0;
     let central=0,vesselCandidates=0,darkPurple=0,lumaSum=0,rbMinusG=0;
     for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      const i=(y*w+x)*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b);
+      const p=y*w+x,i=p*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b),luma=.299*r+.587*g+.114*b;
+      lumaMap[p]=luma;
       sr+=r/255;sg+=g/255;sb+=b/255;ss+=hsv.s;sv+=hsv.v;n++;
       if(role!=='bottom'||x<w*.15||x>w*.85||y<h*.08||y>h*.95)continue;
       central++;
       const purpleBlue=((hsv.h>=235&&hsv.h<=345)||(b>g*1.04&&r>g*1.04))&&hsv.s>.12;
-      const darkish=hsv.v<.72;
-      if(purpleBlue&&darkish)vesselCandidates++;
+      if(purpleBlue&&hsv.v<.72)vesselCandidates++;
       if(purpleBlue&&hsv.v<.55)darkPurple++;
-      const luma=.299*r+.587*g+.114*b;lumaSum+=luma/255;
+      lumaSum+=luma/255;
       rbMinusG+=(((r+b)/2)-g)/255;
     }
     const globalFeatures=n?[q(sr/n),q(sg/n),q(sb/n),q(ss/n),q(sv/n)]:null;
-    const bottomFeatures=role==='bottom'&&central?{
-      schemaVersion:'bottom-device-feature-v1',
-      vesselCandidateRatio:q(vesselCandidates/central),
-      darkPurpleRatio:q(darkPurple/central),
-      meanCentralLuminance:q(lumaSum/central),
-      redBlueMinusGreen:q(rbMinusG/central),
-      sampledPixels:central,
-      policy:'numeric visual features only; no vessel diagnosis or size inference without a trusted scale'
-    }:null;
+    let bottomFeatures=null;
+    if(role==='bottom'&&central){
+      let leftMuc=0,rightMuc=0,leftDark=0,rightDark=0,leftRows=0,rightRows=0,rowN=0;
+      const y0=Math.max(1,Math.floor(h*.25)),y1=Math.min(h-2,Math.ceil(h*.66));
+      for(let y=1;y<h-1;y++){
+        let rowLeft=false,rowRight=false;
+        for(let x=1;x<w-1;x++){
+          if(x<=w*.22||x>=w*.78||y<=h*.20||y>=h*.70)continue;
+          const p=y*w+x,i=p*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b);
+          const mucosa=r>45&&hsv.v>.18&&hsv.v<.90&&hsv.s>.08&&(r>g*1.03||r>b*1.02);
+          if(!mucosa)continue;
+          const left=x>w*.28&&x<w*.47,right=x>w*.53&&x<w*.72;
+          if(!left&&!right)continue;
+          const neighbor=(lumaMap[p-1]+lumaMap[p+1]+lumaMap[p-w]+lumaMap[p+w])/4;
+          const darkLine=neighbor-lumaMap[p]>5&&lumaMap[p]<170;
+          if(left){leftMuc++;if(darkLine){leftDark++;rowLeft=true;}}
+          if(right){rightMuc++;if(darkLine){rightDark++;rowRight=true;}}
+        }
+        if(y>=y0&&y<=y1){rowN++;if(rowLeft)leftRows++;if(rowRight)rightRows++;}
+      }
+      const leftRatio=leftMuc?leftDark/leftMuc:0,rightRatio=rightMuc?rightDark/rightMuc:0;
+      const bilateralBalance=Math.max(leftRatio,rightRatio)>0?Math.min(leftRatio,rightRatio)/Math.max(leftRatio,rightRatio):0;
+      const leftRowContinuity=rowN?leftRows/rowN:0,rightRowContinuity=rowN?rightRows/rowN:0;
+      const bilateralSignal=Math.min(leftRatio,rightRatio)>=.05&&bilateralBalance>=.30&&leftRowContinuity>=.60&&rightRowContinuity>=.60;
+      bottomFeatures={
+        schemaVersion:'bottom-device-feature-v2',
+        vesselCandidateRatio:q(vesselCandidates/central),
+        darkPurpleRatio:q(darkPurple/central),
+        meanCentralLuminance:q(lumaSum/central),
+        redBlueMinusGreen:q(rbMinusG/central),
+        leftDarkLineRatio:q(leftRatio),
+        rightDarkLineRatio:q(rightRatio),
+        bilateralBalance:q(bilateralBalance),
+        leftRowContinuity:q(leftRowContinuity),
+        rightRowContinuity:q(rightRowContinuity),
+        bilateralSignal,
+        sampledPixels:central,
+        policy:'role-specific direct visual features only; bilateral signal describes visible structure, not venous diagnosis, dilation or stasis'
+      };
+    }
     return {globalFeatures,bottomFeatures};
   }catch{return {globalFeatures:null,bottomFeatures:null};}
   finally{try{bitmap?.close?.();}catch{}}

@@ -10,7 +10,7 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v1'
+  spatialObservationVersion:'tongue-spatial-observation-v2'
 });
 
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}
@@ -100,10 +100,29 @@ function spatialObservation(px,w,h){
     if(count>=5)rowCenters.push((first+last)/2);
   }
   const symmetryAxis=rowCenters.length?median(rowCenters):minX+bw/2;
-  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h);
+
+  let nr=0,ng=0,nb=0,neutralN=0;
   for(let p=0;p<w*h;p++){
+    if(comp.mask[p])continue;
+    const x=p%w,y=(p/w)|0;
+    if(x<w*.06||x>w*.94||y<h*.05||y>h*.95)continue;
     const i=p*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b);
-    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;
+    if(hsv.s>.13||hsv.v<.24||hsv.v>.92)continue;
+    nr+=r;ng+=g;nb+=b;neutralN++;
+  }
+  let gainR=1,gainG=1,gainB=1,normalizationApplied=false;
+  if(neutralN>=64){
+    const mr=nr/neutralN,mg=ng/neutralN,mb=nb/neutralN,target=(mr+mg+mb)/3;
+    gainR=clamp(target/Math.max(1,mr),.8,1.2);
+    gainG=clamp(target/Math.max(1,mg),.8,1.2);
+    gainB=clamp(target/Math.max(1,mb),.8,1.2);
+    normalizationApplied=true;
+  }
+
+  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h),hue=new Float32Array(w*h);
+  for(let p=0;p<w*h;p++){
+    const i=p*4,r=clamp(px[i]*gainR,0,255),g=clamp(px[i+1]*gainG,0,255),b=clamp(px[i+2]*gainB,0,255),hsv=rgbToHsv(r,g,b);
+    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;hue[p]=hsv.h;
   }
   const lateralLuma=[],lateralSat=[];
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
@@ -118,23 +137,32 @@ function spatialObservation(px,w,h){
     for(let p=0;p<comp.mask.length;p++)if(comp.mask[p]){lateralLuma.push(gray[p]);lateralSat.push(sat[p]);}
   }
   const bodyLuma=median(lateralLuma),bodySaturation=median(lateralSat);
-  let validN=0,coatN=0,centralN=0,centralCoat=0,middleN=0,middleCoat=0,posteriorN=0,posteriorCoat=0,anteriorN=0,anteriorCoat=0;
+  let validN=0,strictN=0,looseN=0,whiteLike=0,yellowLike=0;
+  let centralN=0,centralCoat=0,middleN=0,middleCoat=0,posteriorN=0,posteriorCoat=0,anteriorN=0,anteriorCoat=0;
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
     const p=y*w+x;if(!comp.mask[p])continue;
     const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
-    const glare=val[p]>.92&&sat[p]<.18;if(glare)continue;
+    const glare=val[p]>.94&&sat[p]<.12;if(glare)continue;
     validN++;
-    const coat=gray[p]>bodyLuma+10&&sat[p]<bodySaturation-.045&&ny>.06&&ny<.80&&nx>.14&&nx<.86;
-    if(coat)coatN++;
-    if(nx>.34&&nx<.66&&ny>.10&&ny<.82){centralN++;if(coat)centralCoat++;}
-    if(ny>.30&&ny<.62){middleN++;if(coat)middleCoat++;}
-    if(ny>.04&&ny<.36){posteriorN++;if(coat)posteriorCoat++;}
-    if(ny>.62&&ny<.95){anteriorN++;if(coat)anteriorCoat++;}
+    const strict=gray[p]>bodyLuma+10&&sat[p]<bodySaturation-.045&&ny>.06&&ny<.80&&nx>.14&&nx<.86;
+    const loose=gray[p]>bodyLuma+5&&sat[p]<bodySaturation-.015&&ny>.06&&ny<.82&&nx>.12&&nx<.88;
+    if(strict)strictN++;
+    if(loose){
+      looseN++;
+      if(sat[p]<.28&&val[p]>.40)whiteLike++;
+      if(hue[p]>=32&&hue[p]<=70&&sat[p]>.18&&val[p]>.40)yellowLike++;
+    }
+    if(nx>.34&&nx<.66&&ny>.10&&ny<.82){centralN++;if(loose)centralCoat++;}
+    if(ny>.30&&ny<.62){middleN++;if(loose)middleCoat++;}
+    if(ny>.04&&ny<.36){posteriorN++;if(loose)posteriorCoat++;}
+    if(ny>.62&&ny<.95){anteriorN++;if(loose)anteriorCoat++;}
   }
-  const coatRatio=validN?coatN/validN:0;
+  const strictRatio=validN?strictN/validN:0,coatRatio=validN?looseN/validN:0;
   const centralRatio=centralN?centralCoat/centralN:0,middleRatio=middleN?middleCoat/middleN:0,posteriorRatio=posteriorN?posteriorCoat/posteriorN:0,anteriorRatio=anteriorN?anteriorCoat/anteriorN:0;
-  const coatingThicknessCandidate=coatRatio>.34?'dày':coatRatio>.10?'mỏng':'rất mỏng';
-  const coatingDistributionCandidate=centralRatio>=.30&&Math.max(middleRatio,posteriorRatio)>=anteriorRatio+.05?'trung tâm–sau':coatRatio>.15?'lan tỏa':'không rõ';
+  const whiteRatio=looseN?whiteLike/looseN:0,yellowRatio=looseN?yellowLike/looseN:0;
+  const coatingThicknessCandidate=coatRatio>.42?'dày':coatRatio>.09?'mỏng':'rất mỏng';
+  const coatingDistributionCandidate=centralRatio>=.22&&Math.max(middleRatio,posteriorRatio)>=anteriorRatio+.035?'trung tâm–sau':coatRatio>.12?'lan tỏa':'không rõ';
+  const coatingColorCandidate=coatRatio>=.09&&yellowRatio>=.28&&yellowRatio>whiteRatio*1.25?'vàng':coatRatio>=.07&&(whiteRatio>=.12||yellowRatio<.18)?'trắng':'';
   const bodyColorCandidate=bodySaturation>.44?'đỏ':bodySaturation<.18&&bodyLuma>150?'nhợt':'đỏ nhạt';
 
   const y0=Math.max(0,Math.floor(minY+.32*bh)),y1=Math.min(h-1,Math.ceil(minY+.95*bh));
@@ -155,22 +183,27 @@ function spatialObservation(px,w,h){
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
   return {
-    schemaVersion:'tongue-spatial-observation-v1',
+    schemaVersion:'tongue-spatial-observation-v2',
     roiCoverage:q(comp.area/(w*h)),
     bodyLuma:q(bodyLuma/255),
     bodySaturation:q(bodySaturation),
     bodyColorCandidate,
     coatingCandidateRatio:q(coatRatio),
+    strictCoatingCandidateRatio:q(strictRatio),
+    coatingColorCandidate,
+    coatingWhiteLikeRatio:q(whiteRatio),
+    coatingYellowLikeRatio:q(yellowRatio),
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
+    colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({
       visibleSignal,
       score:q(sulcusScore),
       continuity:q(continuity),
       centrality:q(centrality),
       meanDarkContrast:q(bestMean/255),
-      source:'deterministic-symmetry-relative-dark-line-v1'
+      source:'deterministic-symmetry-relative-dark-line-v2'
     }),
     fissurePolicy:'median-sulcus-is-not-pathological-fissure',
     authority:'direct-image-observation-only'

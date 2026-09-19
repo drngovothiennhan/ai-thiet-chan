@@ -64,9 +64,7 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
     const qc=String(row?.qc?.grade||'poor');
     if(qc==='poor'){
       poorQcRows++;
-      if(manifestDigests.size!==1)throw new Error('MIXED_HOLDOUT_MANIFESTS');
-  if(candidateVersions.size!==1)throw new Error('MIXED_CANDIDATE_VERSIONS');
-    for(const field of VISUAL_MENTOR_FIELDS){
+      for(const field of VISUAL_MENTOR_FIELDS){
         const cv=fieldValue(candidate,field);
         if(known(cv)){safetyLeaks++;if(safetyLeakSamples.length<25)safetyLeakSamples.push({sampleId:id,field,reason:'candidate-known-on-poor-qc'});}
       }
@@ -84,6 +82,8 @@ export function evaluateVisualMentorAgreement(rows,policy=VISUAL_MENTOR_GATE){
       if(equalValue(mv,cv)){f.matches++;microMatches++;}else f.mismatches++;
     }
   }
+  if(manifestDigests.size!==1)throw new Error('MIXED_HOLDOUT_MANIFESTS');
+  if(candidateVersions.size!==1)throw new Error('MIXED_CANDIDATE_VERSIONS');
   for(const field of VISUAL_MENTOR_FIELDS){
     const f=fields[field];f.agreement=f.support?f.matches/f.support:null;
   }

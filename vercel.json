@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "*": false,
-      "main": true
+      "**": false,
+      "main": true,
+      "vision/toothmark-shape-coating-r1-20260920": false
     }
   }
 }

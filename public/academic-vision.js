@@ -10,8 +10,9 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v2',
-  moistureObservationVersion:'tongue-moisture-features-v1'
+  spatialObservationVersion:'tongue-spatial-observation-v3',
+  moistureObservationVersion:'tongue-moisture-features-v1',
+  surfacePhenotypeVersion:'tongue-surface-phenotype-features-v1'
 });
 
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}
@@ -102,6 +103,62 @@ function spatialObservation(px,w,h){
   }
   const symmetryAxis=rowCenters.length?median(rowCenters):minX+bw/2;
 
+  const silhouetteRows=[];
+  for(let y=minY;y<=box.maxY;y++){
+    let left=-1,right=-1,count=0;
+    for(let x=minX;x<=box.maxX;x++)if(comp.mask[y*w+x]){
+      if(left<0)left=x;right=x;count++;
+    }
+    if(count>=5)silhouetteRows.push({
+      y,ny:(y-minY)/Math.max(1,bh),left,right,width:right-left+1,center:(left+right)/2
+    });
+  }
+  const midRows=silhouetteRows.filter(r=>r.ny>=.28&&r.ny<=.72);
+  const midWidth=midRows.length?median(midRows.map(r=>r.width)):0;
+  const shapeGeometry=Object.freeze({
+    schemaVersion:'tongue-shape-geometry-v1',
+    boxAspect:q(bw/Math.max(1,bh)),
+    midWidthToHeight:q(midWidth/Math.max(1,bh)),
+    boxFillRatio:q(comp.area/Math.max(1,bw*bh)),
+    profileRows:silhouetteRows.length,
+    source:'segmented-relative-silhouette-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
+  const edgeRows=silhouetteRows.filter(r=>r.ny>=.28&&r.ny<=.84);
+  const leftDepths=[],rightDepths=[];
+  for(let i=0;i<edgeRows.length;i++){
+    const a=Math.max(0,i-4),b=Math.min(edgeRows.length,i+5),window=edgeRows.slice(a,b);
+    if(window.length<5){leftDepths.push(0);rightDepths.push(0);continue;}
+    const leftBase=median(window.map(r=>r.left)),rightBase=median(window.map(r=>r.right));
+    leftDepths.push(Math.max(0,(edgeRows[i].left-leftBase)/Math.max(1,bw)));
+    rightDepths.push(Math.max(0,(rightBase-edgeRows[i].right)/Math.max(1,bw)));
+  }
+  const allDepths=[...leftDepths,...rightDepths],depthNoise=allDepths.length?median(allDepths.slice()):0;
+  const notchThreshold=Math.max(.018,depthNoise*2.8);
+  function countNotches(values){
+    let count=0,maxDepth=0,last=-99;
+    for(let i=2;i<values.length-2;i++){
+      const v=values[i];maxDepth=Math.max(maxDepth,v);
+      if(v<notchThreshold||i-last<4)continue;
+      if(v>=values[i-1]&&v>=values[i+1]&&v>=values[i-2]&&v>=values[i+2]){count++;last=i;}
+    }
+    return {count,maxDepth};
+  }
+  const leftNotch=countNotches(leftDepths),rightNotch=countNotches(rightDepths);
+  const toothmarkGeometry=Object.freeze({
+    schemaVersion:'tongue-toothmark-geometry-v1',
+    leftNotches:leftNotch.count,
+    rightNotches:rightNotch.count,
+    totalNotches:leftNotch.count+rightNotch.count,
+    maxNotchDepthRatio:q(Math.max(leftNotch.maxDepth,rightNotch.maxDepth)),
+    bilateralSignal:leftNotch.count>0&&rightNotch.count>0,
+    edgeSampleRows:edgeRows.length,
+    adaptiveNotchThreshold:q(notchThreshold),
+    source:'lateral-contour-concavity-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
   let nr=0,ng=0,nb=0,neutralN=0;
   for(let p=0;p<w*h;p++){
     if(comp.mask[p])continue;
@@ -160,6 +217,41 @@ function spatialObservation(px,w,h){
     if(ny>.62&&ny<.95){anteriorN++;if(loose)anteriorCoat++;}
   }
   const strictRatio=validN?strictN/validN:0,coatRatio=validN?looseN/validN:0;
+  let textureN=0,microSum=0,microSq=0,highFreqN=0,fineGranuleN=0,coarseGranuleN=0,edgeRegionN=0,edgeCoatN=0;
+  for(let y=Math.max(minY+1,1);y<=Math.min(box.maxY-1,h-2);y++)for(let x=Math.max(minX+1,1);x<=Math.min(box.maxX-1,w-2);x++){
+    const p=y*w+x;if(!comp.mask[p])continue;
+    const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
+    if(((nx>.10&&nx<.30)||(nx>.70&&nx<.90))&&ny>.10&&ny<.82){edgeRegionN++;if(coatMask[p])edgeCoatN++;}
+    if(!coatMask[p])continue;
+    if(!comp.mask[p-1]||!comp.mask[p+1]||!comp.mask[p-w]||!comp.mask[p+w])continue;
+    const local=(gray[p-1]+gray[p+1]+gray[p-w]+gray[p+w])/4;
+    const micro=Math.abs(gray[p]-local)/255;
+    textureN++;microSum+=micro;microSq+=micro*micro;
+    if(micro>=.040)highFreqN++;
+    if(micro>=.018&&micro<.070)fineGranuleN++;
+    if(micro>=.070)coarseGranuleN++;
+  }
+  const meanMicro=textureN?microSum/textureN:0;
+  const microVar=textureN?Math.max(0,microSq/textureN-meanMicro*meanMicro):0;
+  const coatLargest=looseN?largestComponent(coatMask,w,h).area:0;
+  const coatDominance=looseN?coatLargest/looseN:0;
+  const edgeCoatRatio=edgeRegionN?edgeCoatN/edgeRegionN:0;
+  const coatingTextureObservation=Object.freeze({
+    schemaVersion:'tongue-coating-texture-v1',
+    sampledPixels:textureN,
+    coatingCandidateRatio:q(coatRatio),
+    meanMicrotexture:q(meanMicro),
+    microtextureStd:q(Math.sqrt(microVar)),
+    highFrequencyRatio:q(textureN?highFreqN/textureN:0),
+    fineGranuleRatio:q(textureN?fineGranuleN/textureN:0),
+    coarseGranuleRatio:q(textureN?coarseGranuleN/textureN:0),
+    largestCoatingComponentRatio:q(coatDominance),
+    patchiness:q(1-coatDominance),
+    edgeCoverage:q(edgeCoatRatio),
+    centerMinusEdgeCoverage:q((centralN?centralCoat/centralN:0)-edgeCoatRatio),
+    source:'segmented-coating-local-texture-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
   const centralRatio=centralN?centralCoat/centralN:0,middleRatio=middleN?middleCoat/middleN:0,posteriorRatio=posteriorN?posteriorCoat/posteriorN:0,anteriorRatio=anteriorN?anteriorCoat/anteriorN:0;
   const whiteRatio=looseN?whiteLike/looseN:0,yellowRatio=looseN?yellowLike/looseN:0;
   const coatingThicknessCandidate=coatRatio>.42?'dày':coatRatio>.09?'mỏng':'rất mỏng';
@@ -240,7 +332,7 @@ function spatialObservation(px,w,h){
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
   return {
-    schemaVersion:'tongue-spatial-observation-v2',
+    schemaVersion:'tongue-spatial-observation-v3',
     roiCoverage:q(comp.area/(w*h)),
     bodyLuma:q(bodyLuma/255),
     bodySaturation:q(bodySaturation),
@@ -253,6 +345,7 @@ function spatialObservation(px,w,h){
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
+    surfacePhenotype:Object.freeze({schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:toothmarkGeometry,shape:shapeGeometry,coatingTexture:coatingTextureObservation}),
     moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({

@@ -14,8 +14,8 @@ assert.match(engine,/rãnh giữa rõ phải được tách riêng khỏi nứt 
 assert.match(engine,/depth:'not-assessable-from-2d-image'/);
 assert.doesNotMatch(engine,/fissureText\(Boolean\(c\.fissure\)\)/,'legacy coarse dark ratio must not directly become fissure text');
 
-assert.match(server,/aitc-llm-observation-context-v3/);
-assert.match(server,/tongue-dual-view-feature-vector-v3/);
+assert.match(server,/aitc-llm-observation-context-v4/);
+assert.match(server,/tongue-dual-view-feature-vector-v4/);
 assert.match(server,/medianSulcusIsNotAutomaticallyFissure:true/);
 assert.match(server,/legacyDarkLineSignalIsNotFissureDiagnosis:true/);
 assert.match(server,/fissureDepthFrom2dImageForbidden:true/);
@@ -23,6 +23,19 @@ assert.match(server,/moistureObservationOnly:true/);
 assert.match(server,/flashGlareCannotEqualWetness:true/);
 assert.match(server,/fissureAloneCannotEqualDryness:true/);
 assert.match(server,/bodyAndCoatingMoistureAreSeparate:true/);
+assert.match(server,/toothmarksObservationOnly:true/);
+assert.match(server,/toothmarksDoNotEqualSpleenDeficiency:true/);
+assert.match(server,/shapeIsRelative2dGeometry:true/);
+assert.match(server,/broadFullDoesNotProveSoftness:true/);
+assert.match(server,/coatingTextureObservationOnly:true/);
+assert.match(server,/coatingAdhesionOrScrapabilityFromStaticImageForbidden:true/);
+assert.match(server,/normalizeSurfacePhenotype/);
+assert.match(engine,/interpretSurfacePhenotype/);
+assert.match(engine,/surfacePhenotype/);
+assert.match(reasoning,/function surfacePhenotypeText/);
+assert.match(reasoning,/Dấu răng chỉ được diễn giải khi Local Vision/);
+assert.match(reasoning,/ảnh tĩnh không cho phép suy độ mềm\/non/);
+assert.match(reasoning,/dính chặt\/dễ cạo không được suy từ ảnh tĩnh/);
 assert.match(server,/normalizeMoistureObservation/);
 assert.match(reasoning,/function moistureText/);
 assert.match(reasoning,/gloss\/texture đã qua QC/);
@@ -38,4 +51,4 @@ assert.match(reasoning,/chưa đủ căn cứ gọi là nứt/);
 assert.match(server,/const llmData=llmSafeAssessmentContext\(data\)/);
 assert.match(server,/Phân tích cấu trúc:/);
 
-console.log('LLM OBSERVATION CONTEXT PASS: local vision and local-grounded reasoning separate median sulcus/fissure and body/coating moisture; optional Gemini receives structured text only and cannot invent image observations.');
+console.log('LLM OBSERVATION CONTEXT PASS: Local Vision owns fissure/moisture/toothmark/shape/coating-texture observations; the LLM receives structured v4 context and cannot invent hidden image features.');

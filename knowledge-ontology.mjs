@@ -15,6 +15,7 @@ export const TONGUE_ONTOLOGY_V1 = Object.freeze([
   {id:'coating.core',label:'Rêu lưỡi',aliases:['rêu lưỡi','tongue coating','fur']},
   {id:'coating.color',label:'Màu rêu',aliases:['rêu trắng','rêu vàng','rêu xám','rêu đen','coating color']},
   {id:'coating.segmentation',label:'Phân đoạn rêu',aliases:['phân đoạn rêu','coating segmentation','vùng rêu']},
+  {id:'coating.texture',label:'Kết cấu/tính chất rêu nhìn thấy',aliases:['kết cấu rêu','tính chất rêu','rêu nhầy','rêu nhớt','rêu vữa','rêu hủ','rêu thô','rêu mịn','rêu tróc','rêu bong','greasy coating','rotten coating','peeled coating','coating texture']},
   {id:'coating.moisture',label:'Độ ẩm rêu',aliases:['nhuận','khô','trơn','ẩm','moisture','dry coating','slippery']},
   {id:'tongue_regions.topography',label:'Phân khu lưỡi theo lý luận YHCT',aliases:['phân khu lưỡi','đầu lưỡi','rìa lưỡi','hai bên lưỡi','giữa lưỡi','gốc lưỡi','tâm phế','can đởm','tỳ vị','thận bàng quang','tongue regions','tongue topography']},
   {id:'coating.biologic_basis',label:'Cơ sở sinh học rêu',aliases:['biểu mô bong','vi khuẩn miệng','nước bọt','saliva','oral bacteria']},
@@ -54,7 +55,7 @@ export function ontologyTokensForQuery(query){
 }
 
 export const TONGUE_ONTOLOGY_MANIFEST = Object.freeze({
-  id:'aitc-tongue-ontology-v2',
+  id:'aitc-tongue-ontology-v3',
   nodeCount:TONGUE_ONTOLOGY_V1.length,
   principle:'Observation -> standardized feature -> evidence/limitation -> conditional YHCT interpretation; disease-specific papers remain association-only.',
   imageAuthority:'Local Vision',

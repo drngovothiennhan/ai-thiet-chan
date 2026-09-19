@@ -53,10 +53,20 @@ function moistureText(top={}){
   }
   return 'độ ẩm bề mặt '+label(surface)+confidence(surface)+'; thân '+label(body)+confidence(body)+'; rêu '+label(coating)+confidence(coating)+'; QC reliability '+(Number.isFinite(Number(qc.reliability))?Math.round(Number(qc.reliability)*100)+'%':'không xác định');
 }
+function surfacePhenotypeText(top={}){
+  const obs=top.surfacePhenotype&&typeof top.surfacePhenotype==='object'?top.surfacePhenotype:{};
+  const node=name=>obs[name]&&typeof obs[name]==='object'?obs[name]:{};
+  const render=n=>{
+    const label=text(n.label)||UNKNOWN;
+    const pct=Number.isFinite(Number(n.confidence))?' ('+Math.round(Math.max(0,Math.min(1,Number(n.confidence)))*100)+'%)':'';
+    return label+pct;
+  };
+  return 'dấu răng '+render(node('toothmarks'))+'; hình thể '+render(node('shape'))+'; kết cấu rêu '+render(node('coatingTexture'));
+}
 function topObservation(top={}){
   return [
     `chất lưỡi ${text(top.tongueColor)||UNKNOWN}`,
-    `rêu ${text(top.coatingColor)||UNKNOWN} / ${text(top.coatingThickness)||UNKNOWN}${text(top.coatingDistribution)?` / phân bố ${text(top.coatingDistribution)}`:''}`,
+    `rêu ${text(top.coatingColor)||UNKNOWN} / ${text(top.coatingThickness)||UNKNOWN}${text(top.coatingDistribution)?` / phân bố ${text(top.coatingDistribution)}`:''}${text(top.coatingTexture)?` / kết cấu ${text(top.coatingTexture)}`:''}`,
     `hình thể ${text(top.shape)||UNKNOWN}`,
     moistureText(top),
     morphologyText(top),
@@ -135,7 +145,17 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const sources=sourceEvidence(assessment,knowledgeText,4);
   const reply=[];
 
-  if(/\b(?:do am|kho|uot|nhuan|moisture|wet|dry|gloss)\b/.test(q)){
+  if(/dau rang|han rang|tooth ?mark|scallop/.test(q)){
+    reply.push('Thiệt tượng bờ lưỡi: '+surfacePhenotypeText(top)+'.');
+    reply.push('Dấu răng chỉ được diễn giải khi Local Vision thấy các lõm lặp lại ở bờ lưỡi sau QC; dấu này không tự đồng nghĩa Tỳ hư hay bất kỳ thể bệnh nào.');
+    if(top?.surfacePhenotype?.toothmarks?.status==='unknown')reply.push('Tín hiệu bờ lưỡi hiện chưa đạt gate; giữ Không xác định.');
+  }else if(/beu|map|to|gay|mong|hinh the|swollen|bulgy|thin tongue|shape/.test(q)){
+    reply.push('Thiệt tượng hình thể: '+surfacePhenotypeText(top)+'.');
+    reply.push('“Mập/bệu” trong tầng ảnh chỉ có nghĩa silhouette tương đối rộng/đầy; ảnh tĩnh không cho phép suy độ mềm/non. “Gầy” chỉ mô tả silhouette tương đối hẹp.');
+  }else if(/reu|nhay|nhot|vua|hu|troc|bong|greasy|peeled|rotten|texture|ket cau/.test(q)){
+    reply.push('Thiệt tượng rêu: '+surfacePhenotypeText(top)+'.');
+    reply.push('Local Vision chỉ mô tả kết cấu nhìn thấy như mịn, thô, hạt mịn dày, hạt thô không đều hoặc bong/tróc dạng mảng; các thuộc tính cần thao tác như dính chặt/dễ cạo không được suy từ ảnh tĩnh.');
+  }else if(/\b(?:do am|kho|uot|nhuan|moisture|wet|dry|gloss)\b/.test(q)){
     reply.push('Thiệt tượng về tân dịch/độ ẩm quan sát được: '+moistureText(top)+'.');
     reply.push('Tầng suy luận chỉ diễn giải tín hiệu gloss/texture đã qua QC của Local Vision; flash/cháy sáng không được đồng nhất với ướt và nứt đơn độc không được đồng nhất với khô.');
     if(top?.moistureObservation?.surface?.status==='unknown')reply.push('Ảnh hiện chưa đủ tín hiệu để gán nhãn khô/ướt; giữ Không xác định thay vì suy đoán.');

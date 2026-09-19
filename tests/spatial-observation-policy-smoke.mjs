@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from '../spatial-observation-policy.mjs';
 
 const mentorFixture={
-  schemaVersion:'tongue-spatial-observation-v2',
+  schemaVersion:'tongue-spatial-observation-v3',
   roiCoverage:.24,
   bodyLuma:.444,
   bodySaturation:.3765,
@@ -78,4 +78,4 @@ assert.equal(coatGate.coatingThicknessCandidate,'');
 assert.equal(coatGate.coatingDistribution,'Không xác định');
 
 assert.equal(SPATIAL_OBSERVATION_POLICY_VERSION,'tongue-spatial-policy-v2');
-console.log('SPATIAL OBSERVATION POLICY PASS: QC-gated normalized body/coating candidates are surfaced; median sulcus remains separate from fissure; poor-QC input fails closed.');
+console.log('SPATIAL OBSERVATION POLICY PASS: v3 spatial payload remains QC-gated for color/coating and keeps median sulcus separate from fissure; poor-QC input fails closed.');

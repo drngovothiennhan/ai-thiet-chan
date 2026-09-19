@@ -210,6 +210,29 @@ function normalizeStasisSpotObservation(value){
     topographyRule:String(src.topographyRule||'').slice(0,420)
   };
 }
+function normalizeEducationalSuggestions(value){
+  const src=value&&typeof value==='object'?value:{};
+  const regionalHints=Array.isArray(src.regionalHints)?src.regionalHints.slice(0,4).map(x=>({
+    region:String(x?.region||'unknown').slice(0,20),
+    regionLabel:String(x?.regionLabel||'').slice(0,80),
+    findingCount:Math.max(0,Math.min(100,Math.round(Number(x?.findingCount)||0))),
+    zangFu:Array.isArray(x?.zangFu)?x.zangFu.slice(0,4).map(y=>String(y).slice(0,30)):[],
+    wording:String(x?.wording||'').slice(0,320),
+    guardrail:String(x?.guardrail||'').slice(0,320)
+  })):[];
+  const syndromeHints=Array.isArray(src.syndromeHints)?src.syndromeHints.slice(0,4).map(x=>({
+    label:String(x?.label||'').slice(0,120),
+    evidence:String(x?.evidence||'').slice(0,520),
+    confidence:Number.isFinite(Number(x?.confidence))?clampConfidence(x.confidence):null,
+    interpretation:String(x?.interpretation||'').slice(0,320)
+  })):[];
+  return {
+    schemaVersion:String(src.schemaVersion||'aitc-yhct-educational-suggestions-v1').slice(0,80),
+    label:String(src.label||'Gợi ý đối chiếu YHCT — không thay thế chẩn đoán lâm sàng').slice(0,140),
+    regionalHints,syndromeHints,modernDiseaseSuggestions:[],
+    policy:String(src.policy||'').slice(0,520)
+  };
+}
 function llmSafeAssessmentContext(context){
   if(!context||typeof context!=='object') return null;
   const top=context.top&&typeof context.top==='object'?context.top:{};
@@ -290,7 +313,8 @@ function llmSafeAssessmentContext(context){
       generalSignals:ensureSignalArray(combined.generalSignals),
       stomachPatternSignals:ensureSignalArray(combined.stomachPatternSignals),
       cannotConclude:ensureStringArray(combined.cannotConclude),
-      academicFusion:combined.academicFusion&&typeof combined.academicFusion==='object'?combined.academicFusion:null
+      academicFusion:combined.academicFusion&&typeof combined.academicFusion==='object'?combined.academicFusion:null,
+      educationalSuggestions:normalizeEducationalSuggestions(combined.educationalSuggestions)
     },
     approvedClinicalKnowledge:approved,
     knowledgeVersion:String(context.knowledgeVersion||KNOWLEDGE_VERSION)

@@ -11,10 +11,25 @@ for(const fixture of realImageFixtures){
   assert.equal(out.active,true);
   assert.equal(out.bilateralStructureVisible,true);
   assert.ok(out.forbiddenInferences.includes('stasis'));
+  assert.equal(out.vesselColor.status,'unknown','legacy v2 fixtures must not fabricate vessel color');
 }
 const weak={...realImageFixtures[0],rightDarkLineRatio:.03,bilateralSignal:true};
 assert.equal(interpretVentralObservation(weak,{grade:'good'}).bilateralStructureVisible,false);
 assert.equal(interpretVentralObservation(realImageFixtures[0],{grade:'poor'}).bilateralStructureVisible,false);
-assert.equal(VENTRAL_OBSERVATION_POLICY_VERSION,'ventral-structure-policy-v1');
+const unitColorFixture={
+  schemaVersion:'bottom-device-feature-v3',
+  leftDarkLineRatio:.09,rightDarkLineRatio:.08,bilateralBalance:.88,leftRowContinuity:.78,rightRowContinuity:.79,bilateralSignal:true,
+  vesselColorSamplePixels:48,vesselMeanR:.34,vesselMeanG:.21,vesselMeanB:.42,vesselMeanSaturation:.46,vesselMeanValue:.42,
+  vesselBluePurpleRatio:.66,vesselRedPurpleRatio:.12,vesselDarkPurpleRatio:.35,vesselVsMucosaChromaDelta:.032
+};
+const color=interpretVentralObservation(unitColorFixture,{grade:'good'});
+assert.equal(color.bilateralStructureVisible,true);
+assert.equal(color.vesselColor.status,'blue-purple');
+assert.equal(color.vesselColor.label,'xanh-tím');
+assert.equal(color.productionEligible,false);
+assert.match(color.vesselColor.rule,/không.*huyết ứ|không.*stasis/i);
+const lowColor=interpretVentralObservation({...unitColorFixture,vesselColorSamplePixels:4},{grade:'good'});
+assert.equal(lowColor.vesselColor.status,'unknown');
+assert.equal(VENTRAL_OBSERVATION_POLICY_VERSION,'ventral-structure-color-policy-v2');
 
-console.log('VENTRAL OBSERVATION POLICY PASS: three owner-supplied underside-image feature fixtures pass the bilateral visible-structure gate; disease-level venous inferences remain forbidden.');
+console.log('VENTRAL OBSERVATION POLICY PASS: legacy owner fixtures preserve bilateral structure detection without fabricated color; v3 color is QC/sample-gated and venous disease/stasis inferences remain forbidden.');

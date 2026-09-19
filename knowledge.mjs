@@ -4,7 +4,7 @@ import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } 
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from './knowledge-open-access.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-20.6doc+oa23-surface-phenotype-v3';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-20.6doc+oa28-stasis-ventral-topography-v4';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
@@ -42,6 +42,8 @@ function regionalTopographyRelevant(query){return /(phan khu|dau luoi|ria luoi|h
 function toothmarkRelevant(query){return /(dau rang|han rang|tooth mark|toothmarked|scallop)/.test(normalizeSearchText(query));}
 function shapeRelevant(query){return /(hinh the|map|beu|phinh to|gay|mong nho|bulgy|swollen|thin tongue|tongue shape)/.test(normalizeSearchText(query));}
 function coatingTextureRelevant(query){return /(tinh chat reu|ket cau reu|reu nhay|reu nhot|reu vua|reu hu|reu tho|reu min|reu troc|reu bong|greasy|rotten|peeled|coating texture)/.test(normalizeSearchText(query));}
+function stasisSpotRelevant(query){return /(diem u|u diem|ban u|ecchymosis|petechiae|mang tim|sam tim|huyet u|blood stasis)/.test(normalizeSearchText(query));}
+function sublingualColorRelevant(query){return /(mau mach|mau tinh mach|mach duoi luoi|tinh mach duoi luoi|xanh tim|tim do|tim sam|sublingual|vein color)/.test(normalizeSearchText(query));}
 function renderCitedEvidence(items){
   return items.map(e=>{
     const doc=documentById.get(e.source);
@@ -67,6 +69,8 @@ export function knowledgeForQuery(query,{limit=18}={}){
     ...(toothmarkRelevant(query)?['TCATLAS1','OA20','OA21']:[]),
     ...(shapeRelevant(query)?['TCATLAS1','OA10']:[]),
     ...(coatingTextureRelevant(query)?['TCATLAS1','OA22','OA23']:[]),
+    ...(stasisSpotRelevant(query)?['TCATLAS1','OA22','OA24','OA25','OA28']:[]),
+    ...(sublingualColorRelevant(query)?['TCATLAS1','OA12','OA26','OA27','OA28']:[]),
     ...(allowPsych?['PSY1']:[])
   ];
   for(const source of requiredSources){
@@ -83,7 +87,9 @@ export function knowledgeForQuery(query,{limit=18}={}){
   }
   return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,effectiveLimit))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.
 - Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.
-- Với dấu răng, hình thể và tính chất rêu: LLM chỉ diễn giải structured Local Vision; không được dùng mô tả nguồn để tự tạo feature chưa thấy trong ảnh.`;
+- Với dấu răng, hình thể và tính chất rêu: LLM chỉ diễn giải structured Local Vision; không được dùng mô tả nguồn để tự tạo feature chưa thấy trong ảnh.
+- Với ban/điểm ứ và màu mạch dưới lưỡi: chỉ diễn giải feature Local Vision đã QC; màu mạch đơn độc không được chuyển thành giãn tĩnh mạch hay huyết ứ.
+- Gợi ý tạng phủ phải mang nhãn “đối chiếu đồ hình YHCT”, không được viết như chẩn đoán bệnh cơ quan.`;
 }
 
 export const TONGUE_KNOWLEDGE = `
@@ -124,6 +130,21 @@ PHÂN KHU LƯỠI THEO TẠNG PHỦ — CHỈ LÀ BẢN ĐỒ LÝ LUẬN YHCT:
 - Khi triển khai trên ảnh, các ranh giới chỉ là xấp xỉ hình học. Có thể dùng 4 vùng lớn hoặc 5 vùng chi tiết hơn, nhưng phải giữ cùng một quy ước trong dataset và validation.
 - Bất thường ở một vùng KHÔNG đồng nghĩa có bệnh xác định của tạng tương ứng. Chỉ được nói “dấu hiệu nằm ở vùng theo bản đồ YHCT liên hệ với …”, sau đó phải đối chiếu toàn lưỡi, triệu chứng và các dữ kiện tứ chẩn.
 - Không gọi các vùng này là ranh giới giải phẫu hay bằng chứng sinh học trực tiếp của cơ quan nội tạng.
+- Khi một feature đã được Local Vision định vị, phần kết quả có thể ghi “Đối chiếu đồ hình YHCT: feature nằm ở vùng ... thường liên hệ ...”. Đây là gợi ý học thuật, không phải chẩn đoán tạng phủ.
+
+BAN/ĐIỂM Ứ VÀ ĐIỂM ĐỎ — PHẢI TÁCH NHÃN:
+- Điểm đỏ/gai đỏ và điểm/ban sẫm-tím là hai nhóm quan sát khác nhau; không dùng một detector “spot” chung để suy huyết ứ.
+- Ứng viên điểm ứ/ban ứ phải được phát hiện trên thân lưỡi đã phân đoạn, ưu tiên khác biệt màu/tối cục bộ so với mô lân cận, loại vùng rêu/chói và hạn chế dương tính giả từ rãnh/nứt.
+- “Điểm ứ” trong ứng dụng là ứng viên thành phần sẫm/tím nhỏ; “ban ứ” là ứng viên mảng sẫm/tím lớn hơn theo diện tích tương đối trong ROI. Đây là quy ước kỹ thuật để mô tả hình ảnh, không phải ngưỡng lâm sàng.
+- Nếu feature nằm ở đầu/rìa/giữa/gốc, chỉ bổ sung đối chiếu đồ hình YHCT tương ứng; không suy rằng tạng phủ đó đang mắc bệnh.
+- Ban/điểm sẫm-tím có thể hỗ trợ đối chiếu lý luận huyết ứ khi phối hợp màu chất lưỡi và các dữ kiện khác; một dấu đơn độc không đủ gán chứng.
+
+MẠCH DƯỚI LƯỠI — MÀU SẮC:
+- Quy trình phải xác minh cấu trúc mạch trước, sau đó mới lượng hóa màu của chính vùng mạch; không lấy màu trung bình toàn mặt dưới làm màu tĩnh mạch.
+- Cho phép mô tả màu tương đối như xanh-tím, tím-đỏ, tím sẫm hoặc không xác định khi tín hiệu màu không đủ rõ.
+- Ánh sáng/flash, white balance và màu niêm mạc xung quanh là biến nhiễu bắt buộc. Nếu QC màu kém phải trả Không xác định.
+- Màu tím sẫm của mạch dưới lưỡi được một số nghiên cứu/đồng thuận YHCT liên hệ với huyết ứ, nhưng màu đơn độc KHÔNG đủ để kết luận huyết ứ, giãn mạch hoặc bệnh.
+- Không suy kích thước vật lý, giãn hay ngoằn ngoèo nếu ảnh không có chuẩn đo và mô hình đã kiểm định tương ứng.
 
 MÀU CHẤT LƯỠI:
 - Đỏ nhạt: thường là bình thường hoặc bệnh nhẹ/biểu chứng sớm.

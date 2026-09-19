@@ -49,7 +49,8 @@
   }
 
   function workspaceAvailable(name){
-    return name!=='result'||!result.hidden;
+    if((name==='result'||name==='symptoms')&&result.hidden)return false;
+    return true;
   }
   function updateTaskbar(){
     const nav=$('#aitcBottomNav');if(!nav)return;
@@ -57,7 +58,7 @@
       const selected=btn.dataset.nav===activeWorkspace;
       btn.classList.toggle('active',selected);
       btn.setAttribute('aria-current',selected?'page':'false');
-      if(btn.dataset.nav==='result')btn.disabled=result.hidden;
+      if(btn.dataset.nav==='result'||btn.dataset.nav==='symptoms')btn.disabled=result.hidden;
     });
   }
   function setWorkspace(name,{focus=true,persist=true}={}){
@@ -156,7 +157,7 @@
     updateStepper();
     const resultChanged=mutations.some(mutation=>mutation.target===result&&mutation.type==='attributes'&&mutation.attributeName==='hidden');
     if(resultChanged&&!result.hidden)setWorkspace('result',{focus:true});
-    else if(result.hidden&&activeWorkspace==='result')setWorkspace('capture',{focus:false});
+    else if(result.hidden&&(activeWorkspace==='result'||activeWorkspace==='symptoms'))setWorkspace('capture',{focus:false});
     else updateTaskbar();
   });
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});

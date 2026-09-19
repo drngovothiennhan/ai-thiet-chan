@@ -48,7 +48,9 @@ assert.match(runtime,/GROUNDING=IN/);
 
 assert.match(consultation,/Không dùng bộ 10 câu cố định/);
 assert.match(consultation,/\[ADAPTIVE_SYMPTOM_INTAKE\]/);
-assert.match(consultation,/Bạn có triệu chứng gì thêm không/);
+assert.match(consultation,/Trước khi đối chiếu sâu hơn/);
+assert.match(consultation,/askedConceptIds/);
+assert.match(consultation,/interactions/);
 assert.doesNotMatch(consultation,/const questions=\[/);
 assert.doesNotMatch(consultation,/\[THAP_VAN_CONTEXT\]/);
 assert.match(consultationLock,/uiName:'Trợ lý tham vấn'/);

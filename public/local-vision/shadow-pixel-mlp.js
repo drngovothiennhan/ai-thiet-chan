@@ -92,6 +92,27 @@ function largestComponent(mask,w,h){
   if(best)for(const p of best)out[p]=1;
   return {mask:out,area:bestSize};
 }
+function bboxGeometry(mask,w,h){
+  let minX=w,minY=h,maxX=-1,maxY=-1;
+  for(let p=0;p<mask.length;p++)if(mask[p]){
+    const x=p%w,y=(p/w)|0;
+    minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+  }
+  if(maxX<0)return null;
+  const x0=minX/Math.max(1,w-1),y0=minY/Math.max(1,h-1),x1=maxX/Math.max(1,w-1),y1=maxY/Math.max(1,h-1);
+  const cx=(x0+x1)/2,cy=(y0+y1)/2;
+  const touchesFrame=minX<=1||minY<=1||maxX>=w-2||maxY>=h-2;
+  return Object.freeze({
+    schemaVersion:'aitc-shadow-roi-geometry-v1',
+    x0:Number(x0.toFixed(6)),y0:Number(y0.toFixed(6)),
+    x1:Number(x1.toFixed(6)),y1:Number(y1.toFixed(6)),
+    width:Number((x1-x0).toFixed(6)),height:Number((y1-y0).toFixed(6)),
+    centerX:Number(cx.toFixed(6)),centerY:Number(cy.toFixed(6)),
+    centralized:Number((1-Math.min(1,Math.hypot(cx-.5,cy-.5)/Math.SQRT1_2)).toFixed(6)),
+    touchesFrame,
+    authority:false
+  });
+}
 function encodeRle(mask,w,h){
   const counts=[];let value=0,count=0;
   for(let i=0;i<mask.length;i++){
@@ -149,6 +170,7 @@ async function analyzeDataUrl(dataUrl,role='top',options={}){
       coverage:Number(coverage.toFixed(6)),
       presence:coverage>=Number(model.postprocess?.minPresenceCoverage||.018),
       maskSha256:maskDigest,
+      roiGeometry:bboxGeometry(component.mask,size,size),
       clinicalGold:false,
       productionEligible:false,
       latencyMs:Math.round(performance.now()-started)

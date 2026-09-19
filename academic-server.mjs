@@ -51,6 +51,35 @@ function documentWordingForMatches(matches,assessment,body={}){
 }
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
+function saneSpatialObservation(raw){
+  if(!raw||typeof raw!=='object'||raw.schemaVersion!=='tongue-spatial-observation-v1')return null;
+  const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
+  const out={schemaVersion:'tongue-spatial-observation-v1'};
+  for(const key of unitKeys){
+    const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
+  const zones=raw.coatingZones&&typeof raw.coatingZones==='object'?raw.coatingZones:null;
+  if(!zones)return null;
+  out.coatingZones={};
+  for(const key of ['central','middle','posterior','anterior']){
+    const n=Number(zones[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out.coatingZones[key]=n;
+  }
+  const sulcus=raw.medianSulcus&&typeof raw.medianSulcus==='object'?raw.medianSulcus:null;
+  if(!sulcus)return null;
+  out.medianSulcus={visibleSignal:Boolean(sulcus.visibleSignal)};
+  for(const key of ['score','continuity','centrality','meanDarkContrast']){
+    const n=Number(sulcus[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out.medianSulcus[key]=n;
+  }
+  const bodyColor=String(raw.bodyColorCandidate||'');
+  const thickness=String(raw.coatingThicknessCandidate||'');
+  const distribution=String(raw.coatingDistributionCandidate||'');
+  out.bodyColorCandidate=['đỏ nhạt','đỏ','nhợt'].includes(bodyColor)?bodyColor:'';
+  out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
+  out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
+  out.fissurePolicy='median-sulcus-is-not-pathological-fissure';
+  out.authority='direct-image-observation-only';
+  return out;
+}
 function saneSignature(raw){
   if(!raw||typeof raw!=='object')return null;
   const out={};
@@ -58,6 +87,8 @@ function saneSignature(raw){
   for(const key of ['r','g','b','s','v','purple','white','yellow','dark','spot','coverage'])if(out[key]<0||out[key]>1.05)return null;
   if(out.aspect<=0||out.aspect>5)return null;
   if(raw.segmentationMode)out.segmentationMode=String(raw.segmentationMode).slice(0,60);
+  const spatial=saneSpatialObservation(raw.spatial);
+  if(spatial)out.spatial=spatial;
   return out;
 }
 function saneBottomFeatures(raw){

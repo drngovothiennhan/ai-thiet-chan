@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "aitc-moisture-benchmark-status-v1",
+  "recordedAt": "2026-09-19T16:55:00Z",
+  "branch": "vision/mentor-multicase-r2-20260919",
+  "productionTouched": false,
+  "legacyShadowTelemetry": {
+    "observedRows": 4,
+    "moistureScoreZeroRows": 3,
+    "moistureScoreNonZeroRows": 1,
+    "reliabilityRange": [
+      0.9816,
+      1
+    ],
+    "interpretation": "Measured telemetry shows the legacy glare-only moisture proxy was nearly always zero while reporting near-max reliability; this is a calibration/reliability defect, not an accuracy measurement."
+  },
+  "mentorLabelsAvailableForThoseRows": false,
+  "actualMoistureAgreementMeasured": false,
+  "target": {
+    "kind": "engineering-structured-observation-agreement",
+    "threshold": 0.95,
+    "clinicalAccuracy": false,
+    "independentHoldoutRequired": true,
+    "minimumRows": 50,
+    "minimumSupportPerField": 10
+  },
+  "promotionBlockedUntil": [
+    "independent annotated holdout exists",
+    "benchmark gate passes",
+    "fail-closed safety leak count is zero",
+    "CI passes",
+    "explicit production approval"
+  ]
+}

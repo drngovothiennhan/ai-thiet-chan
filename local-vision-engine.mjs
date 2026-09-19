@@ -2,6 +2,7 @@ import {coarse,matchAtlas} from './public/academic-signature.js';
 import {verifyClientVisualPayload} from './academic-server.mjs';
 import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from './spatial-observation-policy.mjs';
 import {interpretVentralObservation,VENTRAL_OBSERVATION_POLICY_VERSION} from './ventral-observation-policy.mjs';
+import {interpretMoistureObservation,MOISTURE_OBSERVATION_POLICY_VERSION} from './moisture-observation-policy.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -10,6 +11,7 @@ export const LOCAL_VISION_HEALTH=Object.freeze({
   inputContract:'verified-device-or-service-worker-visual-payload',
   semanticMode:'conservative-feature-mapping',
   modelRuntime:'planned-onnx-web-adapter',
+  moistureObservationPolicy:MOISTURE_OBSERVATION_POLICY_VERSION,
   unsupportedClaims:['disease-diagnosis','pulse-inference','treatment','prescription']
 });
 
@@ -77,10 +79,13 @@ function topObservation(signature,qc,matches){
   const coatingColor=spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN);
   const coatingThickness=spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN);
   const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
+  const moistureObservation=interpretMoistureObservation(signature?.spatial?.moisture||{},qc);
+  const moisture=String(moistureObservation?.surface?.label||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
     'Độ tương đồng atlas là đối chiếu hình ảnh, không phải chẩn đoán.',
-    'Tín hiệu điểm tối thô không được phép tự chuyển thành kết luận nứt lưỡi; rãnh giữa và nứt phải được tách riêng.'
+    'Tín hiệu điểm tối thô không được phép tự chuyển thành kết luận nứt lưỡi; rãnh giữa và nứt phải được tách riêng.',
+    'Độ ẩm được đọc từ tín hiệu gloss + microtexture sau QC; flash/cháy sáng không được đồng nhất với lưỡi ướt và nứt đơn độc không được đồng nhất với lưỡi khô.'
   ];
   if(grade(qc)!=='good')limitations.push('Chất lượng ảnh chưa đạt mức tốt nên độ tin cậy quan sát bị giới hạn.');
   return {
@@ -99,7 +104,8 @@ function topObservation(signature,qc,matches){
     coatingThickness,
     coatingDistribution,
     coatingTexture:UNKNOWN,
-    moisture:UNKNOWN,
+    moisture,
+    moistureObservation,
     morphology,
     fissures:fissureCompatibilityText(morphology),
     toothmarks:UNKNOWN,
@@ -108,11 +114,12 @@ function topObservation(signature,qc,matches){
     otherVisibleFeatures:[
       ...(morphology?.medianSulcus?.status==='visible-signal'?['Có tín hiệu rãnh dọc giữa theo trục đối xứng của lưỡi; không đồng nhất với nứt bệnh lý.']:[]),
       ...(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?['Phân bố rêu: '+coatingDistribution+'.']:[]),
+      ...(moistureObservation?.surface?.status&&moistureObservation.surface.status!=='unknown'?['Độ ẩm bề mặt: '+moisture+'; thân lưỡi '+String(moistureObservation?.body?.label||UNKNOWN)+'; rêu '+String(moistureObservation?.coating?.label||UNKNOWN)+'.']:[]),
       ...(best?['Đối chiếu atlas gần nhất '+Math.round(Number(best.similarity||0)*100)+'% (chỉ tham khảo hình ảnh).']:[])
     ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
     confidence,
-    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+tongueColor+', rêu '+coatingColor+' '+coatingThickness+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
+    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+tongueColor+', rêu '+coatingColor+' '+coatingThickness+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; độ ẩm '+moisture+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
     limitations
   };
 }

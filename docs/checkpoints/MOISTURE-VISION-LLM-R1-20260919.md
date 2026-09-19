@@ -165,6 +165,26 @@ Current gate:
 
 Synthetic smoke fixtures only verify that the gate code behaves correctly. They are not model evidence.
 
+## Independent mentor evidence integrity
+
+The >=95% gate is now preceded by a locked anti-leakage join:
+- policy: `ml/mentor/visual-mentor-holdout-policy-v1.json`;
+- builder: `ml/evaluation/build_visual_mentor_evidence.mjs`;
+- only new independent images are eligible for the mentor holdout;
+- development images, silver textbook images, training data, near-duplicate perturbations and previously tuned images are excluded;
+- correlated captures must share one `groupHash`;
+- holdout membership is label-blind and candidate-blind;
+- mentor labels must be locked and blind to candidate/model output before joining;
+- exact image SHA-256 must match manifest, mentor label and candidate observation;
+- one benchmark run may contain only one declared `candidateVersion`;
+- the locked manifest digest is carried into every evaluator row.
+
+This prevents tuning on the same images and then reporting the result as independent >=95% agreement.
+
+## Local inspection harness
+
+`/vision-moisture-inspect-v1.html` exposes the current moisture measurements for staging inspection without calling `/api/analyze` or any provider image model. It shows primary Local Vision gloss/texture/QC, main-thread/device-worker parity and shadow-v4 candidate evidence. The uploaded image stays in the browser; shadow remains non-authoritative and non-production-eligible.
+
 ## Current benchmark truth
 
 Actual >=95% agreement is **not yet verified** because the current telemetry rows do not have independent structured moisture mentor labels.

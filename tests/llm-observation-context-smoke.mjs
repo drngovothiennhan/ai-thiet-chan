@@ -14,8 +14,8 @@ assert.match(engine,/rãnh giữa rõ phải được tách riêng khỏi nứt 
 assert.match(engine,/depth:'not-assessable-from-2d-image'/);
 assert.doesNotMatch(engine,/fissureText\(Boolean\(c\.fissure\)\)/,'legacy coarse dark ratio must not directly become fissure text');
 
-assert.match(server,/aitc-llm-observation-context-v4/);
-assert.match(server,/tongue-dual-view-feature-vector-v4/);
+assert.match(server,/aitc-llm-observation-context-v5/);
+assert.match(server,/tongue-dual-view-feature-vector-v5/);
 assert.match(server,/medianSulcusIsNotAutomaticallyFissure:true/);
 assert.match(server,/legacyDarkLineSignalIsNotFissureDiagnosis:true/);
 assert.match(server,/fissureDepthFrom2dImageForbidden:true/);
@@ -29,6 +29,21 @@ assert.match(server,/shapeIsRelative2dGeometry:true/);
 assert.match(server,/broadFullDoesNotProveSoftness:true/);
 assert.match(server,/coatingTextureObservationOnly:true/);
 assert.match(server,/coatingAdhesionOrScrapabilityFromStaticImageForbidden:true/);
+assert.match(server,/stasisSpotObservationOnly:true/);
+assert.match(server,/stasisColoredCandidateDoesNotEqualBloodStasisSyndrome:true/);
+assert.match(server,/ventralVesselColorObservationOnly:true/);
+assert.match(server,/ventralColorDoesNotEqualVaricesOrStasis:true/);
+assert.match(server,/tongueTopographyIsTcmTheoryNotAnatomy:true/);
+assert.match(server,/regionalFindingDoesNotEqualOrganDisease:true/);
+assert.match(server,/normalizeStasisSpotObservation/);
+assert.match(server,/normalizeEducationalSuggestions/);
+assert.match(engine,/interpretStasisSpotObservation/);
+assert.match(engine,/stasisSpotObservation/);
+assert.match(engine,/tongueTopography/);
+assert.match(reasoning,/function stasisObservationText/);
+assert.match(reasoning,/function regionalYhctText/);
+assert.match(reasoning,/function syndromeSuggestionText/);
+assert.match(reasoning,/không thay thế chẩn đoán lâm sàng/);
 assert.match(server,/normalizeSurfacePhenotype/);
 assert.match(engine,/interpretSurfacePhenotype/);
 assert.match(engine,/surfacePhenotype/);
@@ -51,4 +66,4 @@ assert.match(reasoning,/chưa đủ căn cứ gọi là nứt/);
 assert.match(server,/const llmData=llmSafeAssessmentContext\(data\)/);
 assert.match(server,/Phân tích cấu trúc:/);
 
-console.log('LLM OBSERVATION CONTEXT PASS: Local Vision owns fissure/moisture/toothmark/shape/coating-texture observations; the LLM receives structured v4 context and cannot invent hidden image features.');
+console.log('LLM OBSERVATION CONTEXT PASS: Local Vision owns fissure/moisture/surface/stasis/ventral-color observations; LLM context v5 carries theoretical YHCT topography/syndrome hints without inventing hidden image features or organ disease.');

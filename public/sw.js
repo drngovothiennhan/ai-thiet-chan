@@ -1,6 +1,7 @@
 // Previous release marker retained for compatibility gate: ai-thiet-chan-v2.9.8-knowledge-5doc-complete
 // Previous cache marker retained for regression compatibility: ai-thiet-chan-v2.9.15-rollback-mobile-layout
 // Moisture vision generation marker: 2026.09.19-moisture-vision-r1
+// Consultation duplicate-question hotfix marker: 2026.09.20-consult-dedup-yhct-r1
 let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';

@@ -4,7 +4,7 @@ import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } 
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from './knowledge-open-access.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-19.6doc+oa19-moisture-region-v2';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-20.6doc+oa23-surface-phenotype-v3';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
@@ -39,6 +39,9 @@ function evidenceScore(e,queryTokens){
 function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam xuc|buon|hoang|mat ngu|tu hai|hanh vi|cang thang)/.test(normalizeSearchText(query));}
 function moistureRelevant(query){return /(do am|kho|uot|nhuan|tron|gloss|bong be mat|nuoc bot|moisture|wet|dry)/.test(normalizeSearchText(query));}
 function regionalTopographyRelevant(query){return /(phan khu|dau luoi|ria luoi|hai ben luoi|giua luoi|goc luoi|tam phe|can dom|ty vi|than|bang quang|tongue region|topograph)/.test(normalizeSearchText(query));}
+function toothmarkRelevant(query){return /(dau rang|han rang|tooth mark|toothmarked|scallop)/.test(normalizeSearchText(query));}
+function shapeRelevant(query){return /(hinh the|map|beu|phinh to|gay|mong nho|bulgy|swollen|thin tongue|tongue shape)/.test(normalizeSearchText(query));}
+function coatingTextureRelevant(query){return /(tinh chat reu|ket cau reu|reu nhay|reu nhot|reu vua|reu hu|reu tho|reu min|reu troc|reu bong|greasy|rotten|peeled|coating texture)/.test(normalizeSearchText(query));}
 function renderCitedEvidence(items){
   return items.map(e=>{
     const doc=documentById.get(e.source);
@@ -61,6 +64,9 @@ export function knowledgeForQuery(query,{limit=18}={}){
     'TC1','DY1','MC1','AT1',
     ...(moistureRelevant(query)?['TCATLAS1','OA17','OA18']:[]),
     ...(regionalTopographyRelevant(query)?['OA19']:[]),
+    ...(toothmarkRelevant(query)?['TCATLAS1','OA20','OA21']:[]),
+    ...(shapeRelevant(query)?['TCATLAS1','OA10']:[]),
+    ...(coatingTextureRelevant(query)?['TCATLAS1','OA22','OA23']:[]),
     ...(allowPsych?['PSY1']:[])
   ];
   for(const source of requiredSources){
@@ -76,7 +82,8 @@ export function knowledgeForQuery(query,{limit=18}={}){
     if(selected.length<effectiveLimit){selected.push(fallback);seen.add(fallback.id);}
   }
   return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,effectiveLimit))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.
-- Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
+- Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.
+- Với dấu răng, hình thể và tính chất rêu: LLM chỉ diễn giải structured Local Vision; không được dùng mô tả nguồn để tự tạo feature chưa thấy trong ảnh.`;
 }
 
 export const TONGUE_KNOWLEDGE = `
@@ -127,6 +134,10 @@ MÀU CHẤT LƯỠI:
 HÌNH DÁNG VÀ TRẠNG THÁI:
 - Mập to, non, hằn răng: thường đi với Tỳ khí/Tỳ dương hư và thấp; nếu đỏ căng to có thể đi với nhiệt/thấp nhiệt.
 - Gầy mỏng: trắng nhạt -> khí huyết hư; đỏ sẫm -> nhiệt thương tân hoặc âm hư.
+- Khi số hóa, hình thể phải dựa trên thân lưỡi đã phân đoạn. Môi/răng che bờ có thể gây nhầm bình thường với dạng rộng/phình; nếu bờ bị che hoặc silhouette thiếu thì trả Không xác định.
+- Ảnh tĩnh chỉ cho phép mô tả hình học tương đối: rộng/đầy (gợi dạng mập-bệu), hẹp/gầy hoặc trung gian. Không dùng kích thước pixel tuyệt đối vì khoảng cách camera thay đổi; không suy tính “non/mềm” từ silhouette 2D.
+- Dấu răng phải được tìm ở bờ lưỡi dưới dạng các lõm lặp lại/cục bộ và ưu tiên bằng chứng định vị bờ. Một lõm đơn lẻ, bờ bị môi/răng che hoặc segmentation gãy không đủ để gọi dấu răng.
+- Dấu răng là trường quan sát độc lập. Không tự động chuyển “có dấu răng” thành Tỳ hư, thấp hay bất kỳ thể bệnh nào nếu chưa đối chiếu màu, hình thể, rêu, triệu chứng và các dữ kiện tứ chẩn.
 - Nứt: cần xét màu và độ ẩm; đỏ sẫm + nứt + khô -> nhiệt thương tân/âm dịch khuy; trắng nhợt + nứt -> huyết hư; mập non + hằn răng + nứt -> Tỳ hư thấp đình.
 - Nổi gai/điểm đỏ: tín hiệu nhiệt thịnh; vị trí chỉ dùng như gợi ý học thuật, không suy thành bệnh cơ quan xác định.
 - Lưỡi già thường thiên thực/nhiệt; lưỡi non thường thiên hư/hàn.
@@ -135,9 +146,12 @@ HÌNH DÁNG VÀ TRẠNG THÁI:
 RÊU LƯỠI:
 - Mỏng: còn nhìn thấy thân lưỡi; thường bệnh nhẹ/biểu. Dày: che thân lưỡi; thường tà nhập lý hoặc đàm ẩm/thấp/thực tích.
 - Nhuận/trơn: trước hết là mô tả độ ẩm của rêu; về YHCT có thể hỗ trợ bối cảnh tân dịch/thấp. Khô/táo: trước hết là mô tả rêu ít dịch; về YHCT có thể hỗ trợ bối cảnh tân dịch tổn thương/táo. Không suy nguyên nhân khi chỉ có một dấu này.
-- Nhầy: hạt nhỏ, dính chặt; thường thấp trọc/đàm ẩm/thực tích, có thể là hàn thấp hoặc thấp nhiệt tùy màu và độ ẩm.
-- Vữa/hủ: thô xốp, dễ cạo; thường thấp trọc/thực tích.
-- Tróc/bản đồ/mặt gương: khí âm, đặc biệt Tỳ Vị khí âm, có thể bất túc; mặt gương đỏ sẫm/khô làm tăng tín hiệu âm dịch hao tổn.
+- Khi phân tích ảnh, phải tách vùng rêu trước rồi mới đọc texture. Các mô tả ảnh hợp lệ gồm mịn/trơn tương đối, thô/không đều, hạt mịn dày/đan xen, hạt thô không đều và bong/tróc dạng mảng.
+- “Nhầy/nhớt” trong ảnh chỉ được dùng thận trọng khi có pattern hạt mịn dày/đan xen và phân bố phù hợp; “vữa/hủ” chỉ là đối chiếu ngôn ngữ nguồn khi texture thô/hạt không đều. Không một texture đơn lẻ nào tự xác lập thể thấp, đàm hay thực tích.
+- Các thuộc tính cổ điển cần thao tác như “dính chặt” hoặc “dễ cạo” KHÔNG thể xác nhận từ một ảnh tĩnh; LLM phải nói rõ giới hạn thay vì suy đoán.
+- Nhầy: theo mô tả YHCT cổ điển thường hạt nhỏ và dính; thường thấp trọc/đàm ẩm/thực tích, có thể là hàn thấp hoặc thấp nhiệt tùy màu và độ ẩm. Phần “dính” không được suy từ ảnh tĩnh.
+- Vữa/hủ: theo mô tả YHCT cổ điển thường thô xốp và dễ cạo; thường thấp trọc/thực tích. Phần “dễ cạo” không được suy từ ảnh tĩnh.
+- Tróc/bản đồ/mặt gương: khí âm, đặc biệt Tỳ Vị khí âm, có thể bất túc; mặt gương đỏ sẫm/khô làm tăng tín hiệu âm dịch hao tổn. Trên ảnh, chỉ gọi bong/tróc khi vùng rêu không liên tục/dạng mảng được thấy rõ.
 - Rêu trắng: thường biểu/hàn nhưng phải kết hợp chất lưỡi. Trắng dày nhầy -> thấp trọc/đàm ẩm/thực tích.
 - Rêu vàng: thường lý/nhiệt. Vàng dày khô -> nhiệt thương tân/táo kết. Vàng nhầy -> thấp nhiệt/đàm nhiệt/thực tích hóa nhiệt.
 - Rêu xám/đen: thường lý chứng nặng; khô thiên nhiệt cực thương tân, nhuận thiên hàn thấp/dương hư. Không suy mức độ nặng nếu ảnh bị ám màu hoặc vệ sinh miệng/thức ăn có thể làm đổi màu.

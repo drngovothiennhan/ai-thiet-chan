@@ -5,7 +5,18 @@
   const result=$('#resultCard');
   const chat=$('.chat-card');
   const history=$('.history-card');
-  if(!capture||!result||!chat||!history)return;
+  const quality=$('.quality-card');
+  if(!capture||!result||!chat||!history||!quality)return;
+
+  const WORKSPACE_KEY='aitc-active-workspace-v1';
+  const WORKSPACES=Object.freeze({
+    capture:Object.freeze([capture]),
+    result:Object.freeze([result]),
+    symptoms:Object.freeze([chat]),
+    cases:Object.freeze([history]),
+    system:Object.freeze([quality])
+  });
+  let activeWorkspace='capture';
 
   function installStepper(){
     if($('#aitcWorkflowStepper'))return;
@@ -37,25 +48,52 @@
     });
   }
 
+  function workspaceAvailable(name){
+    return name!=='result'||!result.hidden;
+  }
+  function updateTaskbar(){
+    const nav=$('#aitcBottomNav');if(!nav)return;
+    $('button[data-nav]',nav).forEach(btn=>{
+      const selected=btn.dataset.nav===activeWorkspace;
+      btn.classList.toggle('active',selected);
+      btn.setAttribute('aria-current',selected?'page':'false');
+      if(btn.dataset.nav==='result')btn.disabled=result.hidden;
+    });
+  }
+  function setWorkspace(name,{focus=true,persist=true}={}){
+    const next=WORKSPACES[name]&&workspaceAvailable(name)?name:'capture';
+    activeWorkspace=next;
+    for(const [workspace,panels] of Object.entries(WORKSPACES)){
+      const hidden=workspace!==next;
+      panels.forEach(panel=>{
+        panel.classList.toggle('aitc-workspace-hidden',hidden);
+        panel.setAttribute('data-aitc-workspace',workspace);
+        panel.setAttribute('aria-hidden',hidden?'true':'false');
+      });
+    }
+    if(next==='cases'){
+      const toggle=$('#toggleHistoryBtn'),panel=$('#historyPanel');
+      if(toggle&&panel?.hidden)toggle.click();
+    }
+    if(persist){try{sessionStorage.setItem(WORKSPACE_KEY,next);}catch{}}
+    updateTaskbar();
+    window.dispatchEvent(new CustomEvent('aitc:workspace-change',{detail:{workspace:next}}));
+    if(focus)requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
+    return next;
+  }
   function installBottomNav(){
     if($('#aitcBottomNav'))return;
-    const nav=document.createElement('nav');nav.id='aitcBottomNav';nav.className='aitc-bottom-nav';nav.setAttribute('aria-label','Điều hướng chính');
+    const nav=document.createElement('nav');nav.id='aitcBottomNav';nav.className='aitc-bottom-nav';nav.setAttribute('aria-label','Thanh tác vụ chức năng');
     nav.innerHTML=`
       <button type="button" data-nav="capture"><span>舌</span><small>Thiệt chẩn</small></button>
-      <button type="button" data-nav="assistant"><span>✦</span><small>Trợ lý</small></button>
+      <button type="button" data-nav="result" disabled><span>✓</span><small>Kết quả</small></button>
+      <button type="button" data-nav="symptoms"><span>✦</span><small>Đối chiếu</small></button>
       <button type="button" data-nav="cases"><span>▤</span><small>Ca</small></button>
-      <button type="button" data-nav="settings"><span>⚙</span><small>Cài đặt</small></button>`;
+      <button type="button" data-nav="system"><span>◎</span><small>Hệ thống</small></button>`;
     document.body.appendChild(nav);
     nav.addEventListener('click',ev=>{
-      const btn=ev.target.closest('button[data-nav]');if(!btn)return;
-      const kind=btn.dataset.nav;
-      if(kind==='capture')capture.scrollIntoView({behavior:'smooth',block:'start'});
-      if(kind==='assistant')chat.scrollIntoView({behavior:'smooth',block:'start'});
-      if(kind==='cases'){
-        const toggle=$('#toggleHistoryBtn');const panel=$('#historyPanel');
-        if(toggle&&panel?.hidden)toggle.click();history.scrollIntoView({behavior:'smooth',block:'start'});
-      }
-      if(kind==='settings')$('#settingsBtn')?.click();
+      const btn=ev.target.closest('button[data-nav]');if(!btn||btn.disabled)return;
+      setWorkspace(btn.dataset.nav);
     });
   }
 
@@ -112,7 +150,15 @@
   }
 
   installStepper();installBottomNav();installNewCaseButton();installClinicalContributionEntry();markEvidenceFirst();observeReferenceBoundary();updateStepper();
-  const stateObserver=new MutationObserver(updateStepper);
+  let initialWorkspace='capture';try{initialWorkspace=sessionStorage.getItem(WORKSPACE_KEY)||'capture';}catch{}
+  setWorkspace(initialWorkspace,{focus:false,persist:false});
+  const stateObserver=new MutationObserver(mutations=>{
+    updateStepper();
+    const resultChanged=mutations.some(mutation=>mutation.target===result&&mutation.type==='attributes'&&mutation.attributeName==='hidden');
+    if(resultChanged&&!result.hidden)setWorkspace('result',{focus:true});
+    else if(result.hidden&&activeWorkspace==='result')setWorkspace('capture',{focus:false});
+    else updateTaskbar();
+  });
   ['#topPreview','#bottomPreview','#topQcPanel','#bottomQcPanel','#resultCard','#analyzeBtn','#bottomCaptureCard'].forEach(sel=>{const el=$(sel);if(el)stateObserver.observe(el,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true});});
   document.addEventListener('change',()=>queueMicrotask(updateStepper));
   document.addEventListener('click',()=>setTimeout(updateStepper,0));

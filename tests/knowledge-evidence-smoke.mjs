@@ -8,20 +8,20 @@ import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontol
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-18.5doc+oa16-v1');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,21);
-assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,3);
-assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,16);
-assert.equal(OPEN_ACCESS_POLICY.sourceCount,16);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-19.6doc+oa19-moisture-region-v2');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,25);
+assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
+assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,19);
+assert.equal(OPEN_ACCESS_POLICY.sourceCount,19);
 assert.equal(OPEN_ACCESS_POLICY.fullTextVendored,false);
 assert.ok(TONGUE_ONTOLOGY_V1.length>=25);
-assert.equal(TONGUE_ONTOLOGY_MANIFEST.id,'aitc-tongue-ontology-v1');
-for(const id of ['OA01-E01','OA05-E01','OA08-E01','OA12-E01','OA16-E04']) assert.ok(OPEN_ACCESS_EVIDENCE.some(e=>e.id===id),`open-access evidence missing id: ${id}`);
+assert.equal(TONGUE_ONTOLOGY_MANIFEST.id,'aitc-tongue-ontology-v2');
+for(const id of ['OA01-E01','OA05-E01','OA08-E01','OA12-E01','OA16-E04','OA17-E02','OA18-E02','OA19-E01']) assert.ok(OPEN_ACCESS_EVIDENCE.some(e=>e.id===id),`open-access evidence missing id: ${id}`);
 for(const title of ['Thiệt chẩn hoàn chỉnh','Đông y chẩn đoán bệnh trên lưỡi','Chẩn đoán bằng mạch chẩn và thiệt chẩn','Thiệt chẩn bằng hình ảnh','Tâm bệnh học']) assert.ok(KNOWLEDGE_SOURCES.some(x=>x.includes(title)),`missing knowledge source: ${title}`);
 for(const id of ['TC1-005','TC1-048','DY1-012','DY1-027']) assert.ok(TONGUE_EVIDENCE.some(e=>e.id===id),`base evidence corpus missing id: ${id}`);
-for(const id of ['MC1-077','MC1-083','AT1-001','AT1-022','PSY1-014','PSY1-044']) assert.ok(EXTENDED_EVIDENCE.some(e=>e.id===id),`extended evidence corpus missing id: ${id}`);
-for(const marker of ["id:'MC1'","id:'AT1'","id:'PSY1'",'driveFileId','sha256']) assert.ok(extendedSource.includes(marker),`extended source missing marker: ${marker}`);
-assert.ok(TONGUE_KNOWLEDGE.includes('Năm tài liệu PDF người dùng cung cấp được phối hợp theo vai trò'));
+for(const id of ['MC1-077','MC1-083','AT1-001','AT1-022','TCATLAS1-003','TCATLAS1-018','TCATLAS1-034','PSY1-014','PSY1-044']) assert.ok(EXTENDED_EVIDENCE.some(e=>e.id===id),`extended evidence corpus missing id: ${id}`);
+for(const marker of ["id:'MC1'","id:'AT1'","id:'TCATLAS1'","id:'PSY1'",'driveFileId','sha256']) assert.ok(extendedSource.includes(marker),`extended source missing marker: ${marker}`);
+assert.ok(TONGUE_KNOWLEDGE.includes('Năm tài liệu PDF nền cùng atlas THIỆT CHẨN(1) bổ sung'));
 assert.ok(TONGUE_KNOWLEDGE.includes('Nguồn/trang chỉ được hiển thị trong chatbot sau khi đã có kết quả thiệt chẩn'));
 assert.ok(!/\[(?:TC1|DY1|MC1|AT1|PSY1),\s*tr\./.test(TONGUE_KNOWLEDGE),'analysis knowledge must not render citations');
 assert.ok(PSYCH_CONTEXT_RULES.includes('Không suy rối loạn tâm thần'));
@@ -35,6 +35,12 @@ const coating=knowledgeForQuery('rêu lưỡi smartphone độ tin cậy nhú l�
 assert.ok(coating.includes('[OA05, PMID 32459647]'),'ontology-aware retrieval should surface OA coating/reliability evidence');
 const sublingual=knowledgeForQuery('tĩnh mạch dưới lưỡi giãn màu hình dạng',{limit:12});
 assert.ok(sublingual.includes('[OA12, PMID 36388160]'),'ontology-aware retrieval should surface sublingual evidence');
+const moisture=knowledgeForQuery('độ ẩm lưỡi khô ướt nhuận độ bóng nước bọt flash',{limit:14});
+assert.ok(moisture.includes('[OA17, PMID 25699260]'),'moisture retrieval should surface gloss-quantification evidence');
+assert.ok(moisture.includes('[TCATLAS1, tr.'),'moisture retrieval should surface at least one owner-atlas dry/wet example');
+const regions=knowledgeForQuery('phân khu đầu lưỡi tâm phế hai bên can đởm giữa tỳ vị gốc thận bàng quang',{limit:14});
+assert.ok(regions.includes('[OA19, PMID 22693533]'),'regional-topography retrieval should surface TCM region evidence');
+assert.ok(regions.includes('không phải bản đồ giải phẫu')||regions.includes('không được tự chuyển thành chẩn đoán bệnh cơ quan'),'regional topography must carry non-anatomical/non-diagnostic guardrail');
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
 console.log('KNOWLEDGE EVIDENCE SMOKE PASS: five user PDFs are grounded, psych context is gated, and citations are chatbot-only');

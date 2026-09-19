@@ -35,6 +35,7 @@ assert.ok(home.includes('/release-ui.js?v=2026.09.19-taskbar-r2'),'taskbar JS mu
 assert.ok(home.includes('/release-ui.css?v=2026.09.19-taskbar-r2'),'taskbar CSS must use a versioned URL to bypass an older controlling worker cache');
 assert.match(sw,/\['\/release-meta\.js','\/release-ui\.js','\/release-ui\.css'\]\.includes\(url\.pathname\)/,'release taskbar assets must be network-first in the service worker');
 
-assert.equal(releaseId,'2026.09.19-vision-spatial-r1');
+assert.equal(releaseId,'2026.09.20-consult-dedup-yhct-r1');
+assert.ok(home.includes('/consultation.js?v=2026.09.20-consult-dedup-yhct-r1'),'consultation hotfix must use a versioned URL so old PWA caches cannot keep the duplicate-question client');
 assert.match(sw,/hasCompleteDevicePayload\(body\)[^]*digestBase64Payload\(image\)/,'service worker must verify the actual image digest before trusting a complete device payload');
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, atomic cache-before-takeover, and digest self-healing without forced page reload.`);

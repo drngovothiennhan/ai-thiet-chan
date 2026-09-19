@@ -1,8 +1,8 @@
-import './model-manifest.js?v=vision-v3';
-import './shadow-pixel-mlp.js?v=vision-v3';
-import {analyzeShadowFeatureCandidates,SHADOW_FEATURE_VERSION} from './shadow-feature-extractor.js?v=vision-v3';
+import './model-manifest.js?v=vision-v4';
+import './shadow-pixel-mlp.js?v=vision-v4';
+import {analyzeShadowFeatureCandidates,SHADOW_FEATURE_VERSION} from './shadow-feature-extractor.js?v=vision-v4';
 
-const VERSION='shadow-worker-v3';
+const VERSION='shadow-worker-v4';
 
 self.onmessage=async event=>{
   const {id,dataUrl,topDataUrl,bottomDataUrl}=event.data||{};

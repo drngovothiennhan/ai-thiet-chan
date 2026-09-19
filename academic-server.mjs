@@ -10,7 +10,7 @@ const ATLAS_LANGUAGE_MAX_SNIPPETS=3;
 const DEVICE_VERIFY_VERSION='device-payload-verify-v1';
 const DEVICE_RUNTIME_VERSION='device-runtime-v2';
 const DEVICE_SCHEMA='device-analysis-payload-v2';
-const DEVICE_WORKER_VERSION='device-analysis-worker-v2';
+const DEVICE_WORKER_VERSION='device-analysis-worker-v3';
 const SIG_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
@@ -52,10 +52,14 @@ function documentWordingForMatches(matches,assessment,body={}){
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
 function saneSpatialObservation(raw){
-  if(!raw||typeof raw!=='object'||raw.schemaVersion!=='tongue-spatial-observation-v1')return null;
+  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2'].includes(raw.schemaVersion))return null;
   const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
-  const out={schemaVersion:'tongue-spatial-observation-v1'};
+  const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of unitKeys){
+    const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
+  for(const key of ['strictCoatingCandidateRatio','coatingWhiteLikeRatio','coatingYellowLikeRatio']){
+    if(raw[key]===undefined)continue;
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
   }
   const zones=raw.coatingZones&&typeof raw.coatingZones==='object'?raw.coatingZones:null;
@@ -70,12 +74,50 @@ function saneSpatialObservation(raw){
   for(const key of ['score','continuity','centrality','meanDarkContrast']){
     const n=Number(sulcus[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out.medianSulcus[key]=n;
   }
-  const bodyColor=String(raw.bodyColorCandidate||'');
-  const thickness=String(raw.coatingThicknessCandidate||'');
-  const distribution=String(raw.coatingDistributionCandidate||'');
+  const bodyColor=String(raw.bodyColorCandidate||''),coatColor=String(raw.coatingColorCandidate||'');
+  const thickness=String(raw.coatingThicknessCandidate||''),distribution=String(raw.coatingDistributionCandidate||'');
   out.bodyColorCandidate=['đỏ nhạt','đỏ','nhợt'].includes(bodyColor)?bodyColor:'';
+  out.coatingColorCandidate=['trắng','vàng'].includes(coatColor)?coatColor:'';
   out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
   out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
+  if(raw.moisture&&typeof raw.moisture==='object'){
+    const m=raw.moisture;
+    if(m.schemaVersion!=='tongue-moisture-features-v1')return null;
+    const saneRegion=region=>{
+      if(!region||typeof region!=='object')return null;
+      const outRegion={sampledPixels:Math.max(0,Math.min(1000000,Math.round(Number(region.sampledPixels)||0)))};
+      for(const key of ['glossRatio','strictGlossRatio','largestGlossComponentRatio','distributedGlossRatio','roughness','meanValue','overexposedRatio','underexposedRatio']){
+        const n=Number(region[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;outRegion[key]=n;
+      }
+      return outRegion;
+    };
+    const surface=saneRegion(m.surface),bodyRegion=saneRegion(m.body),coatingRegion=saneRegion(m.coating);
+    if(!surface||!bodyRegion||!coatingRegion)return null;
+    const mq=m.qc&&typeof m.qc==='object'?m.qc:null;if(!mq)return null;
+    const moistureQc={};
+    for(const key of ['roiCoverage','overexposedRatio','underexposedRatio','largestGlossComponentRatio']){
+      const n=Number(mq[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;moistureQc[key]=n;
+    }
+    moistureQc.neutralReferencePixels=Math.max(0,Math.min(1000000,Math.round(Number(mq.neutralReferencePixels)||0)));
+    moistureQc.colorNormalizationApplied=Boolean(mq.colorNormalizationApplied);
+    out.moisture={
+      schemaVersion:'tongue-moisture-features-v1',
+      surface,body:bodyRegion,coating:coatingRegion,qc:moistureQc,
+      method:String(m.method||'').slice(0,100),
+      calibration:String(m.calibration||'').slice(0,120)
+    };
+  }
+  if(raw.colorNormalization&&typeof raw.colorNormalization==='object'){
+    const n=raw.colorNormalization;
+    out.colorNormalization={
+      applied:Boolean(n.applied),
+      neutralPixels:Math.max(0,Math.min(1000000,Number(n.neutralPixels)||0)),
+      gainR:Math.max(.8,Math.min(1.2,Number(n.gainR)||1)),
+      gainG:Math.max(.8,Math.min(1.2,Number(n.gainG)||1)),
+      gainB:Math.max(.8,Math.min(1.2,Number(n.gainB)||1)),
+      bounded:true
+    };
+  }
   out.fissurePolicy='median-sulcus-is-not-pathological-fissure';
   out.authority='direct-image-observation-only';
   return out;
@@ -92,10 +134,16 @@ function saneSignature(raw){
   return out;
 }
 function saneBottomFeatures(raw){
-  if(!raw||typeof raw!=='object'||raw.schemaVersion!=='bottom-device-feature-v1')return null;
-  const keys=['vesselCandidateRatio','darkPurpleRatio','meanCentralLuminance','redBlueMinusGreen'];const out={schemaVersion:'bottom-device-feature-v1'};
+  if(!raw||typeof raw!=='object'||!['bottom-device-feature-v1','bottom-device-feature-v2'].includes(raw.schemaVersion))return null;
+  const keys=['vesselCandidateRatio','darkPurpleRatio','meanCentralLuminance','redBlueMinusGreen'];
+  const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of keys){const n=Number(raw[key]);if(!Number.isFinite(n))return null;out[key]=n;}
   if(out.vesselCandidateRatio<0||out.vesselCandidateRatio>1||out.darkPurpleRatio<0||out.darkPurpleRatio>1||out.meanCentralLuminance<0||out.meanCentralLuminance>1||Math.abs(out.redBlueMinusGreen)>1)return null;
+  for(const key of ['leftDarkLineRatio','rightDarkLineRatio','bilateralBalance','leftRowContinuity','rightRowContinuity']){
+    if(raw[key]===undefined)continue;
+    const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
+  out.bilateralSignal=Boolean(raw.bilateralSignal===true);
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
   return out;
 }

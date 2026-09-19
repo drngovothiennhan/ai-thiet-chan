@@ -14,11 +14,18 @@ assert.match(engine,/rãnh giữa rõ phải được tách riêng khỏi nứt 
 assert.match(engine,/depth:'not-assessable-from-2d-image'/);
 assert.doesNotMatch(engine,/fissureText\(Boolean\(c\.fissure\)\)/,'legacy coarse dark ratio must not directly become fissure text');
 
-assert.match(server,/aitc-llm-observation-context-v2/);
-assert.match(server,/tongue-dual-view-feature-vector-v2/);
+assert.match(server,/aitc-llm-observation-context-v3/);
+assert.match(server,/tongue-dual-view-feature-vector-v3/);
 assert.match(server,/medianSulcusIsNotAutomaticallyFissure:true/);
 assert.match(server,/legacyDarkLineSignalIsNotFissureDiagnosis:true/);
 assert.match(server,/fissureDepthFrom2dImageForbidden:true/);
+assert.match(server,/moistureObservationOnly:true/);
+assert.match(server,/flashGlareCannotEqualWetness:true/);
+assert.match(server,/fissureAloneCannotEqualDryness:true/);
+assert.match(server,/bodyAndCoatingMoistureAreSeparate:true/);
+assert.match(server,/normalizeMoistureObservation/);
+assert.match(reasoning,/function moistureText/);
+assert.match(reasoning,/gloss\/texture đã qua QC/);
 assert.match(server,/localGroundedChat/);
 assert.match(server,/localGroundedReport/);
 assert.match(server,/\[AUXILIARY_POST_ANALYSIS_ONLY\]/);
@@ -31,4 +38,4 @@ assert.match(reasoning,/chưa đủ căn cứ gọi là nứt/);
 assert.match(server,/const llmData=llmSafeAssessmentContext\(data\)/);
 assert.match(server,/Phân tích cấu trúc:/);
 
-console.log('LLM OBSERVATION CONTEXT PASS: local vision and local-grounded reasoning separate median sulcus from fissure; optional Gemini receives structured text only and cannot invent image observations.');
+console.log('LLM OBSERVATION CONTEXT PASS: local vision and local-grounded reasoning separate median sulcus/fissure and body/coating moisture; optional Gemini receives structured text only and cannot invent image observations.');

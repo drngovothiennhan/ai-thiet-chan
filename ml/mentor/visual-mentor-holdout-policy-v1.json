@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "aitc-visual-mentor-holdout-policy-v1",
+  "lockedAt": "2026-09-19T17:31:17Z",
+  "lockedBeforeNewHoldoutLabels": true,
+  "lockedBeforeCandidateScoring": true,
+  "selection": {
+    "eligibility": "new-independent-images-only",
+    "unit": "groupHash",
+    "groupHashRequirement": "sha256 of de-identified subject/source-equivalence group; near-duplicates and same capture session must share one groupHash",
+    "function": "uint32(first_8_hex(groupHash)) mod 5",
+    "holdoutBucket": 0,
+    "approximateFraction": 0.2,
+    "labelBlind": true,
+    "candidateBlind": true
+  },
+  "leakageControls": [
+    "No development image, silver textbook crop, training sample, perturbation/augmentation of a development image, or previously tuned image may enter the mentor holdout.",
+    "All correlated or near-duplicate captures must share one groupHash.",
+    "Mentor labels must be locked before candidate observations are joined.",
+    "Mentor annotation must not expose candidate/model output.",
+    "Candidate observations must be generated from one declared candidateVersion.",
+    "Image SHA-256 must match exactly across holdout membership, mentor label, and candidate observation."
+  ],
+  "requiredFields": [
+    "bodyColor",
+    "coatingColor",
+    "coatingThickness",
+    "coatingDistribution",
+    "medianSulcus",
+    "fissure",
+    "moistureSurface",
+    "moistureBody",
+    "moistureCoating",
+    "ventralBilateralStructure"
+  ],
+  "promotionGate": {
+    "minimumRows": 50,
+    "minimumSupportPerField": 10,
+    "minimumMicroAgreement": 0.95,
+    "minimumMacroAgreement": 0.95,
+    "minimumPerFieldAgreement": 0.95,
+    "requireZeroSafetyLeaks": true
+  },
+  "metricSemantics": "agreement with independent structured mentor observations; not clinical diagnostic accuracy",
+  "clinicalAccuracy": false,
+  "productionActivation": "none"
+}

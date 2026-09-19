@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "aitc-silver-visual-atlas-v1",
+  "datasetId": "TCATLAS1",
+  "sourceFile": "THIỆT CHẨN(1).pdf",
+  "sourcePdfSha256": "9d7d3a359024fa137b697bd7bc698ebf840fbcef17e35eda199b04cf15639d2c",
+  "sourceType": "owner-provided teaching image atlas",
+  "pageCount": 41,
+  "numberedImageCases": 39,
+  "excludedPages": [{"page": 30, "reason": "blank page"},{"page": 41, "reason": "cover only"}],
+  "roleCounts": {"dorsal": 38,"ventral": 1},
+  "runtimeDorsalAtlasFiles": ["public/academic-atlas-thiet-chan-1.js","public/academic-atlas-thiet-chan-2.js","public/academic-atlas-thiet-chan-3.js","public/academic-atlas-thiet-chan-4.js"],
+  "rawImagesCommittedToGit": false,
+  "derivation": {"pageImage": "embedded page scan","cropMethod": "largest tongue-like component expanded by 18% margin","signature": "legacy 12D visual signature compatible with academic-signature.js"},
+  "ventralSilverReference": {"id": "TCATLAS1-p022","page": 22,"sourceTitle": "Giãn mạch dưới lưỡi phình to","visualContext": "Mặt dưới lưỡi: mạch dưới lưỡi nổi/phình theo nhãn hình nguồn","cropSha256": "1f293244d99e13a58c6ea92a95811ff1026602bcbb86267fd2ff67ce36deebe3","runtimeAtlas": false,"reason": "kept for separate underside pipeline; not mixed into dorsal similarity matching"},
+  "goldEligible": false,
+  "holdoutEligible": false,
+  "promotionEligible": false,
+  "clinicalAccuracyEligible": false,
+  "sourceInterpretationPolicy": "Textbook visual titles/descriptions are silver teacher labels. Disease names and Chủ bệnh associations are not automatic diagnosis labels."
+}

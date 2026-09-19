@@ -1,0 +1,9 @@
+# Deployment hygiene: omit non-runtime engineering material from Vercel source uploads.
+# Runtime source, public assets, package.json and configuration stay included.
+
+.github/
+docs/
+tests/
+db/
+scripts/
+ml/

@@ -7,8 +7,13 @@ const runtime=fs.readFileSync('public/device-runtime.js','utf8');
 const telemetry=fs.readFileSync('public/benchmark-telemetry.js','utf8');
 const manifest=fs.readFileSync('public/local-vision/model-manifest.js','utf8');
 
-assert.match(extractor,/shadow-feature-extractor-v3/);
+assert.match(extractor,/shadow-feature-extractor-v4/);
 assert.match(extractor,/flashRiskScore/);
+assert.match(extractor,/local-specular-plus-microtexture-shadow-v4/);
+assert.match(extractor,/distributedGlossRatio/);
+assert.match(extractor,/roughness/);
+assert.match(extractor,/labelCandidate='unknown'/);
+assert.match(extractor,/evidenceSupport/);
 assert.match(extractor,/medianSulcus/);
 assert.match(extractor,/fissure/);
 assert.match(extractor,/vesselVisibility/);
@@ -22,7 +27,7 @@ assert.match(extractor,/neutralReferencePixels/);
 assert.match(extractor,/normalizationApplied/);
 assert.doesNotMatch(extractor,/diagnos|bệnh danh|kê đơn|prescription/i);
 
-assert.match(worker,/shadow-worker-v3/);
+assert.match(worker,/shadow-worker-v4/);
 assert.match(worker,/analyzeShadowFeatureCandidates/);
 assert.match(worker,/topDataUrl/);
 assert.match(worker,/bottomDataUrl/);
@@ -30,7 +35,7 @@ assert.match(worker,/clinicalGold:false/);
 assert.match(worker,/productionEligible:false/);
 assert.match(worker,/authority:false/);
 assert.match(worker,/roiGeometry/);
-assert.match(worker,/vision-v3/);
+assert.match(worker,/vision-v4/);
 
 assert.match(runtime,/queueShadowViews/);
 assert.match(runtime,/none-fire-and-forget-after-response/);
@@ -72,4 +77,4 @@ assert.match(manifest,/bottom-observation-shadow-v2/);
 assert.match(manifest,/top-morphology-shadow-v2/);
 assert.match(manifest,/shadowOnly:true,authority:false/);
 
-console.log('VISION SHADOW V3 PASS: model-guided ROI, bounded preprocessing, QC, bottom-vessel and top morphology candidates remain shadow-only after the production response; no clinical metric is asserted.');
+console.log('VISION SHADOW V4 PASS: model-guided ROI, bounded preprocessing, QC, bottom-vessel and top morphology candidates remain shadow-only after the production response; no clinical metric is asserted.');

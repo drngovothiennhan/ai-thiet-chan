@@ -10,7 +10,8 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v2'
+  spatialObservationVersion:'tongue-spatial-observation-v2',
+  moistureObservationVersion:'tongue-moisture-features-v1'
 });
 
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}

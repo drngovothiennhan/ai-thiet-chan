@@ -104,6 +104,15 @@ self.addEventListener('fetch',event=>{
   }
   if(request.method!=='GET')return;
   if(url.pathname.startsWith('/api/')){event.respondWith(fetch(request,{cache:'no-store'}));return;}
+  if(['/release-meta.js','/release-ui.js','/release-ui.css'].includes(url.pathname)){
+    event.respondWith((async()=>{
+      try{
+        const response=await fetch(request,{cache:'no-cache'});
+        if(response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}
+        return response;
+      }catch{return (await caches.match(request))||Response.error();}
+    })());return;
+  }
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
       try{

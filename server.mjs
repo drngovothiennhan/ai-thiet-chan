@@ -116,8 +116,22 @@ function normalizeTongueMorphology(value,legacyFissureText=''){
       source:String(fissure.source||'unknown'),
       interpretationPolicy:String(fissure.interpretationPolicy||'Rãnh giữa không được tự động đồng nhất với nứt lưỡi; tín hiệu đường tối đơn độc không đủ để kết luận nứt.')
     },
-    toothmarks:{status:status(toothmarks.status),source:String(toothmarks.source||'unknown')},
-    swellingOrThinness:{status:status(swelling.status),source:String(swelling.source||'unknown')},
+    toothmarks:{
+      status:status(toothmarks.status),
+      label:String(toothmarks.label||'Không xác định').slice(0,100),
+      confidence:Number.isFinite(Number(toothmarks.confidence))?clampConfidence(toothmarks.confidence):null,
+      source:String(toothmarks.source||'unknown').slice(0,140),
+      metrics:toothmarks.metrics&&typeof toothmarks.metrics==='object'?toothmarks.metrics:null,
+      policyVersion:String(toothmarks.policyVersion||'').slice(0,80)
+    },
+    swellingOrThinness:{
+      status:status(swelling.status),
+      label:String(swelling.label||'Không xác định').slice(0,100),
+      confidence:Number.isFinite(Number(swelling.confidence))?clampConfidence(swelling.confidence):null,
+      source:String(swelling.source||'unknown').slice(0,140),
+      metrics:swelling.metrics&&typeof swelling.metrics==='object'?swelling.metrics:null,
+      policyVersion:String(swelling.policyVersion||'').slice(0,80)
+    },
     legacyFissureText:String(legacyFissureText||'')
   };
 }
@@ -147,6 +161,78 @@ function normalizeMoistureObservation(value){
     rule:String(src.rule||'').slice(0,320)
   };
 }
+function normalizeSurfacePhenotype(value){
+  const src=value&&typeof value==='object'?value:{};
+  const normNode=(node={})=>({
+    status:String(node.status||'unknown').slice(0,40),
+    label:String(node.label||'Không xác định').slice(0,120),
+    confidence:Number.isFinite(Number(node.confidence))?clampConfidence(node.confidence):null,
+    reason:String(node.reason||'').slice(0,160),
+    metrics:node.metrics&&typeof node.metrics==='object'?node.metrics:null,
+    rule:String(node.rule||'').slice(0,320)
+  });
+  return {
+    version:String(src.version||'tongue-surface-phenotype-policy-v1').slice(0,80),
+    active:Boolean(src.active),
+    calibrated:Boolean(src.calibrated===true),
+    productionEligible:Boolean(src.productionEligible===true),
+    toothmarks:normNode(src.toothmarks),
+    shape:normNode(src.shape),
+    coatingTexture:normNode(src.coatingTexture),
+    rule:String(src.rule||'').slice(0,320)
+  };
+}
+function normalizeStasisSpotObservation(value){
+  const src=value&&typeof value==='object'?value:{};
+  const node=v=>({
+    status:String(v?.status||'unknown').slice(0,30),
+    label:String(v?.label||'Không xác định').slice(0,140),
+    confidence:Number.isFinite(Number(v?.confidence))?clampConfidence(v.confidence):null,
+    count:Math.max(0,Math.min(100,Math.round(Number(v?.count)||0))),
+    rule:String(v?.rule||'').slice(0,360)
+  });
+  const regions=Array.isArray(src.regions)?src.regions.slice(0,4).map(x=>({
+    region:String(x?.region||'unknown').slice(0,20),
+    regionLabel:String(x?.regionLabel||'').slice(0,80),
+    count:Math.max(0,Math.min(100,Math.round(Number(x?.count)||0))),
+    zangFu:Array.isArray(x?.zangFu)?x.zangFu.slice(0,4).map(y=>String(y).slice(0,30)):[],
+    note:String(x?.note||'').slice(0,160),
+    interpretation:String(x?.interpretation||'').slice(0,260)
+  })):[];
+  return {
+    version:String(src.version||'tongue-stasis-spot-policy-v1').slice(0,80),
+    topographyVersion:String(src.topographyVersion||'tcm-tongue-topography-v1').slice(0,80),
+    active:Boolean(src.active),calibrated:Boolean(src.calibrated===true),productionEligible:Boolean(src.productionEligible===true),
+    smallSpots:node(src.smallSpots),patches:node(src.patches),
+    metrics:src.metrics&&typeof src.metrics==='object'?src.metrics:null,
+    regions,
+    rule:String(src.rule||'').slice(0,520),
+    topographyRule:String(src.topographyRule||'').slice(0,420)
+  };
+}
+function normalizeEducationalSuggestions(value){
+  const src=value&&typeof value==='object'?value:{};
+  const regionalHints=Array.isArray(src.regionalHints)?src.regionalHints.slice(0,4).map(x=>({
+    region:String(x?.region||'unknown').slice(0,20),
+    regionLabel:String(x?.regionLabel||'').slice(0,80),
+    findingCount:Math.max(0,Math.min(100,Math.round(Number(x?.findingCount)||0))),
+    zangFu:Array.isArray(x?.zangFu)?x.zangFu.slice(0,4).map(y=>String(y).slice(0,30)):[],
+    wording:String(x?.wording||'').slice(0,320),
+    guardrail:String(x?.guardrail||'').slice(0,320)
+  })):[];
+  const syndromeHints=Array.isArray(src.syndromeHints)?src.syndromeHints.slice(0,4).map(x=>({
+    label:String(x?.label||'').slice(0,120),
+    evidence:String(x?.evidence||'').slice(0,520),
+    confidence:Number.isFinite(Number(x?.confidence))?clampConfidence(x.confidence):null,
+    interpretation:String(x?.interpretation||'').slice(0,320)
+  })):[];
+  return {
+    schemaVersion:String(src.schemaVersion||'aitc-yhct-educational-suggestions-v1').slice(0,80),
+    label:String(src.label||'Gợi ý đối chiếu YHCT — không thay thế chẩn đoán lâm sàng').slice(0,140),
+    regionalHints,syndromeHints,modernDiseaseSuggestions:[],
+    policy:String(src.policy||'').slice(0,520)
+  };
+}
 function llmSafeAssessmentContext(context){
   if(!context||typeof context!=='object') return null;
   const top=context.top&&typeof context.top==='object'?context.top:{};
@@ -164,7 +250,7 @@ function llmSafeAssessmentContext(context){
     source:String(x?.source||'')
   })):[];
   return {
-    schemaVersion:'aitc-llm-observation-context-v3',
+    schemaVersion:'aitc-llm-observation-context-v5',
     policy:{
       imageInputToLlm:false,
       visualAuthority:'local-vision-only',
@@ -175,7 +261,19 @@ function llmSafeAssessmentContext(context){
       moistureObservationOnly:true,
       flashGlareCannotEqualWetness:true,
       fissureAloneCannotEqualDryness:true,
-      bodyAndCoatingMoistureAreSeparate:true
+      bodyAndCoatingMoistureAreSeparate:true,
+      toothmarksObservationOnly:true,
+      toothmarksDoNotEqualSpleenDeficiency:true,
+      shapeIsRelative2dGeometry:true,
+      broadFullDoesNotProveSoftness:true,
+      coatingTextureObservationOnly:true,
+      coatingAdhesionOrScrapabilityFromStaticImageForbidden:true,
+      stasisSpotObservationOnly:true,
+      stasisColoredCandidateDoesNotEqualBloodStasisSyndrome:true,
+      ventralVesselColorObservationOnly:true,
+      ventralColorDoesNotEqualVaricesOrStasis:true,
+      tongueTopographyIsTcmTheoryNotAnatomy:true,
+      regionalFindingDoesNotEqualOrganDisease:true
     },
     mode:context.mode==='general'?'general':'normal',
     top:{
@@ -189,6 +287,9 @@ function llmSafeAssessmentContext(context){
       coatingTexture:String(top.coatingTexture||'Không xác định'),
       moisture:String(top.moisture||'Không xác định'),
       moistureObservation:normalizeMoistureObservation(top.moistureObservation),
+      surfacePhenotype:normalizeSurfacePhenotype(top.surfacePhenotype),
+      stasisSpotObservation:normalizeStasisSpotObservation(top.stasisSpotObservation),
+      tongueTopography:Array.isArray(top.tongueTopography)?top.tongueTopography.slice(0,4):[],
       morphology:normalizeTongueMorphology(top.morphology,top.fissures),
       toothmarks:String(top.toothmarks||'Không xác định'),
       pricklesSpots:String(top.pricklesSpots||'Không xác định'),
@@ -212,7 +313,8 @@ function llmSafeAssessmentContext(context){
       generalSignals:ensureSignalArray(combined.generalSignals),
       stomachPatternSignals:ensureSignalArray(combined.stomachPatternSignals),
       cannotConclude:ensureStringArray(combined.cannotConclude),
-      academicFusion:combined.academicFusion&&typeof combined.academicFusion==='object'?combined.academicFusion:null
+      academicFusion:combined.academicFusion&&typeof combined.academicFusion==='object'?combined.academicFusion:null,
+      educationalSuggestions:normalizeEducationalSuggestions(combined.educationalSuggestions)
     },
     approvedClinicalKnowledge:approved,
     knowledgeVersion:String(context.knowledgeVersion||KNOWLEDGE_VERSION)
@@ -278,6 +380,14 @@ function normalizeBottom(bottom,qc){
   out.vessels={
     visible:typeof out.vessels.visible==='boolean'?out.vessels.visible:Boolean(out.visualValidity.vesselsVisible),
     color:out.vessels.color||'Không xác định',
+    colorObservation:out.vessels.colorObservation&&typeof out.vessels.colorObservation==='object'?{
+      status:String(out.vessels.colorObservation.status||'unknown').slice(0,30),
+      label:String(out.vessels.colorObservation.label||'Không xác định').slice(0,80),
+      confidence:Number.isFinite(Number(out.vessels.colorObservation.confidence))?clampConfidence(out.vessels.colorObservation.confidence):null,
+      samplePixels:Math.max(0,Math.min(1000000,Math.round(Number(out.vessels.colorObservation.samplePixels)||0))),
+      reason:String(out.vessels.colorObservation.reason||'').slice(0,160),
+      rule:String(out.vessels.colorObservation.rule||'').slice(0,320)
+    }:null,
     prominence:out.vessels.prominence||'Không xác định',
     dilation:out.vessels.dilation||'Không xác định',
     tortuosity:out.vessels.tortuosity||'Không xác định',
@@ -323,8 +433,8 @@ function normalizeAssessment(raw,{mode,topQc,bottomQc}){
   assessment.ml={
     pipeline:['capture-qc','view-validity','top-feature-extraction','sublingual-vessel-description','knowledge-mapping','combined-assessment'],
     featureVector:{
-      schemaVersion:'tongue-dual-view-feature-vector-v3',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
-      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
+      schemaVersion:'tongue-dual-view-feature-vector-v5',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
+      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),surfacePhenotype:normalizeSurfacePhenotype(top.surfacePhenotype),stasisSpotObservation:normalizeStasisSpotObservation(top.stasisSpotObservation),tongueTopography:Array.isArray(top.tongueTopography)?top.tongueTopography.slice(0,4):[],morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
       bottom:bottom?{visual:{undersideColor:bottom.undersideColor||'',vessels:bottom.vessels||{},otherVisibleFeatures:bottom.otherVisibleFeatures||[]},validity:bottom.visualValidity,qc:bottomQc||{},confidence:bottom.confidence}:null,
       combined:{confidence:combined.confidence,generalSignals:combined.generalSignals,stomachPatternSignals:combined.stomachPatternSignals}
     },

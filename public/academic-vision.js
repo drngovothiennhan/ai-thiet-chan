@@ -10,8 +10,10 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v2',
-  moistureObservationVersion:'tongue-moisture-features-v1'
+  spatialObservationVersion:'tongue-spatial-observation-v4',
+  moistureObservationVersion:'tongue-moisture-features-v1',
+  surfacePhenotypeVersion:'tongue-surface-phenotype-features-v1',
+  stasisSpotVersion:'tongue-stasis-spot-features-v1'
 });
 
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}
@@ -48,6 +50,29 @@ function largestComponent(mask,w,h){
   }
   const out=new Uint8Array(mask.length);for(const p of best)out[p]=1;
   return {mask:out,area:best.length};
+}
+function componentStats(mask,w,h){
+  const seen=new Uint8Array(mask.length),queue=new Int32Array(mask.length),out=[];
+  for(let seed=0;seed<mask.length;seed++){
+    if(!mask[seed]||seen[seed])continue;
+    let head=0,tail=0;queue[tail++]=seed;seen[seed]=1;
+    let area=0,minX=w,minY=h,maxX=-1,maxY=-1,sumX=0,sumY=0,border=0;
+    while(head<tail){
+      const p=queue[head++],x=p%w,y=(p/w)|0;area++;sumX+=x;sumY+=y;
+      minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+      let exposed=false;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=w||ny>=h){exposed=true;continue;}
+        const np=ny*w+nx;
+        if(mask[np]&&!seen[np]){seen[np]=1;queue[tail++]=np;}
+        if(!mask[np])exposed=true;
+      }
+      if(exposed)border++;
+    }
+    out.push({area,minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1,cx:sumX/area,cy:sumY/area,border});
+  }
+  return out;
 }
 function bounds(mask,w,h){
   let minX=w,minY=h,maxX=-1,maxY=-1;
@@ -102,6 +127,62 @@ function spatialObservation(px,w,h){
   }
   const symmetryAxis=rowCenters.length?median(rowCenters):minX+bw/2;
 
+  const silhouetteRows=[];
+  for(let y=minY;y<=box.maxY;y++){
+    let left=-1,right=-1,count=0;
+    for(let x=minX;x<=box.maxX;x++)if(comp.mask[y*w+x]){
+      if(left<0)left=x;right=x;count++;
+    }
+    if(count>=5)silhouetteRows.push({
+      y,ny:(y-minY)/Math.max(1,bh),left,right,width:right-left+1,center:(left+right)/2
+    });
+  }
+  const midRows=silhouetteRows.filter(r=>r.ny>=.28&&r.ny<=.72);
+  const midWidth=midRows.length?median(midRows.map(r=>r.width)):0;
+  const shapeGeometry=Object.freeze({
+    schemaVersion:'tongue-shape-geometry-v1',
+    boxAspect:q(bw/Math.max(1,bh)),
+    midWidthToHeight:q(midWidth/Math.max(1,bh)),
+    boxFillRatio:q(comp.area/Math.max(1,bw*bh)),
+    profileRows:silhouetteRows.length,
+    source:'segmented-relative-silhouette-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
+  const edgeRows=silhouetteRows.filter(r=>r.ny>=.28&&r.ny<=.84);
+  const leftDepths=[],rightDepths=[];
+  for(let i=0;i<edgeRows.length;i++){
+    const a=Math.max(0,i-4),b=Math.min(edgeRows.length,i+5),window=edgeRows.slice(a,b);
+    if(window.length<5){leftDepths.push(0);rightDepths.push(0);continue;}
+    const leftBase=median(window.map(r=>r.left)),rightBase=median(window.map(r=>r.right));
+    leftDepths.push(Math.max(0,(edgeRows[i].left-leftBase)/Math.max(1,bw)));
+    rightDepths.push(Math.max(0,(rightBase-edgeRows[i].right)/Math.max(1,bw)));
+  }
+  const allDepths=[...leftDepths,...rightDepths],depthNoise=allDepths.length?median(allDepths.slice()):0;
+  const notchThreshold=Math.max(.018,depthNoise*2.8);
+  function countNotches(values){
+    let count=0,maxDepth=0,last=-99;
+    for(let i=2;i<values.length-2;i++){
+      const v=values[i];maxDepth=Math.max(maxDepth,v);
+      if(v<notchThreshold||i-last<4)continue;
+      if(v>=values[i-1]&&v>=values[i+1]&&v>=values[i-2]&&v>=values[i+2]){count++;last=i;}
+    }
+    return {count,maxDepth};
+  }
+  const leftNotch=countNotches(leftDepths),rightNotch=countNotches(rightDepths);
+  const toothmarkGeometry=Object.freeze({
+    schemaVersion:'tongue-toothmark-geometry-v1',
+    leftNotches:leftNotch.count,
+    rightNotches:rightNotch.count,
+    totalNotches:leftNotch.count+rightNotch.count,
+    maxNotchDepthRatio:q(Math.max(leftNotch.maxDepth,rightNotch.maxDepth)),
+    bilateralSignal:leftNotch.count>0&&rightNotch.count>0,
+    edgeSampleRows:edgeRows.length,
+    adaptiveNotchThreshold:q(notchThreshold),
+    source:'lateral-contour-concavity-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
   let nr=0,ng=0,nb=0,neutralN=0;
   for(let p=0;p<w*h;p++){
     if(comp.mask[p])continue;
@@ -120,10 +201,10 @@ function spatialObservation(px,w,h){
     normalizationApplied=true;
   }
 
-  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h),hue=new Float32Array(w*h);
+  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h),hue=new Float32Array(w*h),nrgbR=new Float32Array(w*h),nrgbG=new Float32Array(w*h),nrgbB=new Float32Array(w*h);
   for(let p=0;p<w*h;p++){
     const i=p*4,r=clamp(px[i]*gainR,0,255),g=clamp(px[i+1]*gainG,0,255),b=clamp(px[i+2]*gainB,0,255),hsv=rgbToHsv(r,g,b);
-    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;hue[p]=hsv.h;
+    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;hue[p]=hsv.h;nrgbR[p]=r;nrgbG[p]=g;nrgbB[p]=b;
   }
   const lateralLuma=[],lateralSat=[];
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
@@ -160,6 +241,104 @@ function spatialObservation(px,w,h){
     if(ny>.62&&ny<.95){anteriorN++;if(loose)anteriorCoat++;}
   }
   const strictRatio=validN?strictN/validN:0,coatRatio=validN?looseN/validN:0;
+  let textureN=0,microSum=0,microSq=0,highFreqN=0,fineGranuleN=0,coarseGranuleN=0,edgeRegionN=0,edgeCoatN=0;
+  for(let y=Math.max(minY+1,1);y<=Math.min(box.maxY-1,h-2);y++)for(let x=Math.max(minX+1,1);x<=Math.min(box.maxX-1,w-2);x++){
+    const p=y*w+x;if(!comp.mask[p])continue;
+    const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
+    if(((nx>.10&&nx<.30)||(nx>.70&&nx<.90))&&ny>.10&&ny<.82){edgeRegionN++;if(coatMask[p])edgeCoatN++;}
+    if(!coatMask[p])continue;
+    if(!comp.mask[p-1]||!comp.mask[p+1]||!comp.mask[p-w]||!comp.mask[p+w])continue;
+    const local=(gray[p-1]+gray[p+1]+gray[p-w]+gray[p+w])/4;
+    const micro=Math.abs(gray[p]-local)/255;
+    textureN++;microSum+=micro;microSq+=micro*micro;
+    if(micro>=.040)highFreqN++;
+    if(micro>=.018&&micro<.070)fineGranuleN++;
+    if(micro>=.070)coarseGranuleN++;
+  }
+  const meanMicro=textureN?microSum/textureN:0;
+  const microVar=textureN?Math.max(0,microSq/textureN-meanMicro*meanMicro):0;
+  const coatLargest=looseN?largestComponent(coatMask,w,h).area:0;
+  const coatDominance=looseN?coatLargest/looseN:0;
+  const edgeCoatRatio=edgeRegionN?edgeCoatN/edgeRegionN:0;
+  const coatingTextureObservation=Object.freeze({
+    schemaVersion:'tongue-coating-texture-v1',
+    sampledPixels:textureN,
+    coatingCandidateRatio:q(coatRatio),
+    meanMicrotexture:q(meanMicro),
+    microtextureStd:q(Math.sqrt(microVar)),
+    highFrequencyRatio:q(textureN?highFreqN/textureN:0),
+    fineGranuleRatio:q(textureN?fineGranuleN/textureN:0),
+    coarseGranuleRatio:q(textureN?coarseGranuleN/textureN:0),
+    largestCoatingComponentRatio:q(coatDominance),
+    patchiness:q(1-coatDominance),
+    edgeCoverage:q(edgeCoatRatio),
+    centerMinusEdgeCoverage:q((centralN?centralCoat/centralN:0)-edgeCoatRatio),
+    source:'segmented-coating-local-texture-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+  const stasisMask=new Uint8Array(w*h);
+  let stasisCandidatePixels=0,purpleEvidenceSum=0,darkContrastSum=0,redSpotExcludedPixels=0;
+  for(let y=Math.max(minY+2,2);y<=Math.min(box.maxY-2,h-3);y++)for(let x=Math.max(minX+2,2);x<=Math.min(box.maxX-2,w-3);x++){
+    const p=y*w+x;if(!comp.mask[p]||coatMask[p])continue;
+    const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
+    if(nx<.06||nx>.94||ny<.04||ny>.96)continue;
+    if(val[p]>.93||val[p]<.10||sat[p]<.12)continue;
+    const neighbors=[p-2,p+2,p-2*w,p+2*w,p-w-1,p-w+1,p+w-1,p+w+1].filter(np=>comp.mask[np]&&!coatMask[np]);
+    if(neighbors.length<5)continue;
+    const localGray=neighbors.reduce((s,np)=>s+gray[np],0)/neighbors.length;
+    const localR=neighbors.reduce((s,np)=>s+nrgbR[np],0)/neighbors.length;
+    const localG=neighbors.reduce((s,np)=>s+nrgbG[np],0)/neighbors.length;
+    const localB=neighbors.reduce((s,np)=>s+nrgbB[np],0)/neighbors.length;
+    const darkContrast=(localGray-gray[p])/255;
+    const rbMinusG=(((nrgbR[p]+nrgbB[p])/2)-nrgbG[p])/255;
+    const localRbMinusG=(((localR+localB)/2)-localG)/255;
+    const purpleDelta=rbMinusG-localRbMinusG;
+    const purpleBalanced=nrgbR[p]>nrgbG[p]*1.015&&nrgbB[p]>nrgbG[p]*1.015;
+    const redDominant=nrgbR[p]>nrgbG[p]*1.18&&nrgbR[p]>nrgbB[p]*1.20&&((hue[p]<=24)||(hue[p]>=345));
+    if(redDominant&&darkContrast<.045){redSpotExcludedPixels++;continue;}
+    const candidate=purpleBalanced&&rbMinusG>.018&&purpleDelta>.012&&darkContrast>.018&&val[p]<.78;
+    if(candidate){
+      stasisMask[p]=1;stasisCandidatePixels++;purpleEvidenceSum+=Math.max(0,purpleDelta);darkContrastSum+=Math.max(0,darkContrast);
+    }
+  }
+  const rawStasisComponents=componentStats(stasisMask,w,h);
+  const minStasisArea=Math.max(2,Math.round(comp.area*.00035));
+  const maxStasisArea=Math.max(minStasisArea,Math.round(comp.area*.06));
+  const stasisComponents=rawStasisComponents.filter(x=>x.area>=minStasisArea&&x.area<=maxStasisArea&&x.width/Math.max(1,x.height)<4.5&&x.height/Math.max(1,x.width)<4.5);
+  const patchAreaGate=Math.max(minStasisArea+2,Math.round(comp.area*.003));
+  const regionCounts={tip:0,margin:0,center:0,root:0},smallRegionCounts={tip:0,margin:0,center:0,root:0},patchRegionCounts={tip:0,margin:0,center:0,root:0};
+  let smallSpotCount=0,patchCount=0,acceptedArea=0;
+  const componentSummaries=[];
+  for(const item of stasisComponents){
+    const nx=(item.cx-minX)/Math.max(1,bw),ny=(item.cy-minY)/Math.max(1,bh);
+    const region=ny>=.72?'tip':ny<=.28?'root':(nx<=.25||nx>=.75)?'margin':'center';
+    const kind=item.area>=patchAreaGate?'patch':'small-spot';
+    regionCounts[region]++;acceptedArea+=item.area;
+    if(kind==='patch'){patchCount++;patchRegionCounts[region]++;}else{smallSpotCount++;smallRegionCounts[region]++;}
+    if(componentSummaries.length<12)componentSummaries.push(Object.freeze({
+      kind,region,areaRatio:q(item.area/Math.max(1,comp.area)),aspect:q(item.width/Math.max(1,item.height)),
+      nx:q(nx),ny:q(ny)
+    }));
+  }
+  const stasisSpotObservation=Object.freeze({
+    schemaVersion:'tongue-stasis-spot-features-v1',
+    candidatePixelRatio:q(stasisCandidatePixels/Math.max(1,comp.area)),
+    acceptedAreaRatio:q(acceptedArea/Math.max(1,comp.area)),
+    componentCount:stasisComponents.length,
+    smallSpotCount,
+    patchCount,
+    regionCounts:Object.freeze(regionCounts),
+    smallSpotRegionCounts:Object.freeze(smallRegionCounts),
+    patchRegionCounts:Object.freeze(patchRegionCounts),
+    meanPurpleDelta:q(stasisCandidatePixels?purpleEvidenceSum/stasisCandidatePixels:0),
+    meanDarkContrast:q(stasisCandidatePixels?darkContrastSum/stasisCandidatePixels:0),
+    redSpotExcludedRatio:q(redSpotExcludedPixels/Math.max(1,comp.area)),
+    componentSummaries:Object.freeze(componentSummaries),
+    regionModel:'root-margin-center-tip-relative-map-v1',
+    method:'segmented-body-local-dark-purple-component-analysis-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
   const centralRatio=centralN?centralCoat/centralN:0,middleRatio=middleN?middleCoat/middleN:0,posteriorRatio=posteriorN?posteriorCoat/posteriorN:0,anteriorRatio=anteriorN?anteriorCoat/anteriorN:0;
   const whiteRatio=looseN?whiteLike/looseN:0,yellowRatio=looseN?yellowLike/looseN:0;
   const coatingThicknessCandidate=coatRatio>.42?'dày':coatRatio>.09?'mỏng':'rất mỏng';
@@ -240,7 +419,7 @@ function spatialObservation(px,w,h){
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
   return {
-    schemaVersion:'tongue-spatial-observation-v2',
+    schemaVersion:'tongue-spatial-observation-v4',
     roiCoverage:q(comp.area/(w*h)),
     bodyLuma:q(bodyLuma/255),
     bodySaturation:q(bodySaturation),
@@ -253,6 +432,8 @@ function spatialObservation(px,w,h){
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
+    surfacePhenotype:Object.freeze({schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:toothmarkGeometry,shape:shapeGeometry,coatingTexture:coatingTextureObservation}),
+    stasisSpot:stasisSpotObservation,
     moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({

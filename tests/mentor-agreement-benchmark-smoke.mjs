@@ -13,6 +13,12 @@ const labels={
   moistureSurface:'balanced',
   moistureBody:'balanced',
   moistureCoating:'balanced',
+  toothmarks:'possible',
+  tongueShape:'broad-full',
+  coatingTexture:'fine-dense',
+  stasisSmallSpot:'possible',
+  stasisPatch:'possible',
+  ventralVesselColor:'blue-purple',
   ventralBilateralStructure:true
 };
 const manifest={
@@ -29,7 +35,7 @@ const mentor=manifest.members.map(m=>({
 }));
 const candidate=manifest.members.map(m=>({
   schemaVersion:'aitc-visual-candidate-observation-v1',sampleId:m.sampleId,imageSha256:m.imageSha256,
-  candidateVersion:'moisture-vision-r1',labels:{...labels}
+  candidateVersion:'stasis-ventral-color-r1',labels:{...labels}
 }));
 const passRows=buildVisualMentorEvidence(manifest,mentor,candidate).rows;
 const pass=evaluateVisualMentorAgreement(passRows);
@@ -40,7 +46,7 @@ assert.equal(pass.macro.agreement,1);
 assert.equal(pass.insufficientSupportFields.length,0);
 assert.equal(Object.keys(pass.fields).length,VISUAL_MENTOR_FIELDS.length);
 assert.match(pass.holdoutManifestSha256,/^[0-9a-f]{64}$/);
-assert.equal(pass.candidateVersion,'moisture-vision-r1');
+assert.equal(pass.candidateVersion,'stasis-ventral-color-r1');
 
 const mismatch=passRows.map((row,i)=>({...row,sampleId:'mismatch-'+i,candidate:{...row.candidate,moistureCoating:i<3?'dry':row.candidate.moistureCoating}}));
 const failed=evaluateVisualMentorAgreement(mismatch);

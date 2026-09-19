@@ -10,7 +10,7 @@ const ATLAS_LANGUAGE_MAX_SNIPPETS=3;
 const DEVICE_VERIFY_VERSION='device-payload-verify-v1';
 const DEVICE_RUNTIME_VERSION='device-runtime-v2';
 const DEVICE_SCHEMA='device-analysis-payload-v2';
-const DEVICE_WORKER_VERSION='device-analysis-worker-v3';
+const DEVICE_WORKER_VERSION='device-analysis-worker-v4';
 const SIG_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
@@ -52,7 +52,7 @@ function documentWordingForMatches(matches,assessment,body={}){
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
 function saneSpatialObservation(raw){
-  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3','tongue-spatial-observation-v4'].includes(raw.schemaVersion))return null;
   const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of unitKeys){
@@ -80,6 +80,82 @@ function saneSpatialObservation(raw){
   out.coatingColorCandidate=['trắng','vàng'].includes(coatColor)?coatColor:'';
   out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
   out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
+  if(raw.surfacePhenotype&&typeof raw.surfacePhenotype==='object'){
+    const p=raw.surfacePhenotype;
+    if(p.schemaVersion!=='tongue-surface-phenotype-features-v1')return null;
+    const t=p.toothmarks&&typeof p.toothmarks==='object'?p.toothmarks:null;
+    const s=p.shape&&typeof p.shape==='object'?p.shape:null;
+    const ct=p.coatingTexture&&typeof p.coatingTexture==='object'?p.coatingTexture:null;
+    if(!t||!s||!ct)return null;
+    const finiteRange=(value,min,max)=>{const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;};
+    const tooth={
+      schemaVersion:String(t.schemaVersion||''),
+      leftNotches:Math.max(0,Math.min(20,Math.round(Number(t.leftNotches)||0))),
+      rightNotches:Math.max(0,Math.min(20,Math.round(Number(t.rightNotches)||0))),
+      totalNotches:Math.max(0,Math.min(40,Math.round(Number(t.totalNotches)||0))),
+      bilateralSignal:Boolean(t.bilateralSignal),
+      edgeSampleRows:Math.max(0,Math.min(1000,Math.round(Number(t.edgeSampleRows)||0))),
+      source:String(t.source||'').slice(0,100),
+      calibration:String(t.calibration||'').slice(0,120)
+    };
+    for(const key of ['maxNotchDepthRatio','adaptiveNotchThreshold']){
+      const n=finiteRange(t[key],0,1.05);if(n===null)return null;tooth[key]=n;
+    }
+    const shape={
+      schemaVersion:String(s.schemaVersion||''),
+      profileRows:Math.max(0,Math.min(1000,Math.round(Number(s.profileRows)||0))),
+      source:String(s.source||'').slice(0,100),
+      calibration:String(s.calibration||'').slice(0,120)
+    };
+    for(const key of ['boxAspect','midWidthToHeight']){
+      const n=finiteRange(s[key],0,5);if(n===null)return null;shape[key]=n;
+    }
+    {const n=finiteRange(s.boxFillRatio,0,1.05);if(n===null)return null;shape.boxFillRatio=n;}
+    const coatingTexture={
+      schemaVersion:String(ct.schemaVersion||''),
+      sampledPixels:Math.max(0,Math.min(1000000,Math.round(Number(ct.sampledPixels)||0))),
+      source:String(ct.source||'').slice(0,100),
+      calibration:String(ct.calibration||'').slice(0,120)
+    };
+    for(const key of ['coatingCandidateRatio','meanMicrotexture','microtextureStd','highFrequencyRatio','fineGranuleRatio','coarseGranuleRatio','largestCoatingComponentRatio','patchiness','edgeCoverage']){
+      const n=finiteRange(ct[key],0,1.05);if(n===null)return null;coatingTexture[key]=n;
+    }
+    {const n=finiteRange(ct.centerMinusEdgeCoverage,-1.05,1.05);if(n===null)return null;coatingTexture.centerMinusEdgeCoverage=n;}
+    if(tooth.schemaVersion!=='tongue-toothmark-geometry-v1'||shape.schemaVersion!=='tongue-shape-geometry-v1'||coatingTexture.schemaVersion!=='tongue-coating-texture-v1')return null;
+    out.surfacePhenotype={schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:tooth,shape,coatingTexture};
+  }
+  if(raw.stasisSpot&&typeof raw.stasisSpot==='object'){
+    const s=raw.stasisSpot;
+    if(s.schemaVersion!=='tongue-stasis-spot-features-v1')return null;
+    const finiteRange=(value,min,max)=>{const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;};
+    const stasis={
+      schemaVersion:'tongue-stasis-spot-features-v1',
+      componentCount:Math.max(0,Math.min(100,Math.round(Number(s.componentCount)||0))),
+      smallSpotCount:Math.max(0,Math.min(100,Math.round(Number(s.smallSpotCount)||0))),
+      patchCount:Math.max(0,Math.min(100,Math.round(Number(s.patchCount)||0))),
+      regionModel:String(s.regionModel||'').slice(0,80),
+      method:String(s.method||'').slice(0,120),
+      calibration:String(s.calibration||'').slice(0,120)
+    };
+    for(const key of ['candidatePixelRatio','acceptedAreaRatio','meanPurpleDelta','meanDarkContrast','redSpotExcludedRatio']){
+      const n=finiteRange(s[key],0,1.05);if(n===null)return null;stasis[key]=n;
+    }
+    const saneCounts=src=>{
+      const outCounts={};for(const key of ['tip','margin','center','root'])outCounts[key]=Math.max(0,Math.min(100,Math.round(Number(src?.[key])||0)));return outCounts;
+    };
+    stasis.regionCounts=saneCounts(s.regionCounts);
+    stasis.smallSpotRegionCounts=saneCounts(s.smallSpotRegionCounts);
+    stasis.patchRegionCounts=saneCounts(s.patchRegionCounts);
+    stasis.componentSummaries=Array.isArray(s.componentSummaries)?s.componentSummaries.slice(0,12).map(x=>({
+      kind:['small-spot','patch'].includes(String(x?.kind||''))?String(x.kind):'unknown',
+      region:['tip','margin','center','root'].includes(String(x?.region||''))?String(x.region):'unknown',
+      areaRatio:Math.max(0,Math.min(1.05,Number(x?.areaRatio)||0)),
+      aspect:Math.max(0,Math.min(10,Number(x?.aspect)||0)),
+      nx:Math.max(0,Math.min(1,Number(x?.nx)||0)),
+      ny:Math.max(0,Math.min(1,Number(x?.ny)||0))
+    })):[];
+    out.stasisSpot=stasis;
+  }
   if(raw.moisture&&typeof raw.moisture==='object'){
     const m=raw.moisture;
     if(m.schemaVersion!=='tongue-moisture-features-v1')return null;
@@ -134,7 +210,7 @@ function saneSignature(raw){
   return out;
 }
 function saneBottomFeatures(raw){
-  if(!raw||typeof raw!=='object'||!['bottom-device-feature-v1','bottom-device-feature-v2'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['bottom-device-feature-v1','bottom-device-feature-v2','bottom-device-feature-v3'].includes(raw.schemaVersion))return null;
   const keys=['vesselCandidateRatio','darkPurpleRatio','meanCentralLuminance','redBlueMinusGreen'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of keys){const n=Number(raw[key]);if(!Number.isFinite(n))return null;out[key]=n;}
@@ -142,6 +218,12 @@ function saneBottomFeatures(raw){
   for(const key of ['leftDarkLineRatio','rightDarkLineRatio','bilateralBalance','leftRowContinuity','rightRowContinuity']){
     if(raw[key]===undefined)continue;
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
+  if(raw.schemaVersion==='bottom-device-feature-v3'){
+    out.vesselColorSamplePixels=Math.max(0,Math.min(1000000,Math.round(Number(raw.vesselColorSamplePixels)||0)));
+    for(const key of ['vesselMeanR','vesselMeanG','vesselMeanB','vesselMeanSaturation','vesselMeanValue','vesselBluePurpleRatio','vesselRedPurpleRatio','vesselDarkPurpleRatio','vesselVsMucosaChromaDelta']){
+      const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+    }
   }
   out.bilateralSignal=Boolean(raw.bilateralSignal===true);
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
@@ -180,6 +262,34 @@ export function verifyClientVisualPayload(body={}){
     deviceCompute:{verifyVersion:DEVICE_VERIFY_VERSION,verified:true,tier:String(analysis?.profile?.tier||runtime?.profile?.tier||'unknown').slice(0,30),activeBackend:String(analysis?.profile?.plan?.activeBackend||runtime?.profile?.plan?.activeBackend||'').slice(0,60),trainingVectorCoverage:1,diagnosticSignatureCoverage:Number((298/1027).toFixed(6)),groundTruthContext:safeContext,bottomVerified,bottomFeatures}
   };
 }
+function buildEducationalYhctSuggestions(assessment){
+  const top=assessment?.top||{};
+  const regions=Array.isArray(top.tongueTopography)?top.tongueTopography:[];
+  const regionalHints=regions.slice(0,4).map(x=>({
+    region:String(x?.region||'unknown'),
+    regionLabel:String(x?.regionLabel||''),
+    findingCount:Math.max(0,Math.min(100,Math.round(Number(x?.count)||0))),
+    zangFu:Array.isArray(x?.zangFu)?x.zangFu.slice(0,4).map(String):[],
+    label:'Đối chiếu đồ hình YHCT',
+    wording:'Dấu quan sát nằm ở '+String(x?.regionLabel||'vùng lưỡi')+'; theo đồ hình YHCT vùng này thường đối chiếu '+(Array.isArray(x?.zangFu)&&x.zangFu.length?x.zangFu.join('–'):'không xác định')+'.',
+    guardrail:'Đây là bản đồ lý luận YHCT, không phải ranh giới giải phẫu và không đồng nghĩa bệnh của tạng phủ.'
+  }));
+  const signals=Array.isArray(assessment?.combined?.generalSignals)?assessment.combined.generalSignals:[];
+  const syndromeHints=signals.filter(x=>/^Tín hiệu\s/u.test(String(x?.label||''))).slice(0,4).map(x=>({
+    label:String(x.label||''),
+    evidence:String(x.evidence||''),
+    confidence:Number.isFinite(Number(x.confidence))?Math.max(0,Math.min(1,Number(x.confidence))):null,
+    interpretation:'Gợi ý thể/chứng YHCT để đối chiếu với tứ chẩn; không phải chẩn đoán xác định.'
+  }));
+  return {
+    schemaVersion:'aitc-yhct-educational-suggestions-v1',
+    label:'Gợi ý đối chiếu YHCT — không thay thế chẩn đoán lâm sàng',
+    regionalHints,
+    syndromeHints,
+    modernDiseaseSuggestions:[],
+    policy:'Chỉ sinh từ feature Local Vision đã QC + đối chiếu học thuật/fusion. Không suy bệnh hiện đại từ ảnh lưỡi; vùng tạng phủ là đồ hình lý luận YHCT.'
+  };
+}
 export function applyAcademicFusion(assessment,body={}){
   assessment=groundTongueMorphology(assessment,body);
   const verification=verifyClientVisualPayload(body);
@@ -192,6 +302,13 @@ export function applyAcademicFusion(assessment,body={}){
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
   const fused=fuse(assessment,signature,matches,reasoningLayer(assessment),evidence);
+  fused.combined=fused.combined||{};
+  fused.combined.educationalSuggestions=buildEducationalYhctSuggestions(fused);
+  const edu=fused.combined.educationalSuggestions;
+  const regionalSummary=edu.regionalHints.map(x=>x.regionLabel+' → '+x.zangFu.join('–')).join('; ');
+  const syndromeSummary=edu.syndromeHints.map(x=>x.label).join('; ');
+  if(regionalSummary)fused.combined.summary=[String(fused.combined.summary||'').trim(),'Đối chiếu đồ hình YHCT: '+regionalSummary+'.'].filter(Boolean).join(' ');
+  if(syndromeSummary)fused.combined.summary=[String(fused.combined.summary||'').trim(),'Gợi ý thể/chứng YHCT: '+syndromeSummary+' — không thay thế chẩn đoán lâm sàng.'].filter(Boolean).join(' ');
   const atlasLanguage=documentWordingForMatches(matches,fused,body);
   const strongAtlas=atlasLanguage.matches[0]||null;
   if(strongAtlas&&atlasLanguage.wording){

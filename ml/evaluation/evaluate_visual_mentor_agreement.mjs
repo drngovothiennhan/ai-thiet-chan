@@ -23,6 +23,12 @@ export const VISUAL_MENTOR_FIELDS=Object.freeze([
   'moistureSurface',
   'moistureBody',
   'moistureCoating',
+  'toothmarks',
+  'tongueShape',
+  'coatingTexture',
+  'stasisSmallSpot',
+  'stasisPatch',
+  'ventralVesselColor',
   'ventralBilateralStructure'
 ]);
 

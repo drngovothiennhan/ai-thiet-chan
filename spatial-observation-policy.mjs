@@ -5,7 +5,7 @@ function unit(v){const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.min
 function oneOf(value,allowed){const text=String(value||'');return allowed.includes(text)?text:'';}
 
 export function interpretSpatialObservation(spatial={},qc={}){
-  const valid=spatial&&typeof spatial==='object'&&['tongue-spatial-observation-v1','tongue-spatial-observation-v2'].includes(spatial.schemaVersion);
+  const valid=spatial&&typeof spatial==='object'&&['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3','tongue-spatial-observation-v4'].includes(spatial.schemaVersion);
   const quality=String(qc?.grade||'poor');
   if(!valid||quality==='poor'){
     return Object.freeze({

@@ -2,7 +2,7 @@ import {matchAtlas,coarse} from './academic-signature.js';
 import {GROUND_TRUTH_PROFILE,classifyGlobalContext} from './ground-truth-profile.js';
 import './academic-vision.js';
 
-const VERSION='device-analysis-worker-v3';
+const VERSION='device-analysis-worker-v4';
 const GROUND_TRUTH=GROUND_TRUTH_PROFILE;
 
 function compactMatch(m){
@@ -66,6 +66,7 @@ async function inspectPixels(dataUrl,role){
     let bottomFeatures=null;
     if(role==='bottom'&&central){
       let leftMuc=0,rightMuc=0,leftDark=0,rightDark=0,leftRows=0,rightRows=0,rowN=0;
+      let vesselColorN=0,vesselR=0,vesselG=0,vesselB=0,vesselSat=0,vesselVal=0,bluePurpleVotes=0,redPurpleVotes=0,darkPurpleVotes=0,vesselChromaDelta=0;
       const y0=Math.max(1,Math.floor(h*.25)),y1=Math.min(h-2,Math.ceil(h*.66));
       for(let y=1;y<h-1;y++){
         let rowLeft=false,rowRight=false;
@@ -78,6 +79,18 @@ async function inspectPixels(dataUrl,role){
           if(!left&&!right)continue;
           const neighbor=(lumaMap[p-1]+lumaMap[p+1]+lumaMap[p-w]+lumaMap[p+w])/4;
           const darkLine=neighbor-lumaMap[p]>5&&lumaMap[p]<170;
+          if(darkLine){
+            const purpleLike=((hsv.h>=235&&hsv.h<=350)||(r>g*1.015&&b>g*1.015))&&hsv.s>.10;
+            if(purpleLike){
+              vesselColorN++;vesselR+=r/255;vesselG+=g/255;vesselB+=b/255;vesselSat+=hsv.s;vesselVal+=hsv.v;
+              const bgChroma=(((px[(p-1)*4]+px[(p+1)*4]+px[(p-w)*4]+px[(p+w)*4])/4)+((px[(p-1)*4+2]+px[(p+1)*4+2]+px[(p-w)*4+2]+px[(p+w)*4+2])/4))/2
+                -((px[(p-1)*4+1]+px[(p+1)*4+1]+px[(p-w)*4+1]+px[(p+w)*4+1])/4);
+              vesselChromaDelta+=Math.max(0,((((r+b)/2)-g)-bgChroma)/255);
+              if(b>r*1.035)bluePurpleVotes++;
+              else if(r>b*1.035)redPurpleVotes++;
+              if(hsv.v<.50)darkPurpleVotes++;
+            }
+          }
           if(left){leftMuc++;if(darkLine){leftDark++;rowLeft=true;}}
           if(right){rightMuc++;if(darkLine){rightDark++;rowRight=true;}}
         }
@@ -88,7 +101,7 @@ async function inspectPixels(dataUrl,role){
       const leftRowContinuity=rowN?leftRows/rowN:0,rightRowContinuity=rowN?rightRows/rowN:0;
       const bilateralSignal=Math.min(leftRatio,rightRatio)>=.05&&bilateralBalance>=.30&&leftRowContinuity>=.60&&rightRowContinuity>=.60;
       bottomFeatures={
-        schemaVersion:'bottom-device-feature-v2',
+        schemaVersion:'bottom-device-feature-v3',
         vesselCandidateRatio:q(vesselCandidates/central),
         darkPurpleRatio:q(darkPurple/central),
         meanCentralLuminance:q(lumaSum/central),
@@ -99,8 +112,18 @@ async function inspectPixels(dataUrl,role){
         leftRowContinuity:q(leftRowContinuity),
         rightRowContinuity:q(rightRowContinuity),
         bilateralSignal,
+        vesselColorSamplePixels:vesselColorN,
+        vesselMeanR:q(vesselColorN?vesselR/vesselColorN:0),
+        vesselMeanG:q(vesselColorN?vesselG/vesselColorN:0),
+        vesselMeanB:q(vesselColorN?vesselB/vesselColorN:0),
+        vesselMeanSaturation:q(vesselColorN?vesselSat/vesselColorN:0),
+        vesselMeanValue:q(vesselColorN?vesselVal/vesselColorN:0),
+        vesselBluePurpleRatio:q(vesselColorN?bluePurpleVotes/vesselColorN:0),
+        vesselRedPurpleRatio:q(vesselColorN?redPurpleVotes/vesselColorN:0),
+        vesselDarkPurpleRatio:q(vesselColorN?darkPurpleVotes/vesselColorN:0),
+        vesselVsMucosaChromaDelta:q(vesselColorN?vesselChromaDelta/vesselColorN:0),
         sampledPixels:central,
-        policy:'role-specific direct visual features only; bilateral signal describes visible structure, not venous diagnosis, dilation or stasis'
+        policy:'role-specific direct visual features only; color is relative observed chroma on verified vessel-like dark lines, not venous diagnosis, dilation, tortuosity or stasis; engineering candidate thresholds only'
       };
     }
     return {globalFeatures,bottomFeatures};

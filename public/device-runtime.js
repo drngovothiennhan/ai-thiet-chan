@@ -135,7 +135,7 @@
   function ensureShadowWorker(){
     if(shadowWorker||!profile.capabilities.webWorker)return shadowWorker;
     try{
-      shadowWorker=new Worker('/local-vision/shadow-worker.js',{type:'module',name:'aitc-shadow-vision'});
+      shadowWorker=new Worker('/local-vision/shadow-worker.js?v=vision-v3',{type:'module',name:'aitc-shadow-vision-v3'});
       shadowWorker.onmessage=event=>{
         const data=event.data||{};
         if(!shadowContext||data.id!==shadowContext.id)return;

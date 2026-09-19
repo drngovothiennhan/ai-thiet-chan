@@ -262,6 +262,34 @@ export function verifyClientVisualPayload(body={}){
     deviceCompute:{verifyVersion:DEVICE_VERIFY_VERSION,verified:true,tier:String(analysis?.profile?.tier||runtime?.profile?.tier||'unknown').slice(0,30),activeBackend:String(analysis?.profile?.plan?.activeBackend||runtime?.profile?.plan?.activeBackend||'').slice(0,60),trainingVectorCoverage:1,diagnosticSignatureCoverage:Number((298/1027).toFixed(6)),groundTruthContext:safeContext,bottomVerified,bottomFeatures}
   };
 }
+function buildEducationalYhctSuggestions(assessment){
+  const top=assessment?.top||{};
+  const regions=Array.isArray(top.tongueTopography)?top.tongueTopography:[];
+  const regionalHints=regions.slice(0,4).map(x=>({
+    region:String(x?.region||'unknown'),
+    regionLabel:String(x?.regionLabel||''),
+    findingCount:Math.max(0,Math.min(100,Math.round(Number(x?.count)||0))),
+    zangFu:Array.isArray(x?.zangFu)?x.zangFu.slice(0,4).map(String):[],
+    label:'Đối chiếu đồ hình YHCT',
+    wording:'Dấu quan sát nằm ở '+String(x?.regionLabel||'vùng lưỡi')+'; theo đồ hình YHCT vùng này thường đối chiếu '+(Array.isArray(x?.zangFu)&&x.zangFu.length?x.zangFu.join('–'):'không xác định')+'.',
+    guardrail:'Đây là bản đồ lý luận YHCT, không phải ranh giới giải phẫu và không đồng nghĩa bệnh của tạng phủ.'
+  }));
+  const signals=Array.isArray(assessment?.combined?.generalSignals)?assessment.combined.generalSignals:[];
+  const syndromeHints=signals.filter(x=>/^Tín hiệu\s/u.test(String(x?.label||''))).slice(0,4).map(x=>({
+    label:String(x.label||''),
+    evidence:String(x.evidence||''),
+    confidence:Number.isFinite(Number(x.confidence))?Math.max(0,Math.min(1,Number(x.confidence))):null,
+    interpretation:'Gợi ý thể/chứng YHCT để đối chiếu với tứ chẩn; không phải chẩn đoán xác định.'
+  }));
+  return {
+    schemaVersion:'aitc-yhct-educational-suggestions-v1',
+    label:'Gợi ý đối chiếu YHCT — không thay thế chẩn đoán lâm sàng',
+    regionalHints,
+    syndromeHints,
+    modernDiseaseSuggestions:[],
+    policy:'Chỉ sinh từ feature Local Vision đã QC + đối chiếu học thuật/fusion. Không suy bệnh hiện đại từ ảnh lưỡi; vùng tạng phủ là đồ hình lý luận YHCT.'
+  };
+}
 export function applyAcademicFusion(assessment,body={}){
   assessment=groundTongueMorphology(assessment,body);
   const verification=verifyClientVisualPayload(body);
@@ -274,6 +302,13 @@ export function applyAcademicFusion(assessment,body={}){
   const textMatches=searchTextCorpus(query,6);
   const visualContext=corpusContext(signature);
   const fused=fuse(assessment,signature,matches,reasoningLayer(assessment),evidence);
+  fused.combined=fused.combined||{};
+  fused.combined.educationalSuggestions=buildEducationalYhctSuggestions(fused);
+  const edu=fused.combined.educationalSuggestions;
+  const regionalSummary=edu.regionalHints.map(x=>x.regionLabel+' → '+x.zangFu.join('–')).join('; ');
+  const syndromeSummary=edu.syndromeHints.map(x=>x.label).join('; ');
+  if(regionalSummary)fused.combined.summary=[String(fused.combined.summary||'').trim(),'Đối chiếu đồ hình YHCT: '+regionalSummary+'.'].filter(Boolean).join(' ');
+  if(syndromeSummary)fused.combined.summary=[String(fused.combined.summary||'').trim(),'Gợi ý thể/chứng YHCT: '+syndromeSummary+' — không thay thế chẩn đoán lâm sàng.'].filter(Boolean).join(' ');
   const atlasLanguage=documentWordingForMatches(matches,fused,body);
   const strongAtlas=atlasLanguage.matches[0]||null;
   if(strongAtlas&&atlasLanguage.wording){

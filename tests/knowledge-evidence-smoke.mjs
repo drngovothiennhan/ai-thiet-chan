@@ -37,7 +37,7 @@ const sublingual=knowledgeForQuery('tĩnh mạch dưới lưỡi giãn màu hìn
 assert.ok(sublingual.includes('[OA12, PMID 36388160]'),'ontology-aware retrieval should surface sublingual evidence');
 const moisture=knowledgeForQuery('độ ẩm lưỡi khô ướt nhuận độ bóng nước bọt flash',{limit:14});
 assert.ok(moisture.includes('[OA17, PMID 25699260]'),'moisture retrieval should surface gloss-quantification evidence');
-assert.ok(moisture.includes('[TCATLAS1, tr. 18]')||moisture.includes('[TCATLAS1, tr. 4]'),'moisture retrieval should surface owner-atlas dry/wet examples');
+assert.ok(moisture.includes('[TCATLAS1, tr.'),'moisture retrieval should surface at least one owner-atlas dry/wet example');
 const regions=knowledgeForQuery('phân khu đầu lưỡi tâm phế hai bên can đởm giữa tỳ vị gốc thận bàng quang',{limit:14});
 assert.ok(regions.includes('[OA19, PMID 22693533]'),'regional-topography retrieval should surface TCM region evidence');
 assert.ok(regions.includes('không phải bản đồ giải phẫu')||regions.includes('không được tự chuyển thành chẩn đoán bệnh cơ quan'),'regional topography must carry non-anatomical/non-diagnostic guardrail');

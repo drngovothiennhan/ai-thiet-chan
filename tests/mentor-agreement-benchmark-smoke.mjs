@@ -7,7 +7,7 @@ const labels={
   coatingThickness:'mỏng',
   coatingDistribution:'trung tâm–sau',
   medianSulcus:'visible-signal',
-  fissure:'unknown',
+  fissure:'absent',
   moistureSurface:'balanced',
   moistureBody:'balanced',
   moistureCoating:'balanced',

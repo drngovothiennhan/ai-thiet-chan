@@ -1,4 +1,5 @@
-import {boundedChannelGains,normalizeRgb,mapNormalizedGeometry,SHADOW_PREPROCESS_VERSION} from './shadow-preprocess-v3.js';
+import {measureMedianGroove} from './shadow-groove.js';
+import {shadowRoiStatus,boundedChannelGains,normalizeRgb,mapNormalizedGeometry,SHADOW_PREPROCESS_VERSION} from './shadow-preprocess-v3.js';
 
 export const SHADOW_FEATURE_VERSION='shadow-feature-extractor-v3';
 
@@ -70,6 +71,12 @@ async function decode(dataUrl,maxSide=192){
 export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options={}){
   const started=performance.now();
   const normalizedRole=role==='bottom'?'bottom':'top';
+  const roiStatus=shadowRoiStatus(options?.roiGeometry);
+  if(normalizedRole==='top'&&roiStatus!=='usable-candidate-roi')return Object.freeze({
+    schemaVersion:'aitc-shadow-feature-candidates-v3',runtimeVersion:SHADOW_FEATURE_VERSION,
+    role:normalizedRole,status:'insufficient-roi',reason:roiStatus,
+    authority:false,productionEligible:false,latencyMs:Math.round(performance.now()-started)
+  });
   const {w,h,px}=await decode(dataUrl);
   const n=w*h,raw=new Uint8Array(n),gray=new Float32Array(n);
   const modelWindow=normalizedRole==='top'?mapNormalizedGeometry(options?.roiGeometry,w,h,.055):null;
@@ -149,6 +156,7 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
   if(normalizedRole==='top'){
     const continuity=bh?longestRun/bh:0,centralDominance=darkTotal?darkCentral/darkTotal:0,offRatio=darkTotal?darkOff/darkTotal:0;
     const darkDensity=den?darkTotal/den:0;
+    const grooveGeometry=measureMedianGroove(gray,comp.mask,w,h,box);
     const rawColor=candidateColor(stats,flashRisk);
     const normalizedColor=candidateColor(normalizedStats,flashRisk);
     topCandidates={
@@ -163,7 +171,7 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
         authority:false
       },
       moisture:{surfaceHighlightRatio:q(glareRatio),score:q(clamp(glareRatio/.045)),reliability:q(1-flashRisk),flashConfounded:flashRisk>.25,calibrated:false,authority:false},
-      medianSulcus:{score:q(clamp(continuity*centralDominance*Math.min(1,darkDensity/.018))),centralContinuity:q(continuity),centralDominance:q(centralDominance),authority:false},
+      medianSulcus:{score:grooveGeometry.score,centralContinuity:grooveGeometry.continuity,centralDominance:q(centralDominance),legacyScore:q(clamp(continuity*centralDominance*Math.min(1,darkDensity/.018))),geometry:grooveGeometry,calibrated:false,authority:false},
       fissure:{score:q(clamp(offRatio*Math.min(1,darkDensity/.025)*(offBins.size/8))),offCenterDarkRatio:q(offRatio),spreadBins:offBins.size,depthAssessable:false,authority:false}
     };
   }else{

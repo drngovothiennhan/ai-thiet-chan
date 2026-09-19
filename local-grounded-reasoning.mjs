@@ -31,8 +31,10 @@ function morphologyText(top={}){
   const fissure=morphology.fissure&&typeof morphology.fissure==='object'?morphology.fissure:{};
   const sulcus=morphology.medianSulcus&&typeof morphology.medianSulcus==='object'?morphology.medianSulcus:{};
   const out=[];
-  if(text(sulcus.status)&&sulcus.status!=='unknown')out.push(`rãnh giữa: ${sulcus.status}`);
+  if(sulcus.status==='visible-signal')out.push('rãnh giữa: có tín hiệu rãnh dọc giữa');
+  else if(text(sulcus.status)&&sulcus.status!=='unknown')out.push(`rãnh giữa: ${sulcus.status}`);
   if(text(fissure.status)&&fissure.status!=='unknown')out.push(`nứt: ${fissure.status}`);
+  else if(sulcus.status==='visible-signal')out.push('nứt: chưa đủ căn cứ; không đồng nhất rãnh giữa với nứt bệnh lý');
   else if(fissure.legacyDarkLineSignal===true)out.push('có tín hiệu đường tối/rãnh nhưng chưa đủ căn cứ gọi là nứt');
   else out.push('nứt: chưa đủ căn cứ');
   return out.join('; ');
@@ -40,7 +42,7 @@ function morphologyText(top={}){
 function topObservation(top={}){
   return [
     `chất lưỡi ${text(top.tongueColor)||UNKNOWN}`,
-    `rêu ${text(top.coatingColor)||UNKNOWN} / ${text(top.coatingThickness)||UNKNOWN}`,
+    `rêu ${text(top.coatingColor)||UNKNOWN} / ${text(top.coatingThickness)||UNKNOWN}${text(top.coatingDistribution)?` / phân bố ${text(top.coatingDistribution)}`:''}`,
     `hình thể ${text(top.shape)||UNKNOWN}`,
     morphologyText(top),
     `dấu răng ${text(top.toothmarks)||UNKNOWN}`,

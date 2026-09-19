@@ -5,8 +5,9 @@ const engine=fs.readFileSync('local-vision-engine.mjs','utf8');
 const server=fs.readFileSync('server.mjs','utf8');
 const reasoning=fs.readFileSync('local-grounded-reasoning.mjs','utf8');
 
-assert.match(engine,/tongue-morphology-observation-v2/);
+assert.match(engine,/tongue-morphology-observation-v3/);
 assert.match(engine,/medianSulcus/);
+assert.match(engine,/SPATIAL_OBSERVATION_POLICY_VERSION/);
 assert.match(engine,/legacyDarkLineSignal/);
 assert.match(engine,/Không được gọi là nứt lưỡi chỉ từ legacyDarkLineSignal/);
 assert.match(engine,/rãnh giữa rõ phải được tách riêng khỏi nứt bệnh lý/);

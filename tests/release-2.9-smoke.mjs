@@ -21,6 +21,7 @@ assert.ok(ui.includes("grid-template-columns:repeat(5")||css.includes('grid-temp
 assert.ok(ui.includes("data-nav=\"symptoms\"")&&ui.includes("data-nav=\"system\""),'taskbar must use functional workspaces instead of scroll targets');
 assert.ok(!ui.includes("capture.scrollIntoView")&&!ui.includes("chat.scrollIntoView")&&!ui.includes("history.scrollIntoView"),'taskbar must switch workspaces instead of stretching one long scrolling page');
 assert.ok(css.includes('.aitc-workspace-hidden{display:none!important}'),'inactive functional workspaces must be visually isolated without removing their DOM/runtime state');
+assert.ok(ui.includes("(name==='result'||name==='symptoms')&&result.hidden"),'result and adaptive symptom workspaces must stay locked until analysis exists');
 assert.ok(ui.includes("targets=[result,$('#reportBox')]")||ui.includes("targets=[result,$('#reportBox')].filter"),'source sanitizer must target result/report only');
 assert.ok(!ui.includes("targets=[result,$('#reportBox'),$('#chatLog')]"),'chat references must remain visible');
 assert.ok(css.includes('.capture-card .analyze-btn')&&css.includes('position:static')&&css.includes('bottom:auto'),'mobile primary action must remain in normal flow without covering image controls');

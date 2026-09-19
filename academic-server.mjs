@@ -10,7 +10,7 @@ const ATLAS_LANGUAGE_MAX_SNIPPETS=3;
 const DEVICE_VERIFY_VERSION='device-payload-verify-v1';
 const DEVICE_RUNTIME_VERSION='device-runtime-v2';
 const DEVICE_SCHEMA='device-analysis-payload-v2';
-const DEVICE_WORKER_VERSION='device-analysis-worker-v3';
+const DEVICE_WORKER_VERSION='device-analysis-worker-v4';
 const SIG_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){
@@ -52,7 +52,7 @@ function documentWordingForMatches(matches,assessment,body={}){
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
 function saneSpatialObservation(raw){
-  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3','tongue-spatial-observation-v4'].includes(raw.schemaVersion))return null;
   const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of unitKeys){
@@ -124,6 +124,38 @@ function saneSpatialObservation(raw){
     if(tooth.schemaVersion!=='tongue-toothmark-geometry-v1'||shape.schemaVersion!=='tongue-shape-geometry-v1'||coatingTexture.schemaVersion!=='tongue-coating-texture-v1')return null;
     out.surfacePhenotype={schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:tooth,shape,coatingTexture};
   }
+  if(raw.stasisSpot&&typeof raw.stasisSpot==='object'){
+    const s=raw.stasisSpot;
+    if(s.schemaVersion!=='tongue-stasis-spot-features-v1')return null;
+    const finiteRange=(value,min,max)=>{const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;};
+    const stasis={
+      schemaVersion:'tongue-stasis-spot-features-v1',
+      componentCount:Math.max(0,Math.min(100,Math.round(Number(s.componentCount)||0))),
+      smallSpotCount:Math.max(0,Math.min(100,Math.round(Number(s.smallSpotCount)||0))),
+      patchCount:Math.max(0,Math.min(100,Math.round(Number(s.patchCount)||0))),
+      regionModel:String(s.regionModel||'').slice(0,80),
+      method:String(s.method||'').slice(0,120),
+      calibration:String(s.calibration||'').slice(0,120)
+    };
+    for(const key of ['candidatePixelRatio','acceptedAreaRatio','meanPurpleDelta','meanDarkContrast','redSpotExcludedRatio']){
+      const n=finiteRange(s[key],0,1.05);if(n===null)return null;stasis[key]=n;
+    }
+    const saneCounts=src=>{
+      const outCounts={};for(const key of ['tip','margin','center','root'])outCounts[key]=Math.max(0,Math.min(100,Math.round(Number(src?.[key])||0)));return outCounts;
+    };
+    stasis.regionCounts=saneCounts(s.regionCounts);
+    stasis.smallSpotRegionCounts=saneCounts(s.smallSpotRegionCounts);
+    stasis.patchRegionCounts=saneCounts(s.patchRegionCounts);
+    stasis.componentSummaries=Array.isArray(s.componentSummaries)?s.componentSummaries.slice(0,12).map(x=>({
+      kind:['small-spot','patch'].includes(String(x?.kind||''))?String(x.kind):'unknown',
+      region:['tip','margin','center','root'].includes(String(x?.region||''))?String(x.region):'unknown',
+      areaRatio:Math.max(0,Math.min(1.05,Number(x?.areaRatio)||0)),
+      aspect:Math.max(0,Math.min(10,Number(x?.aspect)||0)),
+      nx:Math.max(0,Math.min(1,Number(x?.nx)||0)),
+      ny:Math.max(0,Math.min(1,Number(x?.ny)||0))
+    })):[];
+    out.stasisSpot=stasis;
+  }
   if(raw.moisture&&typeof raw.moisture==='object'){
     const m=raw.moisture;
     if(m.schemaVersion!=='tongue-moisture-features-v1')return null;
@@ -178,7 +210,7 @@ function saneSignature(raw){
   return out;
 }
 function saneBottomFeatures(raw){
-  if(!raw||typeof raw!=='object'||!['bottom-device-feature-v1','bottom-device-feature-v2'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['bottom-device-feature-v1','bottom-device-feature-v2','bottom-device-feature-v3'].includes(raw.schemaVersion))return null;
   const keys=['vesselCandidateRatio','darkPurpleRatio','meanCentralLuminance','redBlueMinusGreen'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of keys){const n=Number(raw[key]);if(!Number.isFinite(n))return null;out[key]=n;}
@@ -186,6 +218,12 @@ function saneBottomFeatures(raw){
   for(const key of ['leftDarkLineRatio','rightDarkLineRatio','bilateralBalance','leftRowContinuity','rightRowContinuity']){
     if(raw[key]===undefined)continue;
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
+  if(raw.schemaVersion==='bottom-device-feature-v3'){
+    out.vesselColorSamplePixels=Math.max(0,Math.min(1000000,Math.round(Number(raw.vesselColorSamplePixels)||0)));
+    for(const key of ['vesselMeanR','vesselMeanG','vesselMeanB','vesselMeanSaturation','vesselMeanValue','vesselBluePurpleRatio','vesselRedPurpleRatio','vesselDarkPurpleRatio','vesselVsMucosaChromaDelta']){
+      const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+    }
   }
   out.bilateralSignal=Boolean(raw.bilateralSignal===true);
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));

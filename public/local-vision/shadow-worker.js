@@ -1,6 +1,6 @@
-import './model-manifest.js?v=vision-v3';
-import './shadow-pixel-mlp.js?v=vision-v3';
-import {analyzeShadowFeatureCandidates,SHADOW_FEATURE_VERSION} from './shadow-feature-extractor.js?v=vision-v3';
+import './model-manifest.js?v=vision-v3-groove1';
+import './shadow-pixel-mlp.js?v=vision-v3-groove1';
+import {analyzeShadowFeatureCandidates,SHADOW_FEATURE_VERSION} from './shadow-feature-extractor.js?v=vision-v3-groove1';
 
 const VERSION='shadow-worker-v3';
 

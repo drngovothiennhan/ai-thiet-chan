@@ -80,6 +80,33 @@ function saneSpatialObservation(raw){
   out.coatingColorCandidate=['trắng','vàng'].includes(coatColor)?coatColor:'';
   out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
   out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
+  if(raw.moisture&&typeof raw.moisture==='object'){
+    const m=raw.moisture;
+    if(m.schemaVersion!=='tongue-moisture-features-v1')return null;
+    const saneRegion=region=>{
+      if(!region||typeof region!=='object')return null;
+      const outRegion={sampledPixels:Math.max(0,Math.min(1000000,Math.round(Number(region.sampledPixels)||0)))};
+      for(const key of ['glossRatio','strictGlossRatio','largestGlossComponentRatio','distributedGlossRatio','roughness','meanValue','overexposedRatio','underexposedRatio']){
+        const n=Number(region[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;outRegion[key]=n;
+      }
+      return outRegion;
+    };
+    const surface=saneRegion(m.surface),bodyRegion=saneRegion(m.body),coatingRegion=saneRegion(m.coating);
+    if(!surface||!bodyRegion||!coatingRegion)return null;
+    const mq=m.qc&&typeof m.qc==='object'?m.qc:null;if(!mq)return null;
+    const moistureQc={};
+    for(const key of ['roiCoverage','overexposedRatio','underexposedRatio','largestGlossComponentRatio']){
+      const n=Number(mq[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;moistureQc[key]=n;
+    }
+    moistureQc.neutralReferencePixels=Math.max(0,Math.min(1000000,Math.round(Number(mq.neutralReferencePixels)||0)));
+    moistureQc.colorNormalizationApplied=Boolean(mq.colorNormalizationApplied);
+    out.moisture={
+      schemaVersion:'tongue-moisture-features-v1',
+      surface,body:bodyRegion,coating:coatingRegion,qc:moistureQc,
+      method:String(m.method||'').slice(0,100),
+      calibration:String(m.calibration||'').slice(0,120)
+    };
+  }
   if(raw.colorNormalization&&typeof raw.colorNormalization==='object'){
     const n=raw.colorNormalization;
     out.colorNormalization={

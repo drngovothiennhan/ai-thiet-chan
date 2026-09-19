@@ -52,7 +52,7 @@ function documentWordingForMatches(matches,assessment,body={}){
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
 function saneSpatialObservation(raw){
-  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3'].includes(raw.schemaVersion))return null;
   const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of unitKeys){
@@ -80,6 +80,50 @@ function saneSpatialObservation(raw){
   out.coatingColorCandidate=['trắng','vàng'].includes(coatColor)?coatColor:'';
   out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
   out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
+  if(raw.surfacePhenotype&&typeof raw.surfacePhenotype==='object'){
+    const p=raw.surfacePhenotype;
+    if(p.schemaVersion!=='tongue-surface-phenotype-features-v1')return null;
+    const t=p.toothmarks&&typeof p.toothmarks==='object'?p.toothmarks:null;
+    const s=p.shape&&typeof p.shape==='object'?p.shape:null;
+    const ct=p.coatingTexture&&typeof p.coatingTexture==='object'?p.coatingTexture:null;
+    if(!t||!s||!ct)return null;
+    const finiteRange=(value,min,max)=>{const n=Number(value);return Number.isFinite(n)&&n>=min&&n<=max?n:null;};
+    const tooth={
+      schemaVersion:String(t.schemaVersion||''),
+      leftNotches:Math.max(0,Math.min(20,Math.round(Number(t.leftNotches)||0))),
+      rightNotches:Math.max(0,Math.min(20,Math.round(Number(t.rightNotches)||0))),
+      totalNotches:Math.max(0,Math.min(40,Math.round(Number(t.totalNotches)||0))),
+      bilateralSignal:Boolean(t.bilateralSignal),
+      edgeSampleRows:Math.max(0,Math.min(1000,Math.round(Number(t.edgeSampleRows)||0))),
+      source:String(t.source||'').slice(0,100),
+      calibration:String(t.calibration||'').slice(0,120)
+    };
+    for(const key of ['maxNotchDepthRatio','adaptiveNotchThreshold']){
+      const n=finiteRange(t[key],0,1.05);if(n===null)return null;tooth[key]=n;
+    }
+    const shape={
+      schemaVersion:String(s.schemaVersion||''),
+      profileRows:Math.max(0,Math.min(1000,Math.round(Number(s.profileRows)||0))),
+      source:String(s.source||'').slice(0,100),
+      calibration:String(s.calibration||'').slice(0,120)
+    };
+    for(const key of ['boxAspect','midWidthToHeight']){
+      const n=finiteRange(s[key],0,5);if(n===null)return null;shape[key]=n;
+    }
+    {const n=finiteRange(s.boxFillRatio,0,1.05);if(n===null)return null;shape.boxFillRatio=n;}
+    const coatingTexture={
+      schemaVersion:String(ct.schemaVersion||''),
+      sampledPixels:Math.max(0,Math.min(1000000,Math.round(Number(ct.sampledPixels)||0))),
+      source:String(ct.source||'').slice(0,100),
+      calibration:String(ct.calibration||'').slice(0,120)
+    };
+    for(const key of ['coatingCandidateRatio','meanMicrotexture','microtextureStd','highFrequencyRatio','fineGranuleRatio','coarseGranuleRatio','largestCoatingComponentRatio','patchiness','edgeCoverage']){
+      const n=finiteRange(ct[key],0,1.05);if(n===null)return null;coatingTexture[key]=n;
+    }
+    {const n=finiteRange(ct.centerMinusEdgeCoverage,-1.05,1.05);if(n===null)return null;coatingTexture.centerMinusEdgeCoverage=n;}
+    if(tooth.schemaVersion!=='tongue-toothmark-geometry-v1'||shape.schemaVersion!=='tongue-shape-geometry-v1'||coatingTexture.schemaVersion!=='tongue-coating-texture-v1')return null;
+    out.surfacePhenotype={schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:tooth,shape,coatingTexture};
+  }
   if(raw.moisture&&typeof raw.moisture==='object'){
     const m=raw.moisture;
     if(m.schemaVersion!=='tongue-moisture-features-v1')return null;

@@ -1,6 +1,6 @@
 import {boundedChannelGains,normalizeRgb,mapNormalizedGeometry,SHADOW_PREPROCESS_VERSION} from './shadow-preprocess-v3.js';
 
-export const SHADOW_FEATURE_VERSION='shadow-feature-extractor-v3';
+export const SHADOW_FEATURE_VERSION='shadow-feature-extractor-v4';
 
 function clamp(v,a=0,b=1){return Math.max(a,Math.min(b,Number(v)||0));}
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}
@@ -83,7 +83,7 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
   }
   const comp=largestComponent(raw,w,h),box=bbox(comp.mask,w,h);
   if(!box||comp.area<Math.max(90,n*.012))return Object.freeze({
-    schemaVersion:'aitc-shadow-feature-candidates-v3',runtimeVersion:SHADOW_FEATURE_VERSION,role:normalizedRole,status:'insufficient-roi',
+    schemaVersion:'aitc-shadow-feature-candidates-v4',runtimeVersion:SHADOW_FEATURE_VERSION,role:normalizedRole,status:'insufficient-roi',
     authority:false,productionEligible:false,latencyMs:Math.round(performance.now()-started)
   });
 
@@ -94,6 +94,8 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
   let nsr=0,nsg=0,nsb=0,nss=0,nsv=0,npurpleN=0;
   let darkTotal=0,darkCentral=0,darkOff=0,centralRows=0,longestRun=0,currentRun=0,offBins=new Set();
   let vessel=0,leftVessel=0,rightVessel=0,darkPurple=0,bottomCentral=0;
+  let moistureSampled=0,softGlossN=0,strictGlossN=0,roughSum=0,roughN=0,overexposedN=0;
+  const glossMask=new Uint8Array(n);
   const cx=(box.minX+box.maxX)/2,bw=Math.max(1,box.width),bh=Math.max(1,box.height);
   for(let y=box.minY;y<=box.maxY;y++){
     let rowCentral=false;
@@ -112,6 +114,14 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
       if(x>0&&y>0){grad+=(Math.abs(gray[p]-gray[p-1])+Math.abs(gray[p]-gray[p-w]))/510;gradN++;}
       if(normalizedRole==='top'&&x>box.minX+1&&x<box.maxX-1&&y>box.minY+1&&y<box.maxY-1){
         const neigh=(gray[p-1]+gray[p+1]+gray[p-w]+gray[p+w])/4;
+        const localBright=(gray[p]-neigh)/255;
+        const softGloss=hsv.v>.68&&hsv.s<.34&&localBright>.028;
+        const strictGloss=hsv.v>.90&&hsv.s<.24&&localBright>.018;
+        moistureSampled++;
+        if(hsv.v>.985)overexposedN++;
+        if(softGloss){softGlossN++;glossMask[p]=1;}
+        if(strictGloss)strictGlossN++;
+        if(!softGloss){roughSum+=Math.abs(gray[p]-neigh)/255;roughN++;}
         const localDark=gray[p]<neigh-17&&gray[p]<165;
         if(localDark){
           darkTotal++;const nx=Math.abs(x-cx)/(bw/2);
@@ -131,8 +141,16 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
       if(rowCentral){centralRows++;currentRun++;longestRun=Math.max(longestRun,currentRun);}else currentRun=0;
     }
   }
-  const coverage=comp.area/n,glareRatio=den?glare/den:0,flashRisk=clamp(glareRatio/.085);
-  const qc={roiCoverage:q(coverage),glareRatio:q(glareRatio),darkClipRatio:q(den?clipDark/den:0),sharpnessProxy:q(gradN?grad/gradN:0),flashRiskScore:q(flashRisk),authority:false};
+  const coverage=comp.area/n,glareRatio=den?glare/den:0;
+  const glossLargest=softGlossN?largestComponent(glossMask,w,h).area:0;
+  const glossRatio=moistureSampled?softGlossN/moistureSampled:0;
+  const strictGlossRatio=moistureSampled?strictGlossN/moistureSampled:0;
+  const glossDominance=softGlossN?glossLargest/softGlossN:0;
+  const distributedGlossRatio=softGlossN?(softGlossN-glossLargest)/softGlossN:0;
+  const roughness=roughN?roughSum/roughN:0;
+  const overexposedRatio=moistureSampled?overexposedN/moistureSampled:0;
+  const flashRisk=clamp(clamp(glareRatio/.085)*.30+clamp(overexposedRatio/.045)*.45+clamp((glossDominance-.62)/.38)*.25);
+  const qc={roiCoverage:q(coverage),glareRatio:q(glareRatio),overexposedRatio:q(overexposedRatio),darkClipRatio:q(den?clipDark/den:0),sharpnessProxy:q(gradN?grad/gradN:0),flashRiskScore:q(flashRisk),authority:false};
   const stats={r:robustN?sr/robustN:0,g:robustN?sg/robustN:0,b:robustN?sb/robustN:0,s:robustN?ss/robustN:0,v:robustN?sv/robustN:0,purpleRatio:robustN?purpleN/robustN:0};
   const normalizedStats={r:robustN?nsr/robustN:0,g:robustN?nsg/robustN:0,b:robustN?nsb/robustN:0,s:robustN?nss/robustN:0,v:robustN?nsv/robustN:0,purpleRatio:robustN?npurpleN/robustN:0};
   const roi={coverage:q(coverage),bboxAspect:q(box.width/Math.max(1,box.height)),centralized:q(1-Math.min(1,Math.abs(cx-w/2)/(w/2))),modelGuided:Boolean(modelWindow),authority:false};
@@ -162,7 +180,27 @@ export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options=
         normalizationVersion:SHADOW_PREPROCESS_VERSION,
         authority:false
       },
-      moisture:{surfaceHighlightRatio:q(glareRatio),score:q(clamp(glareRatio/.045)),reliability:q(1-flashRisk),flashConfounded:flashRisk>.25,calibrated:false,authority:false},
+      moisture:(()=>{
+        const wetEvidence=clamp(clamp(glossRatio/.018)*.50+clamp(strictGlossRatio/.006)*.25+clamp(distributedGlossRatio/.65)*.25)*(1-flashRisk*.72);
+        const roughDry=clamp((roughness-.030)/.040);
+        const dryEvidence=(glossRatio<=.010&&roughDry>=.30)?clamp((1-clamp(glossRatio/.018))*.45+roughDry*.55)*(1-flashRisk*.35):0;
+        const balancedEvidence=(glossRatio>.004&&glossRatio<.020&&roughness<.060)?clamp(.55+(.060-roughness)*3):0;
+        let labelCandidate='unknown',score=0;
+        if(wetEvidence>=.62){labelCandidate='moist';score=wetEvidence;}
+        else if(dryEvidence>=.64){labelCandidate='dry';score=dryEvidence;}
+        else if(balancedEvidence>=.62&&wetEvidence<.58&&dryEvidence<.58){labelCandidate='balanced';score=balancedEvidence;}
+        const sampleSupport=clamp(moistureSampled/900);
+        const evidenceSupport=labelCandidate==='unknown'?Math.max(wetEvidence,dryEvidence,balancedEvidence)*.45:score;
+        const reliability=clamp((.45+.25*clamp(coverage/.18)+.20*sampleSupport+.10*clamp((.065-roughness)/.065))*(1-flashRisk*.70)*evidenceSupport);
+        return {
+          labelCandidate,score:q(score),reliability:q(reliability),
+          surfaceHighlightRatio:q(glossRatio),strictGlossRatio:q(strictGlossRatio),
+          distributedGlossRatio:q(distributedGlossRatio),largestGlossComponentRatio:q(glossDominance),
+          roughness:q(roughness),overexposedRatio:q(overexposedRatio),sampledPixels:moistureSampled,
+          flashConfounded:flashRisk>=.62,calibrated:false,productionEligible:false,authority:false,
+          method:'local-specular-plus-microtexture-shadow-v4'
+        };
+      })(),
       medianSulcus:{score:q(clamp(continuity*centralDominance*Math.min(1,darkDensity/.018))),centralContinuity:q(continuity),centralDominance:q(centralDominance),authority:false},
       fissure:{score:q(clamp(offRatio*Math.min(1,darkDensity/.025)*(offBins.size/8))),offCenterDarkRatio:q(offRatio),spreadBins:offBins.size,depthAssessable:false,authority:false}
     };

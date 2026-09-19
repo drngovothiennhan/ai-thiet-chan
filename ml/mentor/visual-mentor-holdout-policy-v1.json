@@ -31,6 +31,9 @@
     "moistureSurface",
     "moistureBody",
     "moistureCoating",
+    "toothmarks",
+    "tongueShape",
+    "coatingTexture",
     "ventralBilateralStructure"
   ],
   "promotionGate": {

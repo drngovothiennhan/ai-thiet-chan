@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fuse } from '../public/academic-fusion-core.js';
+import { directPatterns, fuse } from '../public/academic-fusion-core.js';
 
 const assessment={
   top:{
@@ -27,7 +27,48 @@ const reasoning={
   cannotConclude:[]
 };
 
+
+const screenshotLikeAssessment={
+  top:{
+    tongueColor:'đỏ nhạt',
+    shape:'Không xác định',
+    coatingColor:'trắng',
+    coatingThickness:'mỏng',
+    coatingTexture:'Không xác định',
+    moisture:'Không xác định',
+    fissures:'Chưa đủ căn cứ đánh giá nứt lưỡi.',
+    toothmarks:'Không xác định',
+    pricklesSpots:'Không thấy tín hiệu điểm đỏ/gai nổi bật',
+    stasisMarks:'Không xác định'
+  }
+};
+const screenshotPatterns=directPatterns(screenshotLikeAssessment);
+assert.deepEqual(
+  screenshotPatterns.map(x=>x.label),
+  ['Tín hiệu hư hàn'],
+  'negated/unknown fissure, dryness, red-spot and stasis wording must not create false-positive theory signals'
+);
+assert.equal(screenshotPatterns.some(x=>/ứ trệ/.test(x.label)),false);
+assert.equal(screenshotPatterns.some(x=>/âm dịch hao tổn/.test(x.label)),false);
+
+const positiveMorphologyAssessment={
+  top:{
+    tongueColor:'đỏ',
+    coatingColor:'vàng',
+    coatingThickness:'mỏng',
+    coatingTexture:'bình thường',
+    moisture:'khô',
+    fissures:'Có nứt lưỡi đã được tầng thị giác xác nhận.',
+    toothmarks:'Không xác định',
+    pricklesSpots:'Không xác định',
+    stasisMarks:'Không xác định'
+  }
+};
+const positivePatterns=directPatterns(positiveMorphologyAssessment).map(x=>x.label);
+assert.ok(positivePatterns.includes('Tín hiệu nhiệt / thực nhiệt'));
+assert.ok(positivePatterns.includes('Tín hiệu âm dịch hao tổn / nhiệt thương tân'));
+
 const out=fuse(structuredClone(assessment),{},[{id:'x',sourceId:'TC1',page:1,kind:'test',similarity:0.7,hash:'x'}],reasoning,[]);
 assert.equal(out.combined.academicFusion.academicReasoning.patternCandidates.length,1);
 assert.ok(Array.isArray(out.combined.academicFusion.acceptedPatterns));
-console.log('ACADEMIC FUSION LOCAL REASONING PASS: no stale Gemini variable is referenced.');
+console.log('ACADEMIC FUSION LOCAL REASONING PASS: structured positive evidence prevents negation/unknown substring false positives and no stale Gemini variable is referenced.');

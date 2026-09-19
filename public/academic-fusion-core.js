@@ -3,14 +3,39 @@ import {MODERN_EVIDENCE,WEIGHTS,FUSION_VERSION,KNOWLEDGE_VERSION,SOURCE} from '.
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
 export function directPatterns(assessment){
   const t=assessment?.top||{};
-  const text=[t.tongueColor,t.shape,t.coatingColor,t.coatingThickness,t.coatingTexture,t.moisture,t.fissures,t.toothmarks,t.pricklesSpots,t.stasisMarks].join(' ').toLowerCase();
+  const value=v=>String(v??'').trim().toLocaleLowerCase('vi-VN');
+  const unknown=v=>{
+    const x=value(v);
+    return !x||/(không xác định|chưa đủ căn cứ|chưa xác nhận|chưa thấy rõ|không thấy|không có|unknown|not assessable|chưa thể)/u.test(x);
+  };
+  const positive=(v,re)=>!unknown(v)&&re.test(value(v));
+  const tongueColor=value(t.tongueColor);
+  const coatingColor=value(t.coatingColor);
+  const coatingThickness=value(t.coatingThickness);
+  const coatingTexture=value(t.coatingTexture);
+  const moisture=value(t.moisture);
+  const fissures=value(t.fissures);
+  const toothmarks=value(t.toothmarks);
+  const stasisMarks=value(t.stasisMarks);
+
   const out=[],add=(label,ev,score)=>out.push({label,directEvidence:ev,score});
-  if(/đỏ/.test(text)&&/vàng/.test(text))add('Tín hiệu nhiệt / thực nhiệt','Chất lưỡi đỏ phối hợp rêu vàng.',.72);
-  if(/nhợt|nhạt/.test(text)&&/trắng/.test(text))add('Tín hiệu hư hàn','Chất lưỡi nhợt/nhạt phối hợp rêu trắng.',.68);
-  if(/dày|nhầy|dính|bẩn/.test(text))add('Tín hiệu thấp trọc / đàm hoặc tích trệ','Rêu dày/nhầy/dính cần đối chiếu thấp trọc, đàm hoặc tích trệ.',.62);
-  if(/tím|ứ/.test(text))add('Tín hiệu khí huyết ứ trệ','Màu tím/ám tím hoặc dấu ứ nhìn thấy.',.66);
-  if(/nứt/.test(text)&&/khô/.test(text)&&/đỏ/.test(text))add('Tín hiệu âm dịch hao tổn / nhiệt thương tân','Đỏ phối hợp nứt và thiên khô.',.64);
-  if(/hằn răng|dấu răng/.test(text)&&/nhợt|nhạt/.test(text))add('Tín hiệu Tỳ khí/Tỳ dương hư kèm thấp','Nhợt/nhạt phối hợp dấu răng hoặc hình bệu.',.60);
+  const strongRed=positive(tongueColor,/đỏ/u)&&!/nhạt|nhợt/u.test(tongueColor);
+  const pale=positive(tongueColor,/nhợt|nhạt/u);
+  const whiteCoat=positive(coatingColor,/trắng/u);
+  const yellowCoat=positive(coatingColor,/vàng/u);
+  const thickOrGreasy=positive(coatingThickness,/dày/u)||positive(coatingTexture,/nhầy|dính|bẩn/u);
+  const purpleTongue=positive(tongueColor,/tím|ám tím/u);
+  const visibleStasis=positive(stasisMarks,/ứ|ban|điểm/u);
+  const confirmedFissure=positive(fissures,/nứt/u);
+  const dry=positive(moisture,/khô|thiên khô/u);
+  const explicitToothmarks=positive(toothmarks,/hằn răng|dấu răng/u);
+
+  if(strongRed&&yellowCoat)add('Tín hiệu nhiệt / thực nhiệt','Chất lưỡi đỏ phối hợp rêu vàng.',.72);
+  if(pale&&whiteCoat)add('Tín hiệu hư hàn','Chất lưỡi nhợt/nhạt phối hợp rêu trắng.',.68);
+  if(thickOrGreasy)add('Tín hiệu thấp trọc / đàm hoặc tích trệ','Rêu dày/nhầy/dính cần đối chiếu thấp trọc, đàm hoặc tích trệ.',.62);
+  if(purpleTongue||visibleStasis)add('Tín hiệu khí huyết ứ trệ','Màu tím/ám tím hoặc dấu ứ nhìn thấy.',.66);
+  if(strongRed&&confirmedFissure&&dry)add('Tín hiệu âm dịch hao tổn / nhiệt thương tân','Đỏ phối hợp nứt và thiên khô.',.64);
+  if(explicitToothmarks&&pale)add('Tín hiệu Tỳ khí/Tỳ dương hư kèm thấp','Nhợt/nhạt phối hợp dấu răng hoặc hình bệu.',.60);
   return out;
 }
 export function evidenceFor(patterns){

@@ -10,7 +10,7 @@ const ATLAS_LANGUAGE_MAX_SNIPPETS=3;
 const DEVICE_VERIFY_VERSION='device-payload-verify-v1';
 const DEVICE_RUNTIME_VERSION='device-runtime-v2';
 const DEVICE_SCHEMA='device-analysis-payload-v2';
-const DEVICE_WORKER_VERSION='device-analysis-worker-v2';
+const DEVICE_WORKER_VERSION='device-analysis-worker-v3';
 const SIG_KEYS=['r','g','b','s','v','purple','white','yellow','dark','spot','aspect','coverage'];
 function scoreOf(signal){const n=Number(signal?.confidence);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;}
 function collectSignals(assessment){

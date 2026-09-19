@@ -73,5 +73,23 @@ export const OPEN_SOURCE_VISION_REGISTRY=Object.freeze([
     copyright:'Upstream contributors',
     use:'architecture-reference-only',
     adoption:'no-code-or-weight-copy-into-production'
+  }),
+  Object.freeze({
+    name:'Intelligent-tongue-diagnosis-detection-dataset',
+    repo:'https://github.com/btbuIntelliSense/Intelligent-tongue-diagnosis-detection-dataset',
+    license:'not-declared-in-repository-metadata',
+    copyright:'Upstream contributors',
+    use:'label-taxonomy-and-region-detection-reference-only',
+    adoption:'no-data-code-or-weight-copy-until-license-and-provenance-are-verified',
+    note:'Public taxonomy includes red-dot/purple-tongue and TCM region-labelled classes; these labels are engineering references, not anatomical truth.'
+  }),
+  Object.freeze({
+    name:'TongeImageDataset',
+    repo:'https://github.com/BioHit/TongeImageDataset',
+    license:'not-declared-in-repository-metadata',
+    copyright:'Upstream contributors',
+    use:'tongue-segmentation-dataset-reference-only',
+    adoption:'no-data-copy-until-license-and-subject-provenance-are-verified',
+    note:'Repository metadata describes 300 standardized tongue images with manual segmentations.'
   })
 ]);

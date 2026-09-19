@@ -39,11 +39,25 @@ function morphologyText(top={}){
   else out.push('nứt: chưa đủ căn cứ');
   return out.join('; ');
 }
+function moistureText(top={}){
+  const obs=top.moistureObservation&&typeof top.moistureObservation==='object'?top.moistureObservation:{};
+  const surface=obs.surface&&typeof obs.surface==='object'?obs.surface:{};
+  const body=obs.body&&typeof obs.body==='object'?obs.body:{};
+  const coating=obs.coating&&typeof obs.coating==='object'?obs.coating:{};
+  const qc=obs.qc&&typeof obs.qc==='object'?obs.qc:{};
+  const label=node=>text(node.label)||UNKNOWN;
+  const confidence=node=>Number.isFinite(Number(node.confidence))?' ('+Math.round(Math.max(0,Math.min(1,Number(node.confidence)))*100)+'%)':'';
+  if(!obs.active||surface.status==='unknown'){
+    return 'độ ẩm '+(text(top.moisture)||UNKNOWN)+'; thân '+label(body)+'; rêu '+label(coating)+'; QC '+(text(qc.quality)||'không đủ');
+  }
+  return 'độ ẩm bề mặt '+label(surface)+confidence(surface)+'; thân '+label(body)+confidence(body)+'; rêu '+label(coating)+confidence(coating)+'; QC reliability '+(Number.isFinite(Number(qc.reliability))?Math.round(Number(qc.reliability)*100)+'%':'không xác định');
+}
 function topObservation(top={}){
   return [
     `chất lưỡi ${text(top.tongueColor)||UNKNOWN}`,
     `rêu ${text(top.coatingColor)||UNKNOWN} / ${text(top.coatingThickness)||UNKNOWN}${text(top.coatingDistribution)?` / phân bố ${text(top.coatingDistribution)}`:''}`,
     `hình thể ${text(top.shape)||UNKNOWN}`,
+    moistureText(top),
     morphologyText(top),
     `dấu răng ${text(top.toothmarks)||UNKNOWN}`,
     `điểm/gai ${text(top.pricklesSpots)||UNKNOWN}`,
@@ -120,7 +134,11 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const sources=sourceEvidence(assessment,knowledgeText,4);
   const reply=[];
 
-  if(/nut|ranh|fissure|crack/.test(q)){
+  if(/do am|kho|uot|nhuan|moisture|wet|dry|gloss/.test(q)){
+    reply.push('Về độ ẩm: '+moistureText(top)+'.');
+    reply.push('Tầng suy luận chỉ diễn giải tín hiệu gloss/texture đã qua QC của Local Vision; flash/cháy sáng không được đồng nhất với ướt và nứt đơn độc không được đồng nhất với khô.');
+    if(top?.moistureObservation?.surface?.status==='unknown')reply.push('Ảnh hiện chưa đủ tín hiệu để gán nhãn khô/ướt; giữ Không xác định thay vì suy đoán.');
+  }else if(/nut|ranh|fissure|crack/.test(q)){
     reply.push('Về rãnh/nứt: '+morphologyText(top)+'.');
     reply.push('Quy tắc hiện hành tách rãnh giữa khỏi nứt; tín hiệu đường tối đơn độc không được chuyển thành kết luận nứt.');
   }else if(/mat duoi|tinh mach|mach duoi luoi|sublingual|vein/.test(q)&&bottom){

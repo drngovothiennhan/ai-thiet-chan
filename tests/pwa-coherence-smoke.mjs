@@ -32,6 +32,6 @@ assert.match(home,/AITCPWAUpdate/);
 assert.match(home,/updateReady/);
 assert.match(home,/AITC_ACTIVATE_UPDATE/);
 
-assert.equal(releaseId,'2026.09.19-production-rag-pwa-r1');
+assert.equal(releaseId,'2026.09.19-workspace-taskbar-r1');
 assert.match(sw,/hasCompleteDevicePayload\(body\)[^]*digestBase64Payload\(image\)/,'service worker must verify the actual image digest before trusting a complete device payload');
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, atomic cache-before-takeover, and digest self-healing without forced page reload.`);

@@ -116,8 +116,22 @@ function normalizeTongueMorphology(value,legacyFissureText=''){
       source:String(fissure.source||'unknown'),
       interpretationPolicy:String(fissure.interpretationPolicy||'Rãnh giữa không được tự động đồng nhất với nứt lưỡi; tín hiệu đường tối đơn độc không đủ để kết luận nứt.')
     },
-    toothmarks:{status:status(toothmarks.status),source:String(toothmarks.source||'unknown')},
-    swellingOrThinness:{status:status(swelling.status),source:String(swelling.source||'unknown')},
+    toothmarks:{
+      status:status(toothmarks.status),
+      label:String(toothmarks.label||'Không xác định').slice(0,100),
+      confidence:Number.isFinite(Number(toothmarks.confidence))?clampConfidence(toothmarks.confidence):null,
+      source:String(toothmarks.source||'unknown').slice(0,140),
+      metrics:toothmarks.metrics&&typeof toothmarks.metrics==='object'?toothmarks.metrics:null,
+      policyVersion:String(toothmarks.policyVersion||'').slice(0,80)
+    },
+    swellingOrThinness:{
+      status:status(swelling.status),
+      label:String(swelling.label||'Không xác định').slice(0,100),
+      confidence:Number.isFinite(Number(swelling.confidence))?clampConfidence(swelling.confidence):null,
+      source:String(swelling.source||'unknown').slice(0,140),
+      metrics:swelling.metrics&&typeof swelling.metrics==='object'?swelling.metrics:null,
+      policyVersion:String(swelling.policyVersion||'').slice(0,80)
+    },
     legacyFissureText:String(legacyFissureText||'')
   };
 }
@@ -147,6 +161,27 @@ function normalizeMoistureObservation(value){
     rule:String(src.rule||'').slice(0,320)
   };
 }
+function normalizeSurfacePhenotype(value){
+  const src=value&&typeof value==='object'?value:{};
+  const normNode=(node={})=>({
+    status:String(node.status||'unknown').slice(0,40),
+    label:String(node.label||'Không xác định').slice(0,120),
+    confidence:Number.isFinite(Number(node.confidence))?clampConfidence(node.confidence):null,
+    reason:String(node.reason||'').slice(0,160),
+    metrics:node.metrics&&typeof node.metrics==='object'?node.metrics:null,
+    rule:String(node.rule||'').slice(0,320)
+  });
+  return {
+    version:String(src.version||'tongue-surface-phenotype-policy-v1').slice(0,80),
+    active:Boolean(src.active),
+    calibrated:Boolean(src.calibrated===true),
+    productionEligible:Boolean(src.productionEligible===true),
+    toothmarks:normNode(src.toothmarks),
+    shape:normNode(src.shape),
+    coatingTexture:normNode(src.coatingTexture),
+    rule:String(src.rule||'').slice(0,320)
+  };
+}
 function llmSafeAssessmentContext(context){
   if(!context||typeof context!=='object') return null;
   const top=context.top&&typeof context.top==='object'?context.top:{};
@@ -164,7 +199,7 @@ function llmSafeAssessmentContext(context){
     source:String(x?.source||'')
   })):[];
   return {
-    schemaVersion:'aitc-llm-observation-context-v3',
+    schemaVersion:'aitc-llm-observation-context-v4',
     policy:{
       imageInputToLlm:false,
       visualAuthority:'local-vision-only',
@@ -175,7 +210,13 @@ function llmSafeAssessmentContext(context){
       moistureObservationOnly:true,
       flashGlareCannotEqualWetness:true,
       fissureAloneCannotEqualDryness:true,
-      bodyAndCoatingMoistureAreSeparate:true
+      bodyAndCoatingMoistureAreSeparate:true,
+      toothmarksObservationOnly:true,
+      toothmarksDoNotEqualSpleenDeficiency:true,
+      shapeIsRelative2dGeometry:true,
+      broadFullDoesNotProveSoftness:true,
+      coatingTextureObservationOnly:true,
+      coatingAdhesionOrScrapabilityFromStaticImageForbidden:true
     },
     mode:context.mode==='general'?'general':'normal',
     top:{
@@ -189,6 +230,7 @@ function llmSafeAssessmentContext(context){
       coatingTexture:String(top.coatingTexture||'Không xác định'),
       moisture:String(top.moisture||'Không xác định'),
       moistureObservation:normalizeMoistureObservation(top.moistureObservation),
+      surfacePhenotype:normalizeSurfacePhenotype(top.surfacePhenotype),
       morphology:normalizeTongueMorphology(top.morphology,top.fissures),
       toothmarks:String(top.toothmarks||'Không xác định'),
       pricklesSpots:String(top.pricklesSpots||'Không xác định'),
@@ -323,8 +365,8 @@ function normalizeAssessment(raw,{mode,topQc,bottomQc}){
   assessment.ml={
     pipeline:['capture-qc','view-validity','top-feature-extraction','sublingual-vessel-description','knowledge-mapping','combined-assessment'],
     featureVector:{
-      schemaVersion:'tongue-dual-view-feature-vector-v3',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
-      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
+      schemaVersion:'tongue-dual-view-feature-vector-v4',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
+      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),surfacePhenotype:normalizeSurfacePhenotype(top.surfacePhenotype),morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
       bottom:bottom?{visual:{undersideColor:bottom.undersideColor||'',vessels:bottom.vessels||{},otherVisibleFeatures:bottom.otherVisibleFeatures||[]},validity:bottom.visualValidity,qc:bottomQc||{},confidence:bottom.confidence}:null,
       combined:{confidence:combined.confidence,generalSignals:combined.generalSignals,stomachPatternSignals:combined.stomachPatternSignals}
     },

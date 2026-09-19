@@ -13,7 +13,8 @@
       "TC1",
       "DY1",
       "MC1",
-      "AT1"
+      "AT1",
+      "TCATLAS1"
     ],
     "sampleCount": 479,
     "weakPositive": 298,
@@ -24,6 +25,15 @@
       "DY1": "802d949b0e512fbe3ab34f699b9a1e73a75fc2679f282b98ab33b55736511c22",
       "MC1": "336de613f28b26b3122ccee33d395bd57ed91ee3342df42fd84a99d0eadf3dea",
       "AT1": "2105100126eba2fb7ea59ad7a048a1fdd269caed8d7de243ff8001617df4fc3f"
+    },
+    "supplementalVisualAtlas": {
+      "datasetId": "TCATLAS1",
+      "sourcePdfSha256": "9d7d3a359024fa137b697bd7bc698ebf840fbcef17e35eda199b04cf15639d2c",
+      "numberedImageCases": 39,
+      "dorsalRuntimeReferences": 38,
+      "ventralSilverReferences": 1,
+      "rawImagesCommittedToGit": false,
+      "policy": "silver-only; not gold, holdout, clinical-accuracy or automatic-promotion evidence"
     }
   },
   "labelPolicy": {

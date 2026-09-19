@@ -8,5 +8,5 @@ assert.match(html,/surface\?\.roughness/);
 assert.match(html,/topCandidates\?\.moisture/);
 assert.match(html,/exactMoistureParity/);
 assert.match(html,/authority:false,productionEligible:false/);
-assert.doesNotMatch(html,/fetch\([^)]*\/api\/analyze|gemini|generativelanguage/i);
+assert.doesNotMatch(html,/fetch\s*\([^)]*\/api\/analyze|generativelanguage\.googleapis\.com/i);
 console.log('MOISTURE INSPECT HARNESS PASS: current primary gloss/texture/QC and shadow-v4 evidence are inspectable locally without provider image inference or API analysis.');

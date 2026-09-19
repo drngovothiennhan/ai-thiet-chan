@@ -23,12 +23,12 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
 
   if(!form||!input||!log||!startBtn||!progress) return;
 
-  if(inquiryNote) inquiryNote.textContent='Không dùng bộ 10 câu cố định. Sau thiệt chẩn, Trợ lý hỏi từng câu ngắn để khai thác triệu chứng và đối chiếu các ca tương tự trong CSDL; tối đa 4 lượt.';
+  if(inquiryNote) inquiryNote.textContent='Không dùng bộ 10 câu cố định. Sau thiệt chẩn, Trợ lý hỏi từng chứng trạng chưa được hỏi, dựa trên ca tương tự trong CSDL; câu hỏi trước và câu trả lời được giữ nguyên ngữ cảnh để tránh lặp; tối đa 4 lượt.';
   progress.removeAttribute('role');
   progress.removeAttribute('tabindex');
   progress.style.cursor='default';
 
-  const inquiry={active:false,turn:0,answers:[],completed:false,transcript:''};
+  const inquiry={active:false,turn:0,answers:[],interactions:[],askedConceptIds:[],currentConceptId:null,completed:false,transcript:''};
   let pendingPrompt='';
   let pendingKind='';
   const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
@@ -65,7 +65,27 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
   }
 
   function transcriptText(){
-    return inquiry.answers.map((answer,index)=>(index+1)+'. '+answer).join('\n');
+    if(Array.isArray(inquiry.interactions)&&inquiry.interactions.length){
+      return inquiry.interactions.map((item,index)=>{
+        const q=String(item?.question||'').trim();
+        const a=String(item?.answer||'').trim();
+        const concept=String(item?.conceptId||'').trim();
+        return (index+1)+'. '+(q?'Hỏi: '+q+'\n   ':'')+'Đáp: '+a+(concept?'\n   Mục đã hỏi: '+concept:'');
+      }).join('\n');
+    }
+    return inquiry.answers.map((answer,index)=>(index+1)+'. Đáp: '+answer).join('\n');
+  }
+
+  function lastBotQuestion(){
+    const nodes=[...log.querySelectorAll('.bubble.bot')];
+    return String(nodes.at(-1)?.textContent||'').trim().slice(0,500);
+  }
+
+  function rememberAskedConcept(value){
+    const id=String(value||'').trim();
+    if(!id)return;
+    if(!inquiry.askedConceptIds.includes(id))inquiry.askedConceptIds.push(id);
+    inquiry.currentConceptId=id;
   }
 
   function normalizeText(value){
@@ -82,7 +102,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
   }
 
   function openingQuestion(){
-    return 'Bạn có triệu chứng gì thêm không, hoặc hiện có khó chịu gì không? Bạn có thể mô tả tự nhiên; nếu không có thêm, hãy trả lời “không”.';
+    return 'Trước khi đối chiếu sâu hơn, xin bạn cho biết hiện còn triệu chứng hoặc khó chịu nào khác không. Có thể mô tả tự nhiên; nếu không có thêm, hãy trả lời “không”.';
   }
 
   function adaptivePrompt({final=false}={}){
@@ -105,7 +125,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
   }
 
   function resetAdaptive(clearLog=false){
-    inquiry.active=false;inquiry.turn=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';
+    inquiry.active=false;inquiry.turn=0;inquiry.answers=[];inquiry.interactions=[];inquiry.askedConceptIds=[];inquiry.currentConceptId=null;inquiry.completed=false;inquiry.transcript='';
     pendingPrompt='';pendingKind='';
     startBtn.textContent='Bổ sung triệu chứng';
     setProgress();
@@ -120,7 +140,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
       bubble('Hãy phân tích ảnh lưỡi trước để có kết quả làm nền cho đối chiếu triệu chứng.');
       return;
     }
-    inquiry.active=true;inquiry.turn=0;inquiry.answers=[];inquiry.completed=false;inquiry.transcript='';
+    inquiry.active=true;inquiry.turn=0;inquiry.answers=[];inquiry.interactions=[];inquiry.askedConceptIds=[];inquiry.currentConceptId=null;inquiry.completed=false;inquiry.transcript='';
     pendingPrompt='';pendingKind='';
     if(!preserveLog)log.innerHTML='';
     startBtn.textContent='Bắt đầu lại';
@@ -138,6 +158,13 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
         inquiry.active=Boolean(data.inquiry.active);
         inquiry.turn=Math.max(0,Math.min(MAX_TURNS,Number(data.inquiry.turn)||0));
         inquiry.answers=Array.isArray(data.inquiry.answers)?data.inquiry.answers.slice(0,MAX_TURNS):[];
+        inquiry.interactions=Array.isArray(data.inquiry.interactions)?data.inquiry.interactions.slice(0,MAX_TURNS).map(item=>({
+          question:String(item?.question||'').slice(0,500),
+          answer:String(item?.answer||'').slice(0,1000),
+          conceptId:String(item?.conceptId||'').slice(0,80)
+        })):[];
+        inquiry.askedConceptIds=Array.isArray(data.inquiry.askedConceptIds)?[...new Set(data.inquiry.askedConceptIds.map(String).filter(Boolean))].slice(0,MAX_TURNS):[];
+        inquiry.currentConceptId=String(data.inquiry.currentConceptId||'')||null;
         inquiry.completed=Boolean(data.inquiry.completed);
         inquiry.transcript=String(data.inquiry.transcript||'');
       }
@@ -157,7 +184,15 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     if(!inquiry.active)return;
     const answer=input.value.trim();
     if(!answer){ev.preventDefault();ev.stopImmediatePropagation();return;}
+    const answeredQuestion=lastBotQuestion();
     inquiry.answers.push(answer);
+    inquiry.interactions.push({
+      question:answeredQuestion,
+      answer,
+      conceptId:inquiry.currentConceptId||''
+    });
+    if(inquiry.currentConceptId)rememberAskedConcept(inquiry.currentConceptId);
+    inquiry.currentConceptId=null;
     inquiry.turn=inquiry.answers.length;
     inquiry.transcript=transcriptText();
     const shouldFinish=noMoreSymptoms(answer)||inquiry.turn>=MAX_TURNS;
@@ -186,6 +221,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
           requestKind=pendingKind;
           if(requestKind==='adaptive-next'){
             body.symptomContext=inquiry.transcript;
+            body.askedConceptIds=[...inquiry.askedConceptIds];
             body.message=originalMessage;
             requestTarget='/api/symptom-next';
           }else{
@@ -202,8 +238,14 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
         }
 
         const response=await nativeFetch(requestTarget,{...init,body:JSON.stringify(body)});
-        if(!response.ok&&requestKind==='adaptive-next'){
-          queueMicrotask(()=>bubble('Lượt này chưa lấy được câu hỏi đối chiếu từ A.I/CSDL. Triệu chứng bạn vừa nhập vẫn được giữ. Bạn còn triệu chứng hoặc khó chịu nào khác không?'));
+        if(requestKind==='adaptive-next'&&response.ok){
+          try{
+            const payload=await response.clone().json();
+            rememberAskedConcept(payload?.selectedConcept);
+          }catch{}
+        }else if(!response.ok&&requestKind==='adaptive-next'){
+          inquiry.currentConceptId=null;
+          queueMicrotask(()=>bubble('Lượt này chưa lấy được câu hỏi đối chiếu từ CSDL. Dữ kiện bạn vừa nhập vẫn được giữ; nếu còn triệu chứng khác, bạn có thể mô tả trực tiếp.'));
         }
         saveSessionState();
         return response;

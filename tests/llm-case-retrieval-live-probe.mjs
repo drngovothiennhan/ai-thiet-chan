@@ -81,7 +81,7 @@ try{
   const symptomData=await symptomResponse.json().catch(()=>({}));
   assert.equal(symptomResponse.status,200,JSON.stringify(symptomData));
   assert.equal(symptomData.ok,true);
-  assert.equal(symptomData.engine,'deterministic-case-rag-v1');
+  assert.equal(symptomData.engine,'deterministic-case-rag-v2');
   assert.ok(symptomData.caseRetrieval?.returned>0,JSON.stringify(symptomData));
   assert.equal(typeof symptomData.reply,'string');
   assert.ok(symptomData.reply.length>0);

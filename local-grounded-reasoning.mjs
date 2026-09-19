@@ -9,7 +9,8 @@ export const LOCAL_REASONING_HEALTH=Object.freeze({
     noSyntheticSymptoms:true,
     noDiseaseDiagnosis:true,
     noPrescription:true,
-    unknownMustRemainUnknown:true
+    unknownMustRemainUnknown:true,
+    presentationProfile:'yhct-source-grounded-v1'
   })
 });
 
@@ -135,26 +136,26 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const reply=[];
 
   if(/\b(?:do am|kho|uot|nhuan|moisture|wet|dry|gloss)\b/.test(q)){
-    reply.push('Về độ ẩm: '+moistureText(top)+'.');
+    reply.push('Thiệt tượng về tân dịch/độ ẩm quan sát được: '+moistureText(top)+'.');
     reply.push('Tầng suy luận chỉ diễn giải tín hiệu gloss/texture đã qua QC của Local Vision; flash/cháy sáng không được đồng nhất với ướt và nứt đơn độc không được đồng nhất với khô.');
     if(top?.moistureObservation?.surface?.status==='unknown')reply.push('Ảnh hiện chưa đủ tín hiệu để gán nhãn khô/ướt; giữ Không xác định thay vì suy đoán.');
   }else if(/nut|ranh|fissure|crack/.test(q)){
-    reply.push('Về rãnh/nứt: '+morphologyText(top)+'.');
+    reply.push('Thiệt tượng về rãnh và nứt quan sát được: '+morphologyText(top)+'.');
     reply.push('Quy tắc hiện hành tách rãnh giữa khỏi nứt; tín hiệu đường tối đơn độc không được chuyển thành kết luận nứt.');
   }else if(/mat duoi|tinh mach|mach duoi luoi|sublingual|vein/.test(q)&&bottom){
-    reply.push('Quan sát mặt dưới: '+bottomObservation(bottom)+'.');
+    reply.push('Thiệt tượng mặt dưới quan sát được: '+bottomObservation(bottom)+'.');
   }else{
-    reply.push('Quan sát cục bộ: '+topObservation(top)+'.');
-    if(bottom)reply.push('Mặt dưới: '+bottomObservation(bottom)+'.');
+    reply.push('Thiệt tượng mặt trên quan sát được: '+topObservation(top)+'.');
+    if(bottom)reply.push('Thiệt tượng mặt dưới: '+bottomObservation(bottom)+'.');
   }
 
   if(signals.length){
-    reply.push('Đối chiếu học thuật có căn cứ: '+signals.map(signalText).filter(Boolean).join(' | ')+'.');
+    reply.push('Đối chiếu y văn YHCT theo dữ kiện hiện có: '+signals.map(signalText).filter(Boolean).join(' | ')+'.');
   }else{
-    reply.push('Đối chiếu học thuật hiện chưa đủ đồng thuận để nâng thành nhận định thể YHCT.');
+    reply.push('Đối chiếu y văn hiện chưa đủ căn cứ để quy nạp thành nhận định thể/chứng YHCT.');
   }
 
-  if(text(combined.summary))reply.push('Tổng hợp: '+text(combined.summary));
+  if(text(combined.summary))reply.push('Tổng hợp theo dữ kiện hiện có: '+text(combined.summary));
   const cs=caseSummary(caseRetrieval);if(cs)reply.push(cs);
   if(limits.length)reply.push('Giới hạn: '+limits.join(' '));
   if(/nguon|tai lieu|tham khao|citation/.test(q)&&sources.length)reply.push('Nguồn đối chiếu: '+sources.join(' | '));
@@ -176,17 +177,17 @@ export function localGroundedReport({assessment,mode='normal',topQc={},bottomQc=
   const signals=acceptedSignals(assessment);
   const limits=limitations(assessment);
   const lines=[
-    'BÁO CÁO THIỆT CHẨN — PHÂN TÍCH CỤC BỘ',
+    'BÁO CÁO THIỆT CHẨN — QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN',
     `1. Chất lượng ảnh mặt trên: ${text(top.quality)||text(topQc.grade)||'chưa xác định'}.`,
-    '2. Quan sát mặt trên: '+topObservation(top)+'.'
+    '2. Thiệt tượng mặt trên: '+topObservation(top)+'.'
   ];
   if(mode==='general'||bottom){
     lines.push(`3. Chất lượng ảnh mặt dưới: ${text(bottom?.quality)||text(bottomQc.grade)||'chưa xác định'}.`);
-    lines.push('4. Quan sát mặt dưới: '+(bottom?bottomObservation(bottom):'chưa đủ dữ liệu')+'.');
-    lines.push('5. Nhận định kết hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
+    lines.push('4. Thiệt tượng mặt dưới: '+(bottom?bottomObservation(bottom):'chưa đủ dữ liệu')+'.');
+    lines.push('5. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
     lines.push('6. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
   }else{
-    lines.push('3. Nhận định kết hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
+    lines.push('3. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
     lines.push('4. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
   }
   return Object.freeze({ok:true,report:lines.join('\n'),engine:LOCAL_REASONING_HEALTH.engine,grounding:'local-grounded',acceptedSignalCount:signals.length});

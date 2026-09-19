@@ -1,0 +1,82 @@
+name: Cleanup old AITC Vercel previews
+
+on:
+  push:
+    branches: [ops/vercel-cleanup-20260920]
+    paths:
+      - '.github/workflows/cleanup-aitc-vercel-previews.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_zMTBj85c4Dh5QoDNIjWqQRTg
+      VERCEL_PROJECT_ID: prj_cldZqqoF2k1CcWTprSWqvQkVeCta
+      KEEP_FULL_PREVIEW: dpl_275ptBbSp8rMs5wc2HWhF9QR9ZFZ
+      KEEP_PREVIOUS_PREVIEW: dpl_GU8T6L6ab8sHdhGKXwfspbSYwrjU
+      KEEP_CURRENT_PRODUCTION: dpl_DRHMwpfgK5fQXM6z9yyzNufXjQ18
+      CUTOFF_MS: "1789856520786"
+    steps:
+      - name: Remove old preview deployments only
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN_MISSING"
+            exit 2
+          fi
+          node <<'NODE'
+          const token=process.env.VERCEL_TOKEN;
+          const team=process.env.VERCEL_TEAM_ID;
+          const project=process.env.VERCEL_PROJECT_ID;
+          const cutoff=Number(process.env.CUTOFF_MS);
+          const keep=new Set([
+            process.env.KEEP_FULL_PREVIEW,
+            process.env.KEEP_PREVIOUS_PREVIEW,
+            process.env.KEEP_CURRENT_PRODUCTION
+          ]);
+          const headers={Authorization:`Bearer ${token}`};
+          let until=null, candidates=[];
+          for(let page=0;page<5;page++){
+            const u=new URL('https://api.vercel.com/v6/deployments');
+            u.searchParams.set('projectId',project);
+            u.searchParams.set('teamId',team);
+            u.searchParams.set('limit','100');
+            if(until)u.searchParams.set('until',String(until));
+            const res=await fetch(u,{headers});
+            if(!res.ok)throw new Error('LIST_FAILED_'+res.status+'_'+await res.text());
+            const body=await res.json();
+            const rows=Array.isArray(body.deployments)?body.deployments:[];
+            if(!rows.length)break;
+            candidates.push(...rows);
+            const oldest=Math.min(...rows.map(x=>Number(x.created||x.createdAt||0)).filter(Number.isFinite));
+            if(oldest<cutoff)break;
+            until=body.pagination?.next||oldest;
+            if(!until)break;
+          }
+          const unique=[...new Map(candidates.map(x=>[x.uid||x.id,x])).values()];
+          const deletable=unique.filter(d=>{
+            const id=d.uid||d.id, created=Number(d.created||d.createdAt||0);
+            return id && !keep.has(id) && d.target!=='production' && created>0 && created<cutoff;
+          });
+          let deleted=0,failed=0;
+          for(const d of deletable){
+            const id=d.uid||d.id;
+            const u=`https://api.vercel.com/v13/deployments/${encodeURIComponent(id)}?teamId=${encodeURIComponent(team)}`;
+            const res=await fetch(u,{method:'DELETE',headers});
+            if(res.ok){
+              deleted++;
+              console.log('DELETED',id,d.url||'');
+            }else{
+              failed++;
+              console.log('DELETE_FAILED',id,res.status,await res.text());
+            }
+            await new Promise(r=>setTimeout(r,120));
+          }
+          console.log(JSON.stringify({scanned:unique.length,deletable:deletable.length,deleted,failed,kept:[...keep]}));
+          if(failed)process.exitCode=3;
+          NODE

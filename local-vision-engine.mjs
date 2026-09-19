@@ -24,14 +24,23 @@ function colorReliability(qc){return grade(qc);}
 function framing(qc){return grade(qc);}
 function buildTongueMorphology(signature,qc){
   const c=coarse(signature);
+  const spatial=signature?.spatial&&typeof signature.spatial==='object'?signature.spatial:null;
+  const sulcus=spatial?.medianSulcus&&typeof spatial.medianSulcus==='object'?spatial.medianSulcus:null;
+  const sulcusVisible=Boolean(
+    sulcus?.visibleSignal===true&&
+    Number(sulcus?.score)>=.62&&
+    Number(sulcus?.continuity)>=.22&&
+    Number(sulcus?.centrality)>=.35
+  );
   const darkLineSignal=Boolean(c.fissure);
   return {
-    schemaVersion:'tongue-morphology-observation-v2',
+    schemaVersion:'tongue-morphology-observation-v3',
     medianSulcus:{
-      status:'unknown',
-      prominence:'unknown',
-      orientation:'unknown',
-      source:'no-validated-spatial-classifier'
+      status:sulcusVisible?'visible-signal':'unknown',
+      prominence:sulcusVisible?'visible':'unknown',
+      orientation:sulcusVisible?'longitudinal':'unknown',
+      confidence:sulcusVisible?Number(Math.min(.78,Number(sulcus.score)||0).toFixed(3)):null,
+      source:sulcusVisible?'tongue-spatial-observation-v1':'no-validated-spatial-signal'
     },
     fissure:{
       status:'unknown',
@@ -42,7 +51,9 @@ function buildTongueMorphology(signature,qc){
       depth:'not-assessable-from-2d-image',
       legacyDarkLineSignal:darkLineSignal,
       source:'legacy-dark-pixel-coarse-signal-only',
-      interpretationPolicy:'Không được gọi là nứt lưỡi chỉ từ legacyDarkLineSignal; rãnh giữa rõ phải được tách riêng khỏi nứt bệnh lý.'
+      interpretationPolicy:sulcusVisible?
+        'Đã tách được tín hiệu rãnh dọc giữa; tín hiệu này không được tự chuyển thành nứt lưỡi bệnh lý.':
+        'Không được gọi là nứt lưỡi chỉ từ legacyDarkLineSignal; rãnh giữa rõ phải được tách riêng khỏi nứt bệnh lý.'
     },
     toothmarks:{status:'unknown',source:'no-validated-dedicated-classifier'},
     swellingOrThinness:{status:'unknown',source:'no-validated-dedicated-classifier'},
@@ -51,8 +62,10 @@ function buildTongueMorphology(signature,qc){
 }
 function fissureCompatibilityText(morphology){
   const fissure=morphology?.fissure||{};
+  const sulcus=morphology?.medianSulcus||{};
   if(fissure.status==='confirmed') return 'Có nứt lưỡi đã được tầng thị giác xác nhận.';
   if(fissure.status==='likely') return 'Nghi nứt lưỡi; cần đối chiếu cấu trúc rãnh và ảnh rõ hơn.';
+  if(sulcus.status==='visible-signal') return 'Có tín hiệu rãnh dọc giữa; chưa đủ căn cứ gọi là nứt lưỡi bệnh lý.';
   if(fissure.legacyDarkLineSignal) return 'Có tín hiệu đường tối/rãnh; chưa đủ căn cứ gọi là nứt lưỡi.';
   return 'Chưa đủ căn cứ đánh giá nứt lưỡi.';
 }
@@ -62,6 +75,8 @@ function topObservation(signature,qc,matches){
   const confidence=reliability(qc,signature);
   const best=Array.isArray(matches)&&matches.length?matches[0]:null;
   const morphology=buildTongueMorphology(signature,qc);
+  const spatial=signature?.spatial&&typeof signature.spatial==='object'?signature.spatial:null;
+  const coatingDistribution=String(spatial?.coatingDistributionCandidate||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
     'Độ tương đồng atlas là đối chiếu hình ảnh, không phải chẩn đoán.',
@@ -82,6 +97,7 @@ function topObservation(signature,qc,matches){
     shape:UNKNOWN,
     coatingColor:c.coat||UNKNOWN,
     coatingThickness:c.thick||UNKNOWN,
+    coatingDistribution,
     coatingTexture:UNKNOWN,
     moisture:UNKNOWN,
     morphology,
@@ -89,10 +105,14 @@ function topObservation(signature,qc,matches){
     toothmarks:UNKNOWN,
     pricklesSpots:spotText(Boolean(c.spots)),
     stasisMarks:UNKNOWN,
-    otherVisibleFeatures:best?['Đối chiếu atlas gần nhất '+Math.round(Number(best.similarity||0)*100)+'% (chỉ tham khảo hình ảnh).']:[],
+    otherVisibleFeatures:[
+      ...(morphology?.medianSulcus?.status==='visible-signal'?['Có tín hiệu rãnh dọc giữa theo trục đối xứng của lưỡi; không đồng nhất với nứt bệnh lý.']:[]),
+      ...(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?['Phân bố rêu: '+coatingDistribution+'.']:[]),
+      ...(best?['Đối chiếu atlas gần nhất '+Math.round(Number(best.similarity||0)*100)+'% (chỉ tham khảo hình ảnh).']:[])
+    ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
     confidence,
-    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+(c.tongue||UNKNOWN)+', rêu '+(c.coat||UNKNOWN)+' '+(c.thick||UNKNOWN)+'; hình thái rãnh/nứt chưa được kết luận nếu chưa có bộ phân loại không gian chuyên biệt.',
+    summary:'Thị giác cục bộ ghi nhận chất lưỡi '+(c.tongue||UNKNOWN)+', rêu '+(c.coat||UNKNOWN)+' '+(c.thick||UNKNOWN)+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
     limitations
   };
 }

@@ -21,6 +21,15 @@ export const EXTENDED_KNOWLEDGE_DOCUMENTS = [
     role:'visual-tongue-atlas'
   },
   {
+    id:'TCATLAS1',
+    title:'THIỆT CHẨN(1) - atlas hình người dùng bổ sung 2026-09-19',
+    file:'15351142bc528dde2083f39297a0bf5f_THIỆT CHẨN(1).pdf',
+    sha256:'9d7d3a359024fa137b697bd7bc698ebf840fbcef17e35eda199b04cf15639d2c',
+    pages:41,
+    role:'owner-supplied-silver-visual-atlas',
+    policy:'visual-description-and-source-specific-teaching-association-only; not clinical gold'
+  },
+  {
     id:'PSY1',
     title:'Tâm bệnh học',
     author:'TS. Phạm Toàn',
@@ -51,6 +60,13 @@ export const EXTENDED_EVIDENCE = [
   {id:'AT1-022',source:'AT1',page:22,topics:['mặt dưới','tĩnh mạch dưới lưỡi','tím','giãn','huyết ứ'],text:'Atlas minh họa mặt dưới với mạch dưới lưỡi xanh tím và phình/giãn; đây là ví dụ hỗ trợ mô tả ứ trệ trong YHCT nhưng không được biến thành chẩn đoán bệnh hiện đại.'},
   {id:'AT1-029',source:'AT1',page:29,topics:['đỏ','rêu trắng','nứt','tân dịch'],text:'Ca lưỡi đỏ, rêu trắng, có nứt cho thấy cần đọc đồng thời màu thân lưỡi, rêu và độ ẩm; atlas liên hệ nhiệt kéo dài và tổn thương tân dịch trong bối cảnh phù hợp.'},
   {id:'AT1-031',source:'AT1',page:31,topics:['đỏ sẫm','rêu đen','khô','nhiệt','huyết ứ'],text:'Atlas có ca chất lưỡi đỏ sẫm/đỏ giáng với rêu đen khô; đây là mẫu lý chứng nặng trong ngôn ngữ YHCT, nhưng ứng dụng phải hạ tin cậy nếu màu ảnh hoặc yếu tố nhiễm màu không kiểm soát được.'},
+
+  {id:'TCATLAS1-003',source:'TCATLAS1',page:3,topics:['nhuận','ướt','rêu trắng','nhợt','bệu','dấu răng'],text:'Trang 3 của atlas bổ sung mô tả lưỡi non bệu, sắc trắng nhợt, rêu trắng trong và nhuận; đây là ví dụ trực quan của bề mặt/rêu có độ ẩm, không phải ngưỡng số hóa phổ quát.'},
+  {id:'TCATLAS1-004',source:'TCATLAS1',page:4,topics:['khô','rêu trắng','nhợt','mỏng nhỏ'],text:'Trang 4 mô tả lưỡi sắc nhạt, mỏng nhỏ với rêu trắng khô. Nhãn khô trong atlas là nhãn thị giác nguồn, phải được tách khỏi suy luận nguyên nhân và bệnh danh.'},
+  {id:'TCATLAS1-018',source:'TCATLAS1',page:18,topics:['nhuận ướt','rêu trắng dày','nhợt','dấu răng','thấp'],text:'Trang 18 mô tả lưỡi nhợt, non bệu, dấu hằn răng, rêu trắng dày, nhuận và ướt; atlas liên hệ mẫu này với hàn thấp/Tỳ hư thấp thịnh trong ngôn ngữ YHCT. Ứng dụng chỉ được dùng như đối chiếu giáo khoa, không tự động gán thể từ ảnh.'},
+  {id:'TCATLAS1-024',source:'TCATLAS1',page:24,topics:['lưỡi khô','rêu bẩn nát','đỏ','nứt','ít rêu','tân dịch'],text:'Trang 24 mô tả lưỡi đỏ mà khô, giữa có nứt, rêu vàng kiêm trắng bẩn/nát ở bốn bên và giữa lưỡi không có rêu; atlas gắn với các bối cảnh nhiệt/tân dịch trong lý luận YHCT, chỉ dùng làm bằng chứng nguồn có điều kiện.'},
+  {id:'TCATLAS1-031',source:'TCATLAS1',page:31,topics:['khô nứt','rêu đen','đỏ giáng','nhiệt','tân dịch'],text:'Trang 31 mô tả lưỡi đỏ giáng, rêu đen dày đặc và khô nứt. Đây là ví dụ nguồn về phối hợp màu-rêu-độ ẩm, không cho phép suy mức độ bệnh nếu QC màu/ánh sáng không đạt.'},
+  {id:'TCATLAS1-034',source:'TCATLAS1',page:34,topics:['rêu vàng khô','nứt nẻ','đỏ nhạt','tân dịch'],text:'Trang 34 mô tả lưỡi đỏ nhạt, nhiều đường nứt nhỏ, rêu vàng khô thành từng mảng và phần giữa ít rêu; atlas liên hệ với nhiệt thương tân/âm dịch hao tổn trong bối cảnh YHCT, không phải chẩn đoán từ ảnh đơn độc.'},
 
   {id:'PSY1-014',source:'PSY1',page:14,topics:['tâm bệnh học','định nghĩa','triệu chứng','chẩn đoán'],text:'Tâm bệnh học nghiên cứu các rối loạn tâm lý/tâm thần qua nguyên nhân, đặc tính, quá trình phát triển, phân loại, chẩn đoán và điều trị; một hiện tượng tâm lý riêng lẻ không tự động đồng nghĩa với bệnh.'},
   {id:'PSY1-018',source:'PSY1',page:18,topics:['chẩn đoán tâm thần','bối cảnh','chức năng','DSM'],text:'Việc xác định bất thường cần xét mức gây buồn khổ, rối loạn và thiệt hại chức năng sinh hoạt; các dấu hiệu phải được đặt trong bối cảnh chứ không chỉ dựa vào một biểu hiện.'},

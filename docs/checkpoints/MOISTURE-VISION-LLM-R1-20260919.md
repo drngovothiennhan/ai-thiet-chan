@@ -158,6 +158,7 @@ Current gate:
 - >=10 mentor-known samples for every required field;
 - micro agreement >=0.95;
 - macro agreement >=0.95;
+- **every required field agreement >=0.95** (a strong aggregate score cannot hide a weak moisture/morphology field);
 - zero fail-closed safety leaks;
 - candidate unknown while mentor known counts as disagreement;
 - candidate known when mentor is unknown, or candidate known on poor-QC input, counts as a safety leak.

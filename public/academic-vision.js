@@ -139,6 +139,7 @@ function spatialObservation(px,w,h){
   const bodyLuma=median(lateralLuma),bodySaturation=median(lateralSat);
   let validN=0,strictN=0,looseN=0,whiteLike=0,yellowLike=0;
   let centralN=0,centralCoat=0,middleN=0,middleCoat=0,posteriorN=0,posteriorCoat=0,anteriorN=0,anteriorCoat=0;
+  const coatMask=new Uint8Array(w*h);
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
     const p=y*w+x;if(!comp.mask[p])continue;
     const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
@@ -148,7 +149,7 @@ function spatialObservation(px,w,h){
     const loose=gray[p]>bodyLuma+5&&sat[p]<bodySaturation-.015&&ny>.06&&ny<.82&&nx>.12&&nx<.88;
     if(strict)strictN++;
     if(loose){
-      looseN++;
+      looseN++;coatMask[p]=1;
       if(sat[p]<.28&&val[p]>.40)whiteLike++;
       if(hue[p]>=32&&hue[p]<=70&&sat[p]>.18&&val[p]>.40)yellowLike++;
     }
@@ -164,6 +165,61 @@ function spatialObservation(px,w,h){
   const coatingDistributionCandidate=centralRatio>=.22&&Math.max(middleRatio,posteriorRatio)>=anteriorRatio+.035?'trung tâm–sau':coatRatio>.12?'lan tỏa':'không rõ';
   const coatingColorCandidate=coatRatio>=.09&&yellowRatio>=.28&&yellowRatio>whiteRatio*1.25?'vàng':coatRatio>=.07&&(whiteRatio>=.12||yellowRatio<.18)?'trắng':'';
   const bodyColorCandidate=bodySaturation>.44?'đỏ':bodySaturation<.18&&bodyLuma>150?'nhợt':'đỏ nhạt';
+
+  function moistureRegion(kind){
+    let sampled=0,glossN=0,strictGlossN=0,roughSum=0,roughN=0,valueSum=0,over=0,under=0;
+    const glossMask=new Uint8Array(w*h);
+    for(let y=Math.max(minY+1,1);y<=Math.min(box.maxY-1,h-2);y++)for(let x=Math.max(minX+1,1);x<=Math.min(box.maxX-1,w-2);x++){
+      const p=y*w+x;if(!comp.mask[p])continue;
+      if(!comp.mask[p-1]||!comp.mask[p+1]||!comp.mask[p-w]||!comp.mask[p+w])continue;
+      const coatVotes=coatMask[p]+coatMask[p-1]+coatMask[p+1]+coatMask[p-w]+coatMask[p+w];
+      const inCoating=coatVotes>=2;
+      if(kind==='body'&&inCoating)continue;
+      if(kind==='coating'&&!inCoating)continue;
+      const local=(gray[p-1]+gray[p+1]+gray[p-w]+gray[p+w])/4;
+      const bright=(gray[p]-local)/255;
+      const micro=Math.abs(gray[p]-local)/255;
+      const softGloss=val[p]>.68&&sat[p]<.34&&bright>.028;
+      const strictGloss=val[p]>.90&&sat[p]<.24&&bright>.018;
+      sampled++;valueSum+=val[p];
+      if(val[p]>.985)over++;if(val[p]<.15)under++;
+      if(softGloss){glossN++;glossMask[p]=1;}
+      if(strictGloss)strictGlossN++;
+      if(!softGloss){roughSum+=micro;roughN++;}
+    }
+    const largest=glossN?largestComponent(glossMask,w,h).area:0;
+    const dominance=glossN?largest/glossN:0;
+    return Object.freeze({
+      sampledPixels:sampled,
+      glossRatio:q(sampled?glossN/sampled:0),
+      strictGlossRatio:q(sampled?strictGlossN/sampled:0),
+      largestGlossComponentRatio:q(dominance),
+      distributedGlossRatio:q(glossN?(glossN-largest)/glossN:0),
+      roughness:q(roughN?roughSum/roughN:0),
+      meanValue:q(sampled?valueSum/sampled:0),
+      overexposedRatio:q(sampled?over/sampled:0),
+      underexposedRatio:q(sampled?under/sampled:0)
+    });
+  }
+  const moistureSurface=moistureRegion('surface');
+  const moistureBody=moistureRegion('body');
+  const moistureCoating=moistureRegion('coating');
+  const moistureObservation=Object.freeze({
+    schemaVersion:'tongue-moisture-features-v1',
+    surface:moistureSurface,
+    body:moistureBody,
+    coating:moistureCoating,
+    qc:Object.freeze({
+      roiCoverage:q(comp.area/(w*h)),
+      overexposedRatio:moistureSurface.overexposedRatio,
+      underexposedRatio:moistureSurface.underexposedRatio,
+      largestGlossComponentRatio:moistureSurface.largestGlossComponentRatio,
+      neutralReferencePixels:neutralN,
+      colorNormalizationApplied:normalizationApplied
+    }),
+    method:'local-specular-plus-microtexture-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
 
   const y0=Math.max(0,Math.floor(minY+.32*bh)),y1=Math.min(h-1,Math.ceil(minY+.95*bh));
   const x0=Math.max(0,Math.floor(symmetryAxis-.15*bw)),x1=Math.min(w-1,Math.ceil(symmetryAxis+.15*bw));
@@ -196,6 +252,7 @@ function spatialObservation(px,w,h){
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
+    moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({
       visibleSignal,

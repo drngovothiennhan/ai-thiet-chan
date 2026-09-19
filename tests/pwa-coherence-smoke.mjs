@@ -31,7 +31,10 @@ assert.doesNotMatch(home,/controllerchange[^]*location\.reload\s*\(/,'controller
 assert.match(home,/AITCPWAUpdate/);
 assert.match(home,/updateReady/);
 assert.match(home,/AITC_ACTIVATE_UPDATE/);
+assert.ok(home.includes('/release-ui.js?v=2026.09.19-taskbar-r2'),'taskbar JS must use a versioned URL to bypass an older controlling worker cache');
+assert.ok(home.includes('/release-ui.css?v=2026.09.19-taskbar-r2'),'taskbar CSS must use a versioned URL to bypass an older controlling worker cache');
+assert.match(sw,/\['\/release-meta\.js','\/release-ui\.js','\/release-ui\.css'\]\.includes\(url\.pathname\)/,'release taskbar assets must be network-first in the service worker');
 
-assert.equal(releaseId,'2026.09.19-workspace-taskbar-r1');
+assert.equal(releaseId,'2026.09.19-taskbar-r2');
 assert.match(sw,/hasCompleteDevicePayload\(body\)[^]*digestBase64Payload\(image\)/,'service worker must verify the actual image digest before trusting a complete device payload');
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, atomic cache-before-takeover, and digest self-healing without forced page reload.`);

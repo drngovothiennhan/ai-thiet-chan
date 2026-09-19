@@ -54,7 +54,7 @@
   }
   function updateTaskbar(){
     const nav=$('#aitcBottomNav');if(!nav)return;
-    $('button[data-nav]',nav).forEach(btn=>{
+    [...nav.querySelectorAll('button[data-nav]')].forEach(btn=>{
       const selected=btn.dataset.nav===activeWorkspace;
       btn.classList.toggle('active',selected);
       btn.setAttribute('aria-current',selected?'page':'false');

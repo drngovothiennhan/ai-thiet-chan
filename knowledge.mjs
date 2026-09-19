@@ -27,7 +27,7 @@ function analysisEvidence(){
 }
 
 function normalizeSearchText(value){
-  return String(value||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+  return String(value||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 }
 function tokens(value){return [...new Set(normalizeSearchText(value).split(' ').filter(x=>x.length>=3))];}
 function evidenceScore(e,queryTokens){
@@ -37,6 +37,8 @@ function evidenceScore(e,queryTokens){
   return score;
 }
 function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam xuc|buon|hoang|mat ngu|tu hai|hanh vi|cang thang)/.test(normalizeSearchText(query));}
+function moistureRelevant(query){return /(do am|kho|uot|nhuan|tron|gloss|bong be mat|nuoc bot|moisture|wet|dry)/.test(normalizeSearchText(query));}
+function regionalTopographyRelevant(query){return /(phan khu|dau luoi|ria luoi|hai ben luoi|giua luoi|goc luoi|tam phe|can dom|ty vi|than|bang quang|tongue region|topograph)/.test(normalizeSearchText(query));}
 function renderCitedEvidence(items){
   return items.map(e=>{
     const doc=documentById.get(e.source);
@@ -55,7 +57,12 @@ export function knowledgeForQuery(query,{limit=18}={}){
   const effectiveLimit=Math.max(Number(limit)||18,12);
   const selected=[];const seen=new Set();
   for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=effectiveLimit)break;}
-  const requiredSources=['TC1','DY1','MC1','AT1',...(allowPsych?['PSY1']:[])];
+  const requiredSources=[
+    'TC1','DY1','MC1','AT1',
+    ...(moistureRelevant(query)?['TCATLAS1','OA17','OA18']:[]),
+    ...(regionalTopographyRelevant(query)?['OA19']:[]),
+    ...(allowPsych?['PSY1']:[])
+  ];
   for(const source of requiredSources){
     if(selected.some(e=>e.source===source))continue;
     const fallback=ALL_EVIDENCE.find(e=>e.source===source);

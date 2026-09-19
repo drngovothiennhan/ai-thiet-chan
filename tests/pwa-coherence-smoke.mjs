@@ -26,7 +26,7 @@ assert.doesNotMatch(analyzeFetch,/status:403|response\.status!==429/,'service wo
 assert.match(sw,/AITC_ACTIVATE_UPDATE/);
 
 const installBody=sw.slice(sw.indexOf("self.addEventListener('install'"),sw.indexOf("self.addEventListener('activate'"));
-assert.doesNotMatch(installBody,/self\.skipWaiting\s*\(/,'new workers must not force takeover while a case can be active');
+assert.match(installBody,/self\.skipWaiting\s*\(/,'new workers must take over only after the complete shell is cached so stale payload contracts cannot persist');
 assert.doesNotMatch(home,/controllerchange[^]*location\.reload\s*\(/,'controller changes must not force a mid-case page reload');
 assert.match(home,/AITCPWAUpdate/);
 assert.match(home,/updateReady/);

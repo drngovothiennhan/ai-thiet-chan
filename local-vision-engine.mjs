@@ -1,5 +1,6 @@
 import {coarse,matchAtlas} from './public/academic-signature.js';
 import {verifyClientVisualPayload} from './academic-server.mjs';
+import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from './spatial-observation-policy.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -24,14 +25,8 @@ function colorReliability(qc){return grade(qc);}
 function framing(qc){return grade(qc);}
 function buildTongueMorphology(signature,qc){
   const c=coarse(signature);
-  const spatial=signature?.spatial&&typeof signature.spatial==='object'?signature.spatial:null;
-  const sulcus=spatial?.medianSulcus&&typeof spatial.medianSulcus==='object'?spatial.medianSulcus:null;
-  const sulcusVisible=Boolean(
-    sulcus?.visibleSignal===true&&
-    Number(sulcus?.score)>=.62&&
-    Number(sulcus?.continuity)>=.22&&
-    Number(sulcus?.centrality)>=.35
-  );
+  const spatial=interpretSpatialObservation(signature?.spatial||{},qc);
+  const sulcusVisible=spatial?.medianSulcus?.status==='visible-signal';
   const darkLineSignal=Boolean(c.fissure);
   return {
     schemaVersion:'tongue-morphology-observation-v3',
@@ -39,8 +34,9 @@ function buildTongueMorphology(signature,qc){
       status:sulcusVisible?'visible-signal':'unknown',
       prominence:sulcusVisible?'visible':'unknown',
       orientation:sulcusVisible?'longitudinal':'unknown',
-      confidence:sulcusVisible?Number(Math.min(.78,Number(sulcus.score)||0).toFixed(3)):null,
-      source:sulcusVisible?'tongue-spatial-observation-v1':'no-validated-spatial-signal'
+      confidence:sulcusVisible?spatial.medianSulcus.confidence:null,
+      source:spatial?.medianSulcus?.source||'no-validated-spatial-signal',
+      policyVersion:SPATIAL_OBSERVATION_POLICY_VERSION
     },
     fissure:{
       status:'unknown',
@@ -75,8 +71,8 @@ function topObservation(signature,qc,matches){
   const confidence=reliability(qc,signature);
   const best=Array.isArray(matches)&&matches.length?matches[0]:null;
   const morphology=buildTongueMorphology(signature,qc);
-  const spatial=signature?.spatial&&typeof signature.spatial==='object'?signature.spatial:null;
-  const coatingDistribution=String(spatial?.coatingDistributionCandidate||UNKNOWN);
+  const spatialPolicy=interpretSpatialObservation(signature?.spatial||{},qc);
+  const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
     'Độ tương đồng atlas là đối chiếu hình ảnh, không phải chẩn đoán.',

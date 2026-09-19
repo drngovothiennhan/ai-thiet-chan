@@ -59,4 +59,13 @@ assert.ok(searchCall);
 assert.equal(searchCall.method,'POST');
 assert.doesNotMatch(searchCall.body,/Nguyen|example|MSSV|12345/i);
 
-console.log('LLM CASE RETRIEVAL REMOTE SMOKE PASS: preview uses remote SQLite retrieval and transmits mapped medical terms only.');
+process.env.VERCEL_ENV='production';
+const prodMod=await import('../case-retrieval.mjs?remote-smoke-production=1');
+const prodHealth=await prodMod.caseRetrievalRuntimeHealth();
+assert.equal(prodHealth.ready,true);
+assert.equal(prodHealth.configured,true);
+assert.equal(prodHealth.mode,'remote');
+assert.equal(prodHealth.records,44643);
+assert.equal(prodHealth.sourceCounts['tcmchat-medical-case-sft-v1'],44623);
+
+console.log('LLM CASE RETRIEVAL REMOTE SMOKE PASS: Vercel preview and production use verified remote SQLite retrieval and transmit mapped medical terms only.');

@@ -10,9 +10,10 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v3',
+  spatialObservationVersion:'tongue-spatial-observation-v4',
   moistureObservationVersion:'tongue-moisture-features-v1',
-  surfacePhenotypeVersion:'tongue-surface-phenotype-features-v1'
+  surfacePhenotypeVersion:'tongue-surface-phenotype-features-v1',
+  stasisSpotVersion:'tongue-stasis-spot-features-v1'
 });
 
 function q(v,n=4){return Number(Number(v||0).toFixed(n));}
@@ -49,6 +50,29 @@ function largestComponent(mask,w,h){
   }
   const out=new Uint8Array(mask.length);for(const p of best)out[p]=1;
   return {mask:out,area:best.length};
+}
+function componentStats(mask,w,h){
+  const seen=new Uint8Array(mask.length),queue=new Int32Array(mask.length),out=[];
+  for(let seed=0;seed<mask.length;seed++){
+    if(!mask[seed]||seen[seed])continue;
+    let head=0,tail=0;queue[tail++]=seed;seen[seed]=1;
+    let area=0,minX=w,minY=h,maxX=-1,maxY=-1,sumX=0,sumY=0,border=0;
+    while(head<tail){
+      const p=queue[head++],x=p%w,y=(p/w)|0;area++;sumX+=x;sumY+=y;
+      minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+      let exposed=false;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=w||ny>=h){exposed=true;continue;}
+        const np=ny*w+nx;
+        if(mask[np]&&!seen[np]){seen[np]=1;queue[tail++]=np;}
+        if(!mask[np])exposed=true;
+      }
+      if(exposed)border++;
+    }
+    out.push({area,minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1,cx:sumX/area,cy:sumY/area,border});
+  }
+  return out;
 }
 function bounds(mask,w,h){
   let minX=w,minY=h,maxX=-1,maxY=-1;
@@ -177,10 +201,10 @@ function spatialObservation(px,w,h){
     normalizationApplied=true;
   }
 
-  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h),hue=new Float32Array(w*h);
+  const gray=new Float32Array(w*h),sat=new Float32Array(w*h),val=new Float32Array(w*h),hue=new Float32Array(w*h),nrgbR=new Float32Array(w*h),nrgbG=new Float32Array(w*h),nrgbB=new Float32Array(w*h);
   for(let p=0;p<w*h;p++){
     const i=p*4,r=clamp(px[i]*gainR,0,255),g=clamp(px[i+1]*gainG,0,255),b=clamp(px[i+2]*gainB,0,255),hsv=rgbToHsv(r,g,b);
-    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;hue[p]=hsv.h;
+    gray[p]=luma(r,g,b);sat[p]=hsv.s;val[p]=hsv.v;hue[p]=hsv.h;nrgbR[p]=r;nrgbG[p]=g;nrgbB[p]=b;
   }
   const lateralLuma=[],lateralSat=[];
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
@@ -252,6 +276,69 @@ function spatialObservation(px,w,h){
     source:'segmented-coating-local-texture-v1',
     calibration:'engineering-candidate-not-clinical-threshold'
   });
+  const stasisMask=new Uint8Array(w*h);
+  let stasisCandidatePixels=0,purpleEvidenceSum=0,darkContrastSum=0,redSpotExcludedPixels=0;
+  for(let y=Math.max(minY+2,2);y<=Math.min(box.maxY-2,h-3);y++)for(let x=Math.max(minX+2,2);x<=Math.min(box.maxX-2,w-3);x++){
+    const p=y*w+x;if(!comp.mask[p]||coatMask[p])continue;
+    const nx=(x-minX)/Math.max(1,bw),ny=(y-minY)/Math.max(1,bh);
+    if(nx<.06||nx>.94||ny<.04||ny>.96)continue;
+    if(val[p]>.93||val[p]<.10||sat[p]<.12)continue;
+    const neighbors=[p-2,p+2,p-2*w,p+2*w,p-w-1,p-w+1,p+w-1,p+w+1].filter(np=>comp.mask[np]&&!coatMask[np]);
+    if(neighbors.length<5)continue;
+    const localGray=neighbors.reduce((s,np)=>s+gray[np],0)/neighbors.length;
+    const localR=neighbors.reduce((s,np)=>s+nrgbR[np],0)/neighbors.length;
+    const localG=neighbors.reduce((s,np)=>s+nrgbG[np],0)/neighbors.length;
+    const localB=neighbors.reduce((s,np)=>s+nrgbB[np],0)/neighbors.length;
+    const darkContrast=(localGray-gray[p])/255;
+    const rbMinusG=(((nrgbR[p]+nrgbB[p])/2)-nrgbG[p])/255;
+    const localRbMinusG=(((localR+localB)/2)-localG)/255;
+    const purpleDelta=rbMinusG-localRbMinusG;
+    const purpleBalanced=nrgbR[p]>nrgbG[p]*1.015&&nrgbB[p]>nrgbG[p]*1.015;
+    const redDominant=nrgbR[p]>nrgbG[p]*1.18&&nrgbR[p]>nrgbB[p]*1.20&&((hue[p]<=24)||(hue[p]>=345));
+    if(redDominant&&darkContrast<.045){redSpotExcludedPixels++;continue;}
+    const candidate=purpleBalanced&&rbMinusG>.018&&purpleDelta>.012&&darkContrast>.018&&val[p]<.78;
+    if(candidate){
+      stasisMask[p]=1;stasisCandidatePixels++;purpleEvidenceSum+=Math.max(0,purpleDelta);darkContrastSum+=Math.max(0,darkContrast);
+    }
+  }
+  const rawStasisComponents=componentStats(stasisMask,w,h);
+  const minStasisArea=Math.max(2,Math.round(comp.area*.00035));
+  const maxStasisArea=Math.max(minStasisArea,Math.round(comp.area*.06));
+  const stasisComponents=rawStasisComponents.filter(x=>x.area>=minStasisArea&&x.area<=maxStasisArea&&x.width/Math.max(1,x.height)<4.5&&x.height/Math.max(1,x.width)<4.5);
+  const patchAreaGate=Math.max(minStasisArea+2,Math.round(comp.area*.003));
+  const regionCounts={tip:0,margin:0,center:0,root:0},smallRegionCounts={tip:0,margin:0,center:0,root:0},patchRegionCounts={tip:0,margin:0,center:0,root:0};
+  let smallSpotCount=0,patchCount=0,acceptedArea=0;
+  const componentSummaries=[];
+  for(const item of stasisComponents){
+    const nx=(item.cx-minX)/Math.max(1,bw),ny=(item.cy-minY)/Math.max(1,bh);
+    const region=ny>=.72?'tip':ny<=.28?'root':(nx<=.25||nx>=.75)?'margin':'center';
+    const kind=item.area>=patchAreaGate?'patch':'small-spot';
+    regionCounts[region]++;acceptedArea+=item.area;
+    if(kind==='patch'){patchCount++;patchRegionCounts[region]++;}else{smallSpotCount++;smallRegionCounts[region]++;}
+    if(componentSummaries.length<12)componentSummaries.push(Object.freeze({
+      kind,region,areaRatio:q(item.area/Math.max(1,comp.area)),aspect:q(item.width/Math.max(1,item.height)),
+      nx:q(nx),ny:q(ny)
+    }));
+  }
+  const stasisSpotObservation=Object.freeze({
+    schemaVersion:'tongue-stasis-spot-features-v1',
+    candidatePixelRatio:q(stasisCandidatePixels/Math.max(1,comp.area)),
+    acceptedAreaRatio:q(acceptedArea/Math.max(1,comp.area)),
+    componentCount:stasisComponents.length,
+    smallSpotCount,
+    patchCount,
+    regionCounts:Object.freeze(regionCounts),
+    smallSpotRegionCounts:Object.freeze(smallRegionCounts),
+    patchRegionCounts:Object.freeze(patchRegionCounts),
+    meanPurpleDelta:q(stasisCandidatePixels?purpleEvidenceSum/stasisCandidatePixels:0),
+    meanDarkContrast:q(stasisCandidatePixels?darkContrastSum/stasisCandidatePixels:0),
+    redSpotExcludedRatio:q(redSpotExcludedPixels/Math.max(1,comp.area)),
+    componentSummaries:Object.freeze(componentSummaries),
+    regionModel:'root-margin-center-tip-relative-map-v1',
+    method:'segmented-body-local-dark-purple-component-analysis-v1',
+    calibration:'engineering-candidate-not-clinical-threshold'
+  });
+
   const centralRatio=centralN?centralCoat/centralN:0,middleRatio=middleN?middleCoat/middleN:0,posteriorRatio=posteriorN?posteriorCoat/posteriorN:0,anteriorRatio=anteriorN?anteriorCoat/anteriorN:0;
   const whiteRatio=looseN?whiteLike/looseN:0,yellowRatio=looseN?yellowLike/looseN:0;
   const coatingThicknessCandidate=coatRatio>.42?'dày':coatRatio>.09?'mỏng':'rất mỏng';
@@ -332,7 +419,7 @@ function spatialObservation(px,w,h){
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
   return {
-    schemaVersion:'tongue-spatial-observation-v3',
+    schemaVersion:'tongue-spatial-observation-v4',
     roiCoverage:q(comp.area/(w*h)),
     bodyLuma:q(bodyLuma/255),
     bodySaturation:q(bodySaturation),
@@ -346,6 +433,7 @@ function spatialObservation(px,w,h){
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
     surfacePhenotype:Object.freeze({schemaVersion:'tongue-surface-phenotype-features-v1',toothmarks:toothmarkGeometry,shape:shapeGeometry,coatingTexture:coatingTextureObservation}),
+    stasisSpot:stasisSpotObservation,
     moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({

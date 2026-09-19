@@ -26,6 +26,9 @@ export const VISUAL_MENTOR_FIELDS=Object.freeze([
   'toothmarks',
   'tongueShape',
   'coatingTexture',
+  'stasisSmallSpot',
+  'stasisPatch',
+  'ventralVesselColor',
   'ventralBilateralStructure'
 ]);
 

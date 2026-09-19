@@ -37,8 +37,10 @@ self.addEventListener('install',event=>{
     const cache=await caches.open(CACHE);
     await cacheRequired(cache);
     await cacheOptional(cache);
-    // Intentionally do not call skipWaiting here. A newly installed worker waits
-    // until the current app session is closed or the client explicitly activates it.
+    // Cache the complete shell first, then take over immediately. This repairs the
+    // production update race where an old PWA shell can keep sending legacy visual
+    // payloads after the server has already moved to the current verification contract.
+    await self.skipWaiting();
   })());
 });
 self.addEventListener('activate',event=>{
@@ -71,8 +73,12 @@ function hasCompleteDevicePayload(body){
 async function enrichAnalyzeRequest(request){
   try{
     const body=await request.clone().json();
-    if(hasCompleteDevicePayload(body))return request;
     const image=body?.topImage||body?.image;const vision=self.AITCAcademicVision;
+    if(hasCompleteDevicePayload(body)){
+      const claimed=String(body?.academicSource?.topImageDigest||'');
+      const actual=await digestBase64Payload(image);
+      if(actual&&claimed===actual)return request;
+    }
     if(!image||!vision?.signatureFromDataUrl)return request;
     const signature=await vision.signatureFromDataUrl(image);if(!signature)return request;
     const topImageDigest=await digestBase64Payload(image);

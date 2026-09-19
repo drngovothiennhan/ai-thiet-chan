@@ -33,3 +33,16 @@ assert.equal(result.authority,false);assert.equal(result.productionEligible,fals
 assert.throws(()=>measureMedianGroove([],[],w,h,box),/INVALID_GRID/);
 assert.throws(()=>measureMedianGroove(wide.gray,wide.mask,w,h,{...box,maxX:100}),/INVALID_BOX/);
 console.log('PASS: synthetic pixel geometry regression only; no real-image or clinical accuracy measured.');
+
+const {shadowRoiStatus}=await import('../public/local-vision/shadow-preprocess-v3.js');
+const {analyzeShadowFeatureCandidates}=await import('../public/local-vision/shadow-feature-extractor.js');
+assert.equal(shadowRoiStatus(null),'missing-model-roi');
+assert.equal(shadowRoiStatus({x0:0,y0:0,x1:1,y1:.660377,touchesFrame:true}),'model-roi-touches-frame');
+assert.equal(shadowRoiStatus({x0:.2,y0:.2,x1:.8,y1:.8}),'usable-candidate-roi');
+assert.equal(shadowRoiStatus({x0:NaN,y0:.2,x1:.8,y1:.8}),'invalid-model-roi');
+const abstained=await analyzeShadowFeatureCandidates('must-not-be-decoded','top',{
+  roiGeometry:{x0:0,y0:0,x1:1,y1:.660377,touchesFrame:true}
+});
+assert.equal(abstained.status,'insufficient-roi');
+assert.equal(abstained.topCandidates,undefined);
+console.log('PASS: frame-touching real-case ROI geometry abstains before image decode.');

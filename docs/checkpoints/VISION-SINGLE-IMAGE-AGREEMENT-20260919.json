@@ -1,0 +1,537 @@
+{
+  "schemaVersion": "aitc-single-image-perturbation-v1",
+  "semantics": "Engineering agreement with four predeclared assistant observations for ONE development image; correlated variants, not independent cases or diagnostic accuracy.",
+  "independentImages": 1,
+  "target": {
+    "bodyColorCandidate": "đỏ nhạt",
+    "coatingThicknessCandidate": "mỏng",
+    "coatingDistributionCandidate": "trung tâm–sau",
+    "medianSulcusVisible": true
+  },
+  "variantCount": 29,
+  "exactMatchCount": 29,
+  "exactAgreement": 1,
+  "perField": {
+    "bodyColorCandidate": 1,
+    "coatingThicknessCandidate": 1,
+    "coatingDistributionCandidate": 1,
+    "medianSulcusVisible": 1
+  },
+  "clinicalAccuracy": null,
+  "productionActivation": "none",
+  "rows": [
+    {
+      "variant": "original",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "brightness-0.9",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "brightness-0.95",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "brightness-1.05",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "brightness-1.1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "contrast-0.9",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "contrast-1.1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "saturation-0.9",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "saturation-1.1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-0",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-2",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-3",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-4",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "channel-5",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "jpeg-0.5",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "jpeg-0.65",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "jpeg-0.8",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "jpeg-0.95",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "rotation--2",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "rotation--1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "rotation-1",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "rotation-2",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "symmetric-crop-0.01",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "symmetric-crop-0.02",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "symmetric-crop-0.03",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "symmetric-crop-0.04",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "scale-0.5",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    },
+    {
+      "variant": "scale-0.75",
+      "actual": {
+        "bodyColorCandidate": "đỏ nhạt",
+        "coatingThicknessCandidate": "mỏng",
+        "coatingDistributionCandidate": "trung tâm–sau",
+        "medianSulcusVisible": true
+      },
+      "matches": {
+        "bodyColorCandidate": true,
+        "coatingThicknessCandidate": true,
+        "coatingDistributionCandidate": true,
+        "medianSulcusVisible": true
+      },
+      "exact": true,
+      "fissurePolicy": "median-sulcus-is-not-pathological-fissure"
+    }
+  ],
+  "shadow": {
+    "roiGeometry": {
+      "schemaVersion": "aitc-shadow-roi-geometry-v1",
+      "x0": 0,
+      "y0": 0,
+      "x1": 1,
+      "y1": 0.660377,
+      "width": 1,
+      "height": 0.660377,
+      "centerX": 0.5,
+      "centerY": 0.330189,
+      "centralized": 0.759851,
+      "touchesFrame": true,
+      "authority": false
+    },
+    "status": "insufficient-roi",
+    "reason": "model-roi-touches-frame",
+    "authority": false
+  },
+  "browser": "138.0.7204.0"
+}

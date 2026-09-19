@@ -60,3 +60,15 @@ export function mapNormalizedGeometry(geometry,w,h,pad=.06){
   if(maxX<=minX||maxY<=minY)return null;
   return Object.freeze({minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1});
 }
+
+// The bootstrap pixel model can include face/neck; edge-touching boxes cannot
+// support independent tongue morphology. Abstain instead of grading those pixels.
+export function shadowRoiStatus(geometry){
+  if(!geometry)return 'missing-model-roi';
+  const values=['x0','y0','x1','y1'].map(k=>geometry[k]);
+  if(!values.every(v=>typeof v==='number'&&Number.isFinite(v)))return 'invalid-model-roi';
+  const [x0,y0,x1,y1]=values;
+  if(x0<0||y0<0||x1>1||y1>1||x1<=x0||y1<=y0)return 'invalid-model-roi';
+  if(geometry.touchesFrame===true||x0===0||y0===0||x1===1||y1===1)return 'model-roi-touches-frame';
+  return 'usable-candidate-roi';
+}

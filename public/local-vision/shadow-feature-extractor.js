@@ -1,5 +1,5 @@
 import {measureMedianGroove} from './shadow-groove.js';
-import {boundedChannelGains,normalizeRgb,mapNormalizedGeometry,SHADOW_PREPROCESS_VERSION} from './shadow-preprocess-v3.js';
+import {shadowRoiStatus,boundedChannelGains,normalizeRgb,mapNormalizedGeometry,SHADOW_PREPROCESS_VERSION} from './shadow-preprocess-v3.js';
 
 export const SHADOW_FEATURE_VERSION='shadow-feature-extractor-v3';
 
@@ -71,6 +71,12 @@ async function decode(dataUrl,maxSide=192){
 export async function analyzeShadowFeatureCandidates(dataUrl,role='top',options={}){
   const started=performance.now();
   const normalizedRole=role==='bottom'?'bottom':'top';
+  const roiStatus=shadowRoiStatus(options?.roiGeometry);
+  if(normalizedRole==='top'&&roiStatus!=='usable-candidate-roi')return Object.freeze({
+    schemaVersion:'aitc-shadow-feature-candidates-v3',runtimeVersion:SHADOW_FEATURE_VERSION,
+    role:normalizedRole,status:'insufficient-roi',reason:roiStatus,
+    authority:false,productionEligible:false,latencyMs:Math.round(performance.now()-started)
+  });
   const {w,h,px}=await decode(dataUrl);
   const n=w*h,raw=new Uint8Array(n),gray=new Float32Array(n);
   const modelWindow=normalizedRole==='top'?mapNormalizedGeometry(options?.roiGeometry,w,h,.055):null;

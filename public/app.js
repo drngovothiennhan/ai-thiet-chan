@@ -173,8 +173,10 @@ function renderTheoryAssessment(a){
 }
 function renderResult(){
   const a=state.assessment||{},top=a.top||{},tv=top.visualValidity||{};
+  const sulcus=top?.morphology?.medianSulcus||{};
+  const sulcusText=sulcus.status==='visible-signal'?'Có tín hiệu rãnh dọc giữa':sulcus.status&&sulcus.status!=='unknown'?String(sulcus.status):'Không xác định';
   els.topResultGrid.innerHTML=fieldGrid([
-    ['Đúng mặt trên',tv.tongueVisible===true?'Đã xác nhận':tv.tongueVisible===false?'Không xác nhận':'Không xác định'],['Toàn bộ lưỡi',tv.wholeTongueVisible===true?'Thấy rõ':tv.wholeTongueVisible===false?'Chưa đủ':'Không xác định'],['Phần sau/gốc lưỡi',tv.rootVisible===true?'Thấy rõ':tv.rootVisible===false?'Chưa thấy rõ':'Không xác định'],['Độ tin cậy màu',tv.colorReliability],['Màu lưỡi',top.tongueColor],['Hình thể',top.shape],['Màu rêu',top.coatingColor],['Độ dày rêu',top.coatingThickness],['Tính chất rêu',top.coatingTexture],['Độ ẩm',top.moisture],['Nứt',top.fissures],['Dấu răng',top.toothmarks],['Gai/điểm',top.pricklesSpots],['Ban/điểm ứ',top.stasisMarks],['Chất lượng A.I',top.quality]
+    ['Đúng mặt trên',tv.tongueVisible===true?'Đã xác nhận':tv.tongueVisible===false?'Không xác nhận':'Không xác định'],['Toàn bộ lưỡi',tv.wholeTongueVisible===true?'Thấy rõ':tv.wholeTongueVisible===false?'Chưa đủ':'Không xác định'],['Phần sau/gốc lưỡi',tv.rootVisible===true?'Thấy rõ':tv.rootVisible===false?'Chưa thấy rõ':'Không xác định'],['Độ tin cậy màu',tv.colorReliability],['Màu lưỡi',top.tongueColor],['Hình thể',top.shape],['Màu rêu',top.coatingColor],['Độ dày rêu',top.coatingThickness],['Phân bố rêu',top.coatingDistribution||'Không xác định'],['Tính chất rêu',top.coatingTexture],['Độ ẩm',top.moisture],['Rãnh giữa',sulcusText],['Nứt',top.fissures],['Dấu răng',top.toothmarks],['Gai/điểm',top.pricklesSpots],['Ban/điểm ứ',top.stasisMarks],['Chất lượng A.I',top.quality]
   ]);renderLimitations(els.topLimitations,top.limitations);
 
   if(a.mode==='general'&&a.bottom){

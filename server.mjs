@@ -441,14 +441,15 @@ app.post('/api/analyze',aiRateLimit,async(req,res)=>{
 app.post('/api/symptom-next',async(req,res)=>{
   const startedAt=Date.now();
   try{
-    const {assessment,analysis,symptomContext,message}=req.body||{};
+    const {assessment,analysis,symptomContext,message,askedConceptIds}=req.body||{};
     const context=assessment||analysis;
     const llmContext=llmSafeAssessmentContext(context);
     if(!llmContext)return res.status(400).json({error:'ANALYSIS_REQUIRED'});
     const confirmed=String(symptomContext||message||'').slice(0,5000);
+    const excludedConceptIds=Array.isArray(askedConceptIds)?askedConceptIds.map(x=>String(x||'').slice(0,80)).filter(Boolean).slice(0,8):[];
     const contextText=JSON.stringify(llmContext);
     const caseRetrieval=await retrieveSimilarCasesRuntime(`${contextText}\n${confirmed}`,{limit:4});
-    const suggestion=suggestNextSymptomQuestion(confirmed,caseRetrieval);
+    const suggestion=suggestNextSymptomQuestion(confirmed,caseRetrieval,{excludeConceptIds:excludedConceptIds});
     const elapsedMs=Date.now()-startedAt;
     console.info('symptom_rag_question',JSON.stringify({
       elapsedMs,
@@ -457,7 +458,8 @@ app.post('/api/symptom-next',async(req,res)=>{
       errorCode:caseRetrieval?.errorCode||null,
       conceptId:suggestion.conceptId,
       supportCases:suggestion.supportCases,
-      evidenceBased:suggestion.evidenceBased
+      evidenceBased:suggestion.evidenceBased,
+      excludedConceptCount:excludedConceptIds.length
     }));
     return res.json({
       ok:true,
@@ -467,6 +469,7 @@ app.post('/api/symptom-next',async(req,res)=>{
       selectedConcept:suggestion.conceptId,
       supportCases:suggestion.supportCases,
       consideredCases:suggestion.consideredCases,
+      askedConceptIds:excludedConceptIds,
       timingMs:elapsedMs,
       caseRetrieval:{
         corpusId:caseRetrieval?.corpusId||null,

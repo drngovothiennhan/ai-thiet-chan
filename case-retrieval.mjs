@@ -12,8 +12,9 @@ const MAX_TARGET_TEXT = 650;
 const MAX_CONTEXT_CHARS = 7600;
 
 let state = { initialized:false, configured:false, ready:false, db:null, statement:null, records:0, sourceCounts:{}, errorCode:null };
-const PREVIEW_REMOTE_URL=process.env.VERCEL_ENV==='preview'?'https://aitc-case-retrieval-preview.onrender.com':'';
-const REMOTE_URL=String(process.env.AITC_CASE_RETRIEVAL_URL||PREVIEW_REMOTE_URL).trim().replace(/\/$/,'');
+const VERIFIED_REMOTE_URL='https://aitc-case-retrieval-preview.onrender.com';
+const DEFAULT_REMOTE_URL=['preview','production'].includes(String(process.env.VERCEL_ENV||''))?VERIFIED_REMOTE_URL:'';
+const REMOTE_URL=String(process.env.AITC_CASE_RETRIEVAL_URL||DEFAULT_REMOTE_URL).trim().replace(/\/$/,'');
 const REMOTE_TIMEOUT_MS=Math.max(1000,Math.min(20000,Number(process.env.AITC_CASE_RETRIEVAL_REMOTE_TIMEOUT_MS||15000)));
 let remoteHealthCache={at:0,value:null};
 

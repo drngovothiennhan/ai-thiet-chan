@@ -134,7 +134,7 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const sources=sourceEvidence(assessment,knowledgeText,4);
   const reply=[];
 
-  if(/do am|kho|uot|nhuan|moisture|wet|dry|gloss/.test(q)){
+  if(/\b(?:do am|kho|uot|nhuan|moisture|wet|dry|gloss)\b/.test(q)){
     reply.push('Về độ ẩm: '+moistureText(top)+'.');
     reply.push('Tầng suy luận chỉ diễn giải tín hiệu gloss/texture đã qua QC của Local Vision; flash/cháy sáng không được đồng nhất với ướt và nứt đơn độc không được đồng nhất với khô.');
     if(top?.moistureObservation?.surface?.status==='unknown')reply.push('Ảnh hiện chưa đủ tín hiệu để gán nhãn khô/ướt; giữ Không xác định thay vì suy đoán.');

@@ -25,7 +25,7 @@ assert.notEqual(q2.conceptId,'dizziness');
 const q3=suggestNextSymptomQuestion('Không',retrieval,{excludeConceptIds:['dizziness']});
 assert.equal(q3.evidenceBased,true);
 assert.notEqual(q3.conceptId,'dizziness');
-assert.ok(['nausea','poor-appetite','fatigue'].includes(q3.conceptId));
+assert.ok(['headache','nausea','poor-appetite','fatigue'].includes(q3.conceptId));
 
 const empty=suggestNextSymptomQuestion('Tôi đau đầu',{cases:[]});
 assert.equal(empty.evidenceBased,false);

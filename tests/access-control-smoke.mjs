@@ -11,7 +11,8 @@ const settings=fs.readFileSync('public/settings.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 
 assert.equal(pkg.version,'2.9.2');
-assert.match(settings,/const RELEASE='2\.9\.0'/);
+const release=fs.readFileSync('public/release-meta.js','utf8').match(/RELEASE_ID='([^']+)'/)[1];
+assert.equal(settings.match(/const RELEASE='([^']+)'/)[1],release,'settings loader must match the active shell release');
 assert.match(server,/installAccessControl/);
 assert.match(server,/consumeCaseAccess\(req\)/);
 assert.match(server,/studentAccess\?\.role==='student'/);
@@ -99,3 +100,4 @@ try{
 }
 
 console.log('student/admin access smoke: OK; verified student requests stay unlimited, bearer failures never downgrade to guest, and guest quota is charged only on successful JSON response');
+

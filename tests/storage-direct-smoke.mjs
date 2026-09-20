@@ -18,6 +18,6 @@ assert.match(server,/legacyInlineFallback:true/);
 assert.match(server,/ai_thiet_chan_store_case_v2/);
 assert.match(academic,/storage-direct-service-worker/);
 assert.match(academic,/top-storage-path-mismatch/);
-assert.match(release,/2026\.09\.20-discussion-layout-r1/);
+assert.match(release,/2026\.09\.20-responsive-admin-r1/);
 
 console.log('STORAGE DIRECT PASS: image bytes upload to private Supabase Storage before /api/analyze; Vercel receives hashes, QC, verified visual payload, and storage paths, with legacy inline rollback compatibility retained.');

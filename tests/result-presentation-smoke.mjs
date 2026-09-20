@@ -28,6 +28,6 @@ assert.match(app,/discussion-list/);
 assert.match(css,/\.discussion-box/);
 assert.match(css,/\.discussion-list/);
 assert.match(css,/line-height:1\.62/);
-assert.match(release,/2026\.09\.20-discussion-layout-r1/);
+assert.match(release,/2026\.09\.20-responsive-admin-r1/);
 
 console.log('RESULT PRESENTATION PASS: preliminary conclusion and Discussion use professional spacing; Discussion is rendered as separated bullets and duplicate long limitations are presentation-filtered.');

@@ -6,13 +6,13 @@ let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';
 const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
-const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
+const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/layout-mode.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
 const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
   '/local-vision/model-manifest.js','/local-vision/model-runtime.js','/local-vision/shadow-pixel-mlp.js','/local-vision/shadow-worker.js','/local-vision/models/aitc-tongue-roi-mlp-bootstrap-v1.json',
   '/device-shadow-validation-v3.html',
-  '/clinical-contribute-v1.html','/gold-review-v1.html',
+  '/clinical-contribute-v1.html','/gold-review-v1.html','/expert-review-v1.html','/admin-center.html',
   '/image-enhancement.js','/capture-metadata.js','/consultation.js','/settings.js','/quality-dashboard.js','/release-ui.js',
   '/book-fallback.js','/benchmark-telemetry.js','/admin-enhancement-collapse.js',
   '/session-persistence.js','/clinical-learning.js','/feedback-lifecycle.js','/torch.js','/ui-controls.js','/admin-center.js','/user-admin.js','/admin-credentials.js','/upload-controls.js',
@@ -167,7 +167,7 @@ self.addEventListener('fetch',event=>{
   }
   if(request.method!=='GET')return;
   if(url.pathname.startsWith('/api/')){event.respondWith(fetch(request,{cache:'no-store'}));return;}
-  if(['/release-meta.js','/release-ui.js','/release-ui.css'].includes(url.pathname)){
+  if(['/release-meta.js','/release-ui.js','/release-ui.css','/layout-mode.js','/admin-center.js','/admin-center.html'].includes(url.pathname)){
     event.respondWith((async()=>{
       try{
         const response=await fetch(request,{cache:'no-cache'});

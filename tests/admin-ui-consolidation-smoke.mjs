@@ -20,6 +20,6 @@ assert.match(app,/function historyNodes\(\)/);
 assert.match(app,/event\.target\?\.id==='refreshHistoryBtn'/);
 assert.match(clinical,/function renderLearningEvidence\(\)\{\s*removeLearningEvidence\(\);\s*\}/);
 assert.match(css,/admin-compact-block/);
-assert.match(release,/2026\.09\.20-discussion-layout-r1/);
+assert.match(release,/2026\.09\.20-responsive-admin-r1/);
 
 console.log('ADMIN UI CONSOLIDATION PASS: history and approved clinical knowledge are Admin Center-only compact panels; yellow inquiry note is removed; learning/reasoning logic remains active.');

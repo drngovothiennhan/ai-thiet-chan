@@ -23,7 +23,7 @@ try{
   if(!Array.isArray(health.assessmentModes)||!health.assessmentModes.includes('normal')||!health.assessmentModes.includes('general'))throw new Error('assessment mode gate failed');
 
   const home=await text('/');
-  requireMarkers(home,['A.I THIỆT CHẨN','HIU CLB YHCT','normalModeBtn','generalModeBtn','topCameraBtn','bottomCameraBtn','settingsBtn','qualityTitle','startInquiryBtn','Bàn luận','lưu tự động vào kho dữ liệu học máy'],'home');
+  requireMarkers(home,['A.I THIỆT CHẨN','HIU CLB YHCT','normalModeBtn','generalModeBtn','topCameraBtn','bottomCameraBtn','settingsBtn','layoutModeBtn','qualityTitle','startInquiryBtn','Bàn luận','lưu tự động vào kho dữ liệu học máy'],'home');
   if(home.includes('toggleHistoryBtn')||home.includes('class="card history-card"')||home.includes('class="inquiry-note"'))throw new Error('history/yellow inquiry note must stay out of the user-facing home');
   requireMarkers(home,['Bàn luận','<strong>Giới hạn</strong>Kết quả hỗ trợ học tập và đối chiếu YHCT; không thay thế tứ chẩn và khám trực tiếp.'],'result presentation');
   if(home.includes('<strong>Tóm tắt</strong>')||home.includes('<strong>Giới hạn sử dụng y tế</strong>'))throw new Error('legacy summary/long-limit presentation must stay removed');
@@ -44,7 +44,7 @@ try{
   requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');
 
   const settings=await text('/settings.js');
-  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2.9.0'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
+  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2026.09.20-responsive-admin-r1'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
 
   const uploads=await text('/upload-controls.js');
   requireMarkers(uploads,['topUploadBtn','bottomUploadBtn','Tải ảnh mặt trên','Tải ảnh mặt dưới','input.click()'],'upload controls');
@@ -57,7 +57,7 @@ try{
   if(quality.includes('requestIdleCallback(()=>load()'))throw new Error('quality dashboard must load on demand');
 
   const admin=await text('/admin-center.js');
-  requireMarkers(admin,['Admin Center','adminHistoryToggleBtn','adminLearnedToggleBtn','ai_thiet_chan_admin_list_learned_knowledge_v1','ai_thiet_chan_admin_verify_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_admin_restore_backup_v1','KHOI_PHUC'],'admin center');
+  requireMarkers(admin,['Admin Center','admin-center.html','adminHistoryToggleBtn','adminLearnedToggleBtn','loadAdminHistory','ai_thiet_chan_admin_list_learned_knowledge_v1','ai_thiet_chan_admin_verify_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_admin_restore_backup_v1','KHOI_PHUC'],'admin center');
 
   const credentials=await text('/admin-credentials.js');
   requireMarkers(credentials,['adminCenterUsername','adminCenterPassword','ai_thiet_chan_admin_login_v1','ai_thiet_chan_admin_change_credentials_v1','mustChangePassword','adminNewPasswordConfirm'],'admin credentials');

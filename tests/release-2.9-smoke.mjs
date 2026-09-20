@@ -16,14 +16,14 @@ assert.ok(!server.includes('knowledgeVersion:KNOWLEDGE_VERSION,knowledgeSources:
 assert.ok(server.includes('localGroundedReport({assessment:llmData'),'local grounded report path missing');
 assert.ok(server.includes("provider:'local-grounded'"),'local grounded provider boundary missing');
 assert.ok(home.includes('/release-ui.css')&&home.includes('/release-ui.js'),'release UI assets not loaded');
-for(const marker of ['workflow-stepper','aitc-bottom-nav','Thiệt chẩn','Kết quả','Đối chiếu','Ca','Hệ thống','setWorkspace','aitc-workspace-hidden','sanitizeNonChatReferences']) assert.ok(ui.includes(marker),`release UI missing ${marker}`);
-assert.ok(ui.includes("grid-template-columns:repeat(5")||css.includes('grid-template-columns:repeat(5'),'taskbar must expose five separated workspaces');
+for(const marker of ['workflow-stepper','aitc-bottom-nav','Thiệt chẩn','Kết quả','Đối chiếu','Hệ thống','setWorkspace','aitc-workspace-hidden','sanitizeNonChatReferences','ensureDesktopStack']) assert.ok(ui.includes(marker),`release UI missing ${marker}`);
+assert.ok(ui.includes('data-nav="capture"')&&ui.includes('data-nav="result"')&&ui.includes('data-nav="symptoms"')&&ui.includes('data-nav="system"'),'taskbar must expose four stable workspaces after history moved to Admin Center');
 assert.ok(ui.includes("data-nav=\"symptoms\"")&&ui.includes("data-nav=\"system\""),'taskbar must use functional workspaces instead of scroll targets');
 assert.ok(!ui.includes("capture.scrollIntoView")&&!ui.includes("chat.scrollIntoView")&&!ui.includes("history.scrollIntoView"),'taskbar must switch workspaces instead of stretching one long scrolling page');
 assert.ok(css.includes('.aitc-workspace-hidden{display:none!important}'),'inactive functional workspaces must be visually isolated without removing their DOM/runtime state');
 assert.ok(ui.includes("(name==='result'||name==='symptoms')&&result.hidden"),'result and adaptive symptom workspaces must stay locked until analysis exists');
 assert.ok(ui.includes("querySelectorAll('button[data-nav]')"),'taskbar state update must iterate all buttons without querySelector runtime error');
-assert.ok(home.includes('/release-ui.js?v=2026.09.19-taskbar-r2')&&home.includes('/release-ui.css?v=2026.09.19-taskbar-r2'),'PWA shell must version taskbar assets');
+assert.ok(home.includes('/release-ui.js?v=2026.09.20-responsive-admin-r1')&&home.includes('/release-ui.css?v=2026.09.20-responsive-admin-r1'),'PWA shell must version responsive taskbar assets');
 assert.ok(ui.includes("targets=[result,$('#reportBox')]")||ui.includes("targets=[result,$('#reportBox')].filter"),'source sanitizer must target result/report only');
 assert.ok(!ui.includes("targets=[result,$('#reportBox'),$('#chatLog')]"),'chat references must remain visible');
 assert.ok(css.includes('.capture-card .analyze-btn')&&css.includes('position:static')&&css.includes('bottom:auto'),'mobile primary action must remain in normal flow without covering image controls');

@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="/dual-view.css" />
   <link rel="stylesheet" href="/settings.css" />
   <link rel="stylesheet" href="/quality-dashboard.css" />
-  <link rel="stylesheet" href="/release-ui.css?v=2026.09.19-taskbar-r2" />
+  <link rel="stylesheet" href="/release-ui.css?v=2026.09.20-responsive-admin-r1" />
   <title>A.I Thiệt Chẩn</title>
 </head>
 <body>
@@ -26,6 +26,7 @@
         <div class="subtitle">HIU CLB YHCT</div>
       </div>
       <div class="topbar-actions">
+        <button id="layoutModeBtn" class="icon-btn layout-mode-btn" type="button" aria-label="Chuyển sang giao diện PC/Desktop"><span class="layout-mode-label">PC</span></button>
         <button id="settingsBtn" class="icon-btn settings-btn" type="button" aria-label="Mở cài đặt"><span aria-hidden="true">⚙</span><span class="settings-label">Cài đặt</span></button>
         <a class="icon-btn" href="/open-source.html" aria-label="Nguồn mở và giấy phép">ⓘ</a>
       </div>
@@ -124,14 +125,15 @@
 
   <canvas id="workCanvas" hidden></canvas>
   <script src="/release-meta.js" defer></script>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=2026.09.20-responsive-admin-r1" defer></script>
+  <script src="/layout-mode.js?v=2026.09.20-responsive-admin-r1" defer></script>
   <script src="/request-client.js" defer></script>
   <script src="/image-enhancement.js" defer></script>
   <script src="/capture-metadata.js" defer></script>
   <script src="/consultation.js?v=2026.09.20-dual-consult-r1" defer></script>
-  <script src="/settings.js" defer></script>
+  <script src="/settings.js?v=2026.09.20-responsive-admin-r1" defer></script>
   <script src="/quality-dashboard.js" defer></script>
-  <script src="/release-ui.js?v=2026.09.19-taskbar-r2" defer></script>
+  <script src="/release-ui.js?v=2026.09.20-responsive-admin-r1" defer></script>
   <script>
     if('serviceWorker' in navigator){
       window.addEventListener('load',async()=>{

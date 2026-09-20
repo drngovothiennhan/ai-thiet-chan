@@ -105,3 +105,5 @@ html[data-aitc-layout="desktop"] #resultCard[hidden]{display:none!important}
   .topbar-actions .layout-mode-btn{min-width:44px!important;max-width:52px;padding:0 6px;font-size:10.5px}
   .topbar-actions .settings-btn,.topbar-actions>a.icon-btn{width:32px!important;min-width:32px!important}
 }
+
+/* PR-preview-build: compact-topbar-r2 */

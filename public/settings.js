@@ -48,7 +48,7 @@
   function paint(mode){normalSetting.classList.toggle('active',mode==='normal');generalSetting.classList.toggle('active',mode==='general');normalSetting.setAttribute('aria-pressed',String(mode==='normal'));generalSetting.setAttribute('aria-pressed',String(mode==='general'));}
   function applyMode(mode){saveMode(mode);paint(mode);const target=mode==='general'?generalMode:normalMode;if(target&&!target.classList.contains('active'))target.click();}
   async function refreshStatus(){
-    if(aiState)aiState.textContent='A.I cục bộ · sẵn sàng';
+    if(aiState)aiState.textContent='Đang kiểm tra kết nối…';
     if(storeState)storeState.textContent='Đang kiểm tra kết nối…';
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
     try{
@@ -60,7 +60,7 @@
       if(storeState)storeState.textContent=d.caseCollection?.storeReady?'Tự động · sẵn sàng':'Đang kết nối';
       if(versionState)versionState.textContent=d.version||'—';
     }catch{
-      if(aiState)aiState.textContent='Local Vision · sẵn sàng';
+      if(aiState)aiState.textContent='Chưa xác minh kết nối A.I';
       if(storeState)storeState.textContent='Máy chủ đang kết nối lại';
     }finally{clearTimeout(timer);}
   }
@@ -96,3 +96,4 @@
     return true;
   })().catch(err=>{console.warn('settings_module_boot_failed',err?.message||err);return false;});
 })();
+

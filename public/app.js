@@ -140,7 +140,7 @@ function computeQc(ctx,w,h){
 function renderQc(q,chips){if(!q)return;const labels=[['Độ phân giải',q.checks.resolution],['Ánh sáng',q.checks.light],['Tương phản',q.checks.dynamic],['Độ nét',q.checks.focus],['Cháy/tối',q.checks.clipping]];chips.innerHTML=labels.map(([label,ok])=>`<span class="chip ${ok?'good':'warn'}">${ok?'✓':'!'} ${label}</span>`).join('')+`<span class="chip ${q.grade==='good'?'good':q.grade==='poor'?'bad':'warn'}">QC: ${q.grade.toUpperCase()}</span>`+(q.capture?.frontCamera?'<span class="chip">Camera trước · tối ưu nét</span>':'');}
 
 async function checkHealth(attempt=0){
-  setHealth(attempt?'A.I cục bộ sẵn sàng · đang nối lại hệ thống':'A.I cục bộ sẵn sàng · đang nối RAG','good');
+  setHealth(attempt?'Đang kết nối lại hệ thống':'Đang kiểm tra kết nối A.I','warn');
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
   try{
     const r=await fetch('/api/health',{cache:'no-store',signal:controller.signal}),d=await r.json();
@@ -156,7 +156,7 @@ async function checkHealth(attempt=0){
     else if(localReady)setHealth('A.I cục bộ sẵn sàng · RAG đang nối','warn');
     else setHealth('A.I đang khởi động','warn');
   }catch{
-    setHealth('A.I cục bộ sẵn sàng · máy chủ đang kết nối','warn');
+    setHealth('Chưa xác minh A.I · máy chủ chưa kết nối','warn');
     if(attempt<2)setTimeout(()=>checkHealth(attempt+1),2500*(attempt+1));
   }finally{clearTimeout(timer);}
 }
@@ -297,4 +297,4 @@ els.analyze.addEventListener('click',analyze);els.report.addEventListener('click
 document.addEventListener('click',event=>{if(event.target?.id==='refreshHistoryBtn')loadHistory();});
 window.addEventListener('aitc:history-open',loadHistory);
 window.addEventListener('beforeunload',stopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden&&state.stream)stopCamera();});
-setMode('normal');setHealth('A.I cục bộ sẵn sàng · đang nối RAG','good');checkHealth();
+setMode('normal');checkHealth();

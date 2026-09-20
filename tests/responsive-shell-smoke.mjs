@@ -30,9 +30,13 @@ assert.match(adminPage,/Admin Center · A\.I THIỆT CHẨN/);
 assert.match(admin,/location\.href='\/admin-center\.html'/);
 assert.match(admin,/loadAdminHistory/);
 assert.match(app,/A\.I \+ RAG \+ dữ liệu sẵn sàng/);
-assert.match(app,/A\.I cục bộ sẵn sàng · máy chủ đang kết nối/);
+assert.match(app,/Chưa xác minh A\.I · máy chủ chưa kết nối/);
 assert.match(settings,/Local Vision \+ RAG · sẵn sàng/);
 assert.match(sw,/\/layout-mode\.js/);
 assert.match(sw,/\/admin-center\.html/);
 
 console.log('RESPONSIVE SHELL PASS: mobile taskbar no longer depends on removed history, desktop uses a stable side stack, Admin Center is standalone, layout can switch Mobile/PC, and health states are resilient.');
+
+
+for(const module of ['user-admin.js','admin-credentials.js','admin-enhancement-collapse.js']) assert.ok(adminPage.includes('/'+module),'standalone Admin Center must retain '+module);
+assert.doesNotMatch(css,/repeat\(5,/,'obsolete five-workspace taskbar rules must be removed');

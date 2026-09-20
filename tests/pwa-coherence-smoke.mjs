@@ -33,9 +33,12 @@ assert.match(home,/updateReady/);
 assert.match(home,/AITC_ACTIVATE_UPDATE/);
 assert.ok(home.includes('/release-ui.js?v=2026.09.20-responsive-admin-r1'),'taskbar JS must use a versioned URL to bypass an older controlling worker cache');
 assert.ok(home.includes('/release-ui.css?v=2026.09.20-responsive-admin-r1'),'taskbar CSS must use a versioned URL to bypass an older controlling worker cache');
-assert.match(sw,/\/layout-mode\.js/);\nassert.match(sw,/\/admin-center\.html/);\nassert.match(sw,/network-first|release-ui\.js/);
+assert.match(sw,/\/layout-mode\.js/);
+assert.match(sw,/\/admin-center\.html/);
+assert.match(sw,/network-first|release-ui\.js/);
 
 assert.equal(releaseId,'2026.09.20-responsive-admin-r1');
 assert.ok(home.includes('/consultation.js?v=2026.09.20-dual-consult-r1'),'dual consultation flow must use a versioned URL so an older controlling PWA cache cannot restore a stale single-path client');
 assert.match(sw,/hasCompleteDevicePayload\(body\)[^]*digestBase64Payload\(image\)/,'service worker must verify the actual image digest before trusting a complete device payload');
 console.log(`PWA COHERENCE SMOKE PASS: ${releaseId} uses one browser/SW release id, atomic cache-before-takeover, and digest self-healing without forced page reload.`);
+

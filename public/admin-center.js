@@ -27,6 +27,20 @@
           <div class="admin-toolbar"><button id="adminRefreshBtn" class="btn ghost compact" type="button">Kiểm tra lại</button><button id="adminLogoutBtn" class="btn ghost compact" type="button">Đăng xuất</button></div>
           <div class="admin-stat-grid"><div><span>A.I Gemini</span><strong id="adminAiState">—</strong></div><div><span>Kho dữ liệu</span><strong id="adminStoreState">—</strong></div><div><span>Ca đã thu thập</span><strong id="adminCaseCount">—</strong></div><div><span>Góp ý chờ duyệt</span><strong id="adminPendingCount">—</strong></div><div><span>Kiến thức đã duyệt</span><strong id="adminLearnedCount">—</strong></div><div><span>Học song song</span><strong id="adminContinualState">—</strong></div><div><span>Bản backup</span><strong id="adminBackupCount">—</strong></div></div>
           <div id="adminSystemStatus" class="admin-center-status"></div>
+          <section class="admin-block admin-compact-block">
+            <div class="admin-block-head"><div><h3>Lịch sử ca lâm sàng</h3><p>Chỉ Admin xem khi cần.</p></div><button id="adminHistoryToggleBtn" class="btn ghost compact" type="button" aria-expanded="false">Xem</button></div>
+            <div id="adminHistoryPanel" class="admin-compact-panel" hidden>
+              <div class="history-toolbar"><span id="historyCount">Chưa tải</span><button id="refreshHistoryBtn" class="btn ghost compact" type="button">Làm mới</button></div>
+              <div id="historyList" class="history-list admin-compact-list"><div class="history-empty">Mở mục để tải lịch sử ca.</div></div>
+            </div>
+          </section>
+          <section class="admin-block admin-compact-block">
+            <div class="admin-block-head"><div><h3>Kiến thức lâm sàng đã duyệt</h3><p>Ca/góp ý đã được Admin phê duyệt và đang có hiệu lực học.</p></div><button id="adminLearnedToggleBtn" class="btn ghost compact" type="button" aria-expanded="false">Xem</button></div>
+            <div id="adminLearnedPanel" class="admin-compact-panel" hidden>
+              <div class="history-toolbar"><span id="adminLearnedInlineCount">Chưa tải</span><button id="adminLearnedRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div>
+              <div id="adminLearnedList" class="admin-list admin-compact-list"><div class="admin-empty">Mở mục để tải kiến thức đã duyệt.</div></div>
+            </div>
+          </section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Kiểm định Image Enhancement</h3><p>Chỉ Admin được bật/tắt. Mỗi ca lưu scale, gamma, color-drift, glare và trạng thái rollback trong QC.</p></div><button id="adminEnhancementToggle" class="btn ghost compact" type="button">—</button></div><div id="adminEnhancementState" class="admin-center-status"></div><div id="adminEnhancementAudit" class="admin-list"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Duyệt góp ý lâm sàng</h3><p>Chỉ góp ý được duyệt mới tham gia suy luận ca tương tự.</p></div><button id="adminFeedbackRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminFeedbackList" class="admin-list"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Duyệt đóng góp chuyên gia xác nhận</h3><p>Chỉ ca có xác nhận Bác sĩ/Y sĩ trên app, ROI độc lập và được Admin duyệt mới đi vào gold evidence. Một người chỉ tính một nhãn cho mỗi ca.</p></div><button id="adminVerifiedContributionRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminGoldProgress" class="admin-center-status"></div><div id="adminVerifiedContributionList" class="admin-list"></div><h4 style="margin:14px 0 8px">Chuyên gia đủ điều kiện adjudication</h4><div id="adminVerifiedExpertList" class="admin-list"></div></section>
@@ -35,6 +49,9 @@
         </section></div>`;
       document.body.appendChild(d);
       $('adminCenterCloseBtn')?.addEventListener('click',()=>d.close());$('adminCenterLoginBtn')?.addEventListener('click',login);$('adminRefreshBtn')?.addEventListener('click',refreshAll);$('adminLogoutBtn')?.addEventListener('click',logout);$('adminEnhancementToggle')?.addEventListener('click',toggleEnhancement);$('adminFeedbackRefreshBtn')?.addEventListener('click',loadFeedback);$('adminVerifiedContributionRefreshBtn')?.addEventListener('click',loadVerifiedContributions);$('adminContinualRefreshBtn')?.addEventListener('click',loadContinualStatus);$('adminCreateBackupBtn')?.addEventListener('click',createBackup);$('adminBackupFile')?.addEventListener('change',importBackupFile);$('adminCenterToken')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});d.addEventListener('cancel',e=>{e.preventDefault();d.close();});
+      $('adminHistoryToggleBtn')?.addEventListener('click',toggleAdminHistory);
+      $('adminLearnedToggleBtn')?.addEventListener('click',toggleAdminLearned);
+      $('adminLearnedRefreshBtn')?.addEventListener('click',loadApprovedKnowledge);
     }
   }
 
@@ -43,6 +60,37 @@
   async function verifyAndOpen(t,silent){const btn=$('adminCenterLoginBtn');if(btn)btn.disabled=true;if(!silent)setStatus('Đang xác thực…');try{const info=await rpc('ai_thiet_chan_admin_verify_v1',{p_admin_token:t});sessionStorage.setItem(TOKEN_KEY,t);$('adminLoginView').hidden=true;$('adminDashboard').hidden=false;paintCounts(info);await refreshAll();}catch(err){sessionStorage.removeItem(TOKEN_KEY);$('adminLoginView').hidden=false;$('adminDashboard').hidden=true;setStatus(String(err.message).includes('unauthorized')?'Khóa admin không đúng.':'Không đăng nhập được: '+err.message,'warn');}finally{if(btn)btn.disabled=false;}}
   function logout(){sessionStorage.removeItem(TOKEN_KEY);$('adminDashboard').hidden=true;$('adminLoginView').hidden=false;$('adminCenterToken').value='';setStatus('Đã đăng xuất.','good');}
   function paintCounts(info={}){if($('adminCaseCount'))$('adminCaseCount').textContent=String(info.cases??'—');if($('adminPendingCount'))$('adminPendingCount').textContent=String(info.pendingFeedback??'—');if($('adminLearnedCount'))$('adminLearnedCount').textContent=String(info.activeLearned??'—');if($('adminBackupCount'))$('adminBackupCount').textContent=String(info.backups??'—');}
+
+  function setCompactPanel(buttonId,panelId,open){
+    const btn=$(buttonId),panel=$(panelId);if(!btn||!panel)return;
+    panel.hidden=!open;btn.textContent=open?'Ẩn':'Xem';btn.setAttribute('aria-expanded',String(open));
+  }
+  function toggleAdminHistory(){
+    const panel=$('adminHistoryPanel');if(!panel)return;const open=panel.hidden;
+    setCompactPanel('adminHistoryToggleBtn','adminHistoryPanel',open);
+    if(open)window.dispatchEvent(new CustomEvent('aitc:history-open'));
+  }
+  function toggleAdminLearned(){
+    const panel=$('adminLearnedPanel');if(!panel)return;const open=panel.hidden;
+    setCompactPanel('adminLearnedToggleBtn','adminLearnedPanel',open);
+    if(open)loadApprovedKnowledge();
+  }
+  async function loadApprovedKnowledge(){
+    const list=$('adminLearnedList'),count=$('adminLearnedInlineCount');if(!list||!count)return;
+    list.innerHTML='<div class="admin-empty">Đang tải…</div>';
+    try{
+      const rows=await rpc('ai_thiet_chan_admin_list_learned_knowledge_v1',{p_admin_token:token(),p_limit:50});
+      const data=Array.isArray(rows)?rows:[];
+      count.textContent=`${data.length} mục gần nhất`;
+      if(!data.length){list.innerHTML='<div class="admin-empty">Chưa có kiến thức lâm sàng đã duyệt.</div>';return;}
+      list.innerHTML=data.map(x=>{
+        const title=x.professional_title==='bac_si'?'Bác sĩ':x.professional_title==='y_si'?'Y sĩ':'Chuyên gia';
+        const when=x.approved_at?new Date(x.approved_at).toLocaleString('vi-VN'):'—';
+        const source=x.source==='verified-clinical'?'Xác nhận chuyên gia':'Góp ý đã duyệt';
+        return `<article class="admin-item admin-compact-item"><div class="admin-meta">${esc(when)} · ${esc(title)} · ${esc(source)}</div><p>${esc(x.clinical_note||'Không có ghi chú.')}</p></article>`;
+      }).join('');
+    }catch(err){count.textContent='Không tải được';list.innerHTML=`<div class="admin-empty warn">Không tải được kiến thức đã duyệt: ${esc(err.message)}</div>`;}
+  }
 
   async function loadEnhancement(){
     const state=$('adminEnhancementState'),list=$('adminEnhancementAudit'),btn=$('adminEnhancementToggle');if(!state||!list||!btn)return;

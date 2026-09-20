@@ -46,11 +46,11 @@ assert.match(server,/atlasLanguageThreshold/);
 assert.match(runtime,/groundingProtocol/);
 assert.match(runtime,/GROUNDING=IN/);
 
-assert.match(consultation,/Không dùng bộ 10 câu cố định/);
-assert.match(consultation,/\[ADAPTIVE_SYMPTOM_INTAKE\]/);
-assert.match(consultation,/Trước khi đối chiếu sâu hơn/);
-assert.match(consultation,/askedConceptIds/);
-assert.match(consultation,/interactions/);
+assert.match(consultation,/Bổ sung triệu chứng/);
+assert.match(consultation,/Sẵn sàng đối chiếu/);
+assert.match(consultation,/MAX_FOLLOWUPS=3/);
+assert.match(consultation,/DUAL_CONSULT_FINAL/);
+assert.match(consultation,/\/api\/symptom-next/);
 assert.doesNotMatch(consultation,/const questions=\[/);
 assert.doesNotMatch(consultation,/\[THAP_VAN_CONTEXT\]/);
 assert.match(consultationLock,/uiName:'Trợ lý tham vấn'/);
@@ -69,8 +69,10 @@ assert.match(app,/normalizeChatReferences/);
 assert.match(app,/Nguồn đối chiếu/);
 assert.match(app,/TC\\d\+\|DY\\d\+\|MC\\d\+\|AT\\d\+\|PSY\\d\+/);
 assert.match(app,/appendBubble\(normalizeChatReferences/);
-assert.match(index,/Đối chiếu triệu chứng · A\.I Thiệt Chẩn/);
+assert.match(index,/Đối chiếu · A\.I Thiệt Chẩn/);
 assert.match(index,/Bổ sung triệu chứng/);
+assert.match(index,/Sẵn sàng đối chiếu/);
+assert.match(index,/readyCompareBtn/);
 assert.match(index,/vòm miệng\/lưỡi gà dùng làm mốc định hướng phía sau/);
 assert.match(index,/Giữ trọn lưỡi từ đầu đến gốc trong khung/);
 

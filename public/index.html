@@ -86,8 +86,8 @@
         <section class="result-section combined-section">
           <div class="result-section-title" id="combinedTitle">2. Tổng hợp nhận định</div>
           <div id="theoryBox" class="theory-box" hidden></div>
-          <div class="summary-box"><strong>Tóm tắt</strong><p id="summaryText"></p></div>
-          <div class="clinical-boundary"><strong>Giới hạn sử dụng y tế</strong>Điểm tin cậy hiển thị là độ tự tin nội bộ của A.I sau QC ảnh, không phải sensitivity/specificity hay xác nhận chẩn đoán. Production hiện chưa có nhãn đồng thuận chuyên gia để khẳng định độ chính xác lâm sàng.</div>
+          <div class="summary-box discussion-box"><strong>Bàn luận</strong><div id="summaryText" class="discussion-content"></div></div>
+          <div class="clinical-boundary"><strong>Giới hạn</strong>Kết quả hỗ trợ học tập và đối chiếu YHCT; không thay thế tứ chẩn và khám trực tiếp.</div>
         </section>
         <button id="reportBtn" class="btn primary full">Tạo báo cáo tổng kết ca</button><div id="reportBox" class="report-box" hidden></div>
       </section>
@@ -104,23 +104,11 @@
         <div class="device-readiness" aria-label="Khả năng đa thiết bị"><span class="chip">Thiết bị: <strong id="qualityDevice">…</strong></span><span class="chip">Camera: <strong id="qualityCamera">…</strong></span><span class="chip">PWA: <strong id="qualityPwa">…</strong></span></div>
       </section>
 
-      <section class="card history-card">
-        <div class="section-head">
-          <div><h2>Lịch sử ca</h2><p>Ẩn mặc định, chỉ mở khi cần xem.</p></div>
-          <button id="toggleHistoryBtn" class="btn ghost compact" type="button" aria-controls="historyPanel" aria-expanded="false">Xem lịch sử</button>
-        </div>
-        <div id="historyPanel" class="history-panel" hidden>
-          <div class="history-toolbar"><span id="historyCount">Đang tải…</span><button id="refreshHistoryBtn" class="btn ghost compact" type="button">Làm mới</button></div>
-          <div id="historyList" class="history-list"><div class="history-empty">Đang tải lịch sử ca…</div></div>
-        </div>
-      </section>
-
       <section class="card chat-card">
-        <div class="section-head"><div><h2>Đối chiếu triệu chứng · A.I Thiệt Chẩn</h2><p>Sau thiệt chẩn, Trợ lý chủ động hỏi triệu chứng để đối chiếu các ca tương tự trong CSDL.</p></div></div>
-        <div class="inquiry-controls"><button id="startInquiryBtn" class="btn primary compact" type="button">Bổ sung triệu chứng</button><span id="inquiryProgress" class="inquiry-progress">Sẵn sàng đối chiếu</span></div>
-        <p class="inquiry-note">Không dùng bộ 10 câu cố định. Mỗi lượt chỉ hỏi một câu ngắn dựa trên dữ kiện hiện có và ca tương tự được truy hồi; tối đa 4 lượt.</p>
-        <div id="chatLog" class="chat-log"><div class="bubble bot">Sau khi phân tích lưỡi, tôi sẽ chủ động hỏi triệu chứng để đối chiếu các ca tương tự trong CSDL. Bạn không cần tự nghĩ câu hỏi cho chatbot.</div></div>
-        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Mô tả triệu chứng hoặc khó chịu…" /><button class="btn primary" type="submit">Gửi</button></form>
+        <div class="section-head"><div><h2>Đối chiếu · A.I Thiệt Chẩn</h2><p>Sau thiệt chẩn, chọn một trong hai cách. Hệ thống chỉ hỏi thêm vài ý có căn cứ khi cần rồi kết thúc tư vấn.</p></div></div>
+        <div class="inquiry-controls"><button id="startInquiryBtn" class="btn primary compact" type="button" disabled>Bổ sung triệu chứng</button><button id="readyCompareBtn" class="btn ghost compact" type="button" disabled>Sẵn sàng đối chiếu</button><span id="inquiryProgress" class="inquiry-progress">Phân tích ảnh trước</span></div>
+        <div id="chatLog" class="chat-log"><div class="bubble bot">Sau khi phân tích lưỡi, bạn có thể bổ sung triệu chứng hoặc bắt đầu đối chiếu ngay.</div></div>
+        <form id="chatForm" class="chat-form"><input id="chatInput" autocomplete="off" placeholder="Mô tả triệu chứng hoặc đặt câu hỏi nếu cần…" /><button class="btn primary" type="submit">Gửi</button></form>
       </section>
     </main>
   </div>
@@ -140,7 +128,7 @@
   <script src="/request-client.js" defer></script>
   <script src="/image-enhancement.js" defer></script>
   <script src="/capture-metadata.js" defer></script>
-  <script src="/consultation.js?v=2026.09.20-consult-dedup-yhct-r1" defer></script>
+  <script src="/consultation.js?v=2026.09.20-dual-consult-r1" defer></script>
   <script src="/settings.js" defer></script>
   <script src="/quality-dashboard.js" defer></script>
   <script src="/release-ui.js?v=2026.09.19-taskbar-r2" defer></script>

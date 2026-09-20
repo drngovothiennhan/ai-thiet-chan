@@ -23,14 +23,18 @@ try{
   if(!Array.isArray(health.assessmentModes)||!health.assessmentModes.includes('normal')||!health.assessmentModes.includes('general'))throw new Error('assessment mode gate failed');
 
   const home=await text('/');
-  requireMarkers(home,['A.I THIỆT CHẨN','HIU CLB YHCT','normalModeBtn','generalModeBtn','topCameraBtn','bottomCameraBtn','settingsBtn','qualityTitle','toggleHistoryBtn','startInquiryBtn','Giới hạn sử dụng y tế','lưu tự động vào kho dữ liệu học máy'],'home');
+  requireMarkers(home,['A.I THIỆT CHẨN','HIU CLB YHCT','normalModeBtn','generalModeBtn','topCameraBtn','bottomCameraBtn','settingsBtn','qualityTitle','startInquiryBtn','Bàn luận','lưu tự động vào kho dữ liệu học máy'],'home');
+  if(home.includes('toggleHistoryBtn')||home.includes('class="card history-card"')||home.includes('class="inquiry-note"'))throw new Error('history/yellow inquiry note must stay out of the user-facing home');
+  requireMarkers(home,['Bàn luận','<strong>Giới hạn</strong>Kết quả hỗ trợ học tập và đối chiếu YHCT; không thay thế tứ chẩn và khám trực tiếp.'],'result presentation');
+  if(home.includes('<strong>Tóm tắt</strong>')||home.includes('<strong>Giới hạn sử dụng y tế</strong>'))throw new Error('legacy summary/long-limit presentation must stay removed');
 
   const appJs=await text('/app.js');
-  requireMarkers(appJs,["mode:'normal'","openCamera('top')","openCamera('bottom')",'bottomImage','bottomQc','laplacianVariance','loadHistory'], 'app');
+  requireMarkers(appJs,["mode:'normal'","openCamera('top')","openCamera('bottom')",'bottomImage','bottomQc','laplacianVariance','loadHistory','Kết luận sơ bộ','Dữ liệu máy học','Đối chiếu y văn'], 'app');
+  if(appJs.includes('<div class="theory-title">Chưa thể kết luận</div>')||appJs.includes('Gemini/LLM không được phép tạo quan sát hình ảnh'))throw new Error('internal vision-policy text must not be rendered as a user conclusion');
   if(appJs.includes('aiThietChanGeminiKey')||appJs.includes('x-gemini-key'))throw new Error('client Gemini key path must stay absent');
 
   const consultation=await text('/consultation.js');
-  requireMarkers(consultation,['MAX_TURNS=4','[ADAPTIVE_SYMPTOM_INTAKE]','Bổ sung triệu chứng','Trước khi đối chiếu sâu hơn',"requestClient.register('consultation'","import('/clinical-learning.js?v=2.9.0')"],'consultation');
+  requireMarkers(consultation,['MAX_FOLLOWUPS=3','Bổ sung triệu chứng','Sẵn sàng đối chiếu','DUAL_CONSULT_FINAL',"'/api/symptom-next'","requestClient.register('consultation'","import('/clinical-learning.js?v=2.9.0')"],'consultation');
   if(consultation.includes('const questions=[')||consultation.includes('[THAP_VAN_CONTEXT]'))throw new Error('fixed Thap Van flow must stay removed');
 
   const learning=await text('/clinical-learning.js');
@@ -53,7 +57,7 @@ try{
   if(quality.includes('requestIdleCallback(()=>load()'))throw new Error('quality dashboard must load on demand');
 
   const admin=await text('/admin-center.js');
-  requireMarkers(admin,['Admin Center','ai_thiet_chan_admin_verify_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_admin_restore_backup_v1','KHOI_PHUC'],'admin center');
+  requireMarkers(admin,['Admin Center','adminHistoryToggleBtn','adminLearnedToggleBtn','ai_thiet_chan_admin_list_learned_knowledge_v1','ai_thiet_chan_admin_verify_v1','ai_thiet_chan_admin_review_feedback_v1','ai_thiet_chan_admin_restore_backup_v1','KHOI_PHUC'],'admin center');
 
   const credentials=await text('/admin-credentials.js');
   requireMarkers(credentials,['adminCenterUsername','adminCenterPassword','ai_thiet_chan_admin_login_v1','ai_thiet_chan_admin_change_credentials_v1','mustChangePassword','adminNewPasswordConfirm'],'admin credentials');

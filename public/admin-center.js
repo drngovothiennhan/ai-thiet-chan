@@ -43,12 +43,12 @@
           </section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Kiểm định Image Enhancement</h3><p>Chỉ Admin được bật/tắt. Mỗi ca lưu scale, gamma, color-drift, glare và trạng thái rollback trong QC.</p></div><button id="adminEnhancementToggle" class="btn ghost compact" type="button">—</button></div><div id="adminEnhancementState" class="admin-center-status"></div><div id="adminEnhancementAudit" class="admin-list"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Duyệt góp ý lâm sàng</h3><p>Chỉ góp ý được duyệt mới tham gia suy luận ca tương tự.</p></div><button id="adminFeedbackRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminFeedbackList" class="admin-list"></div></section>
-          <section class="admin-block"><div class="admin-block-head"><div><h3>Duyệt đóng góp chuyên gia xác nhận</h3><p>Chỉ ca có xác nhận Bác sĩ/Y sĩ trên app, ROI độc lập và được Admin duyệt mới đi vào gold evidence. Một người chỉ tính một nhãn cho mỗi ca.</p></div><button id="adminVerifiedContributionRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminGoldProgress" class="admin-center-status"></div><div id="adminVerifiedContributionList" class="admin-list"></div><h4 style="margin:14px 0 8px">Chuyên gia đủ điều kiện adjudication</h4><div id="adminVerifiedExpertList" class="admin-list"></div></section>
+          <section class="admin-block"><div class="admin-block-head"><div><h3>Duyệt đóng góp chuyên gia xác nhận</h3><p>Chỉ ca có xác nhận Bác sĩ/Y sĩ trên app, ROI độc lập và được Admin duyệt mới đi vào gold evidence. Một người chỉ tính một nhãn cho mỗi ca.</p></div><button id="adminVerifiedContributionRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminGoldProgress" class="admin-center-status"></div><div class="admin-item" style="margin:10px 0"><strong>Tạo link chuyên gia 50 ca</strong><p class="admin-meta">Xác minh một lần; chuyên gia mở link riêng và bấm “Duyệt & ca tiếp theo”. Không tải ảnh lại, không xem kết quả A.I.</p><div class="clinical-learning-grid two"><label>Họ tên<input id="adminExpertInviteName" maxlength="160"></label><label>Chức danh<select id="adminExpertInviteTitle"><option value="bac_si">Bác sĩ</option><option value="y_si">Y sĩ</option></select></label></div><label>Mã hành nghề / mã xác nhận<input id="adminExpertInviteProfessionalId" type="password" autocomplete="off"></label><div class="admin-actions"><button id="adminCreateExpertInviteBtn" class="btn primary compact" type="button">Tạo link chuyên gia 50 ca</button></div><div id="adminExpertInviteList" class="admin-list" style="margin-top:8px"></div></div><div id="adminVerifiedContributionList" class="admin-list"></div><h4 style="margin:14px 0 8px">Chuyên gia đủ điều kiện adjudication</h4><div id="adminVerifiedExpertList" class="admin-list"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Học liên tục · serve-and-learn</h3><p>Serving không đổi model trong lúc học. Chỉ gold đã adjudication và không thuộc prospective holdout mới vào snapshot huấn luyện; silver được dùng làm replay.</p></div><button id="adminContinualRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminContinualStatus" class="admin-center-status"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Backup & khôi phục</h3><p>Backup vận hành được lưu trong hệ thống và đồng bộ định kỳ sang Drive A.I Thiệt Chẩn.</p></div><button id="adminCreateBackupBtn" class="btn primary compact" type="button">Tạo backup</button></div><div class="admin-backup-links"><a href="${DRIVE_FOLDER_URL}" target="_blank" rel="noopener">Drive A.I Thiệt Chẩn</a><a href="${DRIVE_BACKUP_URL}" target="_blank" rel="noopener">Thư mục Backups</a></div><div class="admin-import-row"><label class="btn ghost compact">Nhập backup từ Drive<input id="adminBackupFile" type="file" accept="application/json,.json" hidden /></label><span>Chọn file JSON đã tải từ thư mục Backups.</span></div><div id="adminBackupList" class="admin-list"></div></section>
         </section></div>`;
       document.body.appendChild(d);
-      $('adminCenterCloseBtn')?.addEventListener('click',()=>d.close());$('adminCenterLoginBtn')?.addEventListener('click',login);$('adminRefreshBtn')?.addEventListener('click',refreshAll);$('adminLogoutBtn')?.addEventListener('click',logout);$('adminEnhancementToggle')?.addEventListener('click',toggleEnhancement);$('adminFeedbackRefreshBtn')?.addEventListener('click',loadFeedback);$('adminVerifiedContributionRefreshBtn')?.addEventListener('click',loadVerifiedContributions);$('adminContinualRefreshBtn')?.addEventListener('click',loadContinualStatus);$('adminCreateBackupBtn')?.addEventListener('click',createBackup);$('adminBackupFile')?.addEventListener('change',importBackupFile);$('adminCenterToken')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});d.addEventListener('cancel',e=>{e.preventDefault();d.close();});
+      $('adminCenterCloseBtn')?.addEventListener('click',()=>d.close());$('adminCenterLoginBtn')?.addEventListener('click',login);$('adminRefreshBtn')?.addEventListener('click',refreshAll);$('adminLogoutBtn')?.addEventListener('click',logout);$('adminEnhancementToggle')?.addEventListener('click',toggleEnhancement);$('adminFeedbackRefreshBtn')?.addEventListener('click',loadFeedback);$('adminVerifiedContributionRefreshBtn')?.addEventListener('click',loadVerifiedContributions);$('adminCreateExpertInviteBtn')?.addEventListener('click',createExpertReviewInvite);$('adminContinualRefreshBtn')?.addEventListener('click',loadContinualStatus);$('adminCreateBackupBtn')?.addEventListener('click',createBackup);$('adminBackupFile')?.addEventListener('change',importBackupFile);$('adminCenterToken')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});d.addEventListener('cancel',e=>{e.preventDefault();d.close();});
       $('adminHistoryToggleBtn')?.addEventListener('click',toggleAdminHistory);
       $('adminLearnedToggleBtn')?.addEventListener('click',toggleAdminLearned);
       $('adminLearnedRefreshBtn')?.addEventListener('click',loadApprovedKnowledge);
@@ -119,13 +119,19 @@
     const list=$('adminVerifiedContributionList'),progress=$('adminGoldProgress');if(!list||!progress)return;
     list.innerHTML='<div class="admin-empty">Đang tải đóng góp chuyên gia…</div>';
     try{
-      const [rows,p,experts]=await Promise.all([
+      const [rows,p,experts,invites]=await Promise.all([
         rpc('ai_thiet_chan_admin_list_verified_clinical_contributions_v1',{p_admin_token:token(),p_limit:100}),
         rpc('ai_thiet_chan_admin_gold_progress_v2',{p_admin_token:token()}),
-        rpc('ai_thiet_chan_admin_list_verified_gold_experts_v1',{p_admin_token:token()})
+        rpc('ai_thiet_chan_admin_list_verified_gold_experts_v1',{p_admin_token:token()}),
+        rpc('ai_thiet_chan_admin_list_expert_review_invites_v1',{p_admin_token:token()})
       ]);
       progress.textContent='Gold: '+String(p.withOneExpert||0)+' ca có ≥1 chuyên gia · '+String(p.withTwoIndependentExperts||0)+' ca đủ 2 chuyên gia · '+String(p.adjudicated||0)+' adjudicated · '+String(p.lockedHoldout||0)+' holdout.';
       progress.className='admin-center-status '+(Number(p.withTwoIndependentExperts||0)>0?'good':'warn');
+      const inviteList=$('adminExpertInviteList');
+      if(inviteList){
+        const data=Array.isArray(invites)?invites:[];
+        inviteList.innerHTML=data.length?data.map(x=>'<div class="admin-meta">'+(x.professional_title==='bac_si'?'Bác sĩ':'Y sĩ')+' · '+esc(x.contributor_name)+' · '+String(x.submitted||0)+'/'+String(x.target_cases||50)+' ca · '+(x.attested?'đã xác nhận':'chưa mở link')+'</div>').join(''):'<div class="admin-empty">Chưa tạo link chuyên gia.</div>';
+      }
       const expertList=$('adminVerifiedExpertList');
       const verifiedExperts=Array.isArray(experts)?experts:[];
       if(expertList){
@@ -141,6 +147,22 @@
       }).join('');
       list.querySelectorAll('[data-contribution-review]').forEach(b=>b.addEventListener('click',()=>reviewVerifiedContribution(b.closest('[data-contribution-id]')?.dataset.contributionId,b.dataset.contributionReview)));
     }catch(err){progress.textContent='Không tải được gold progress: '+err.message;progress.className='admin-center-status warn';list.innerHTML='';}
+  }
+  async function createExpertReviewInvite(){
+    const name=$('adminExpertInviteName')?.value.trim()||'',title=$('adminExpertInviteTitle')?.value||'',pid=$('adminExpertInviteProfessionalId')?.value.trim()||'';
+    if(name.length<2||!['bac_si','y_si'].includes(title)||pid.length<4){$('adminSystemStatus').textContent='Nhập đủ họ tên, chức danh và mã xác nhận chuyên môn.';$('adminSystemStatus').className='admin-center-status warn';return;}
+    const btn=$('adminCreateExpertInviteBtn');if(btn)btn.disabled=true;
+    try{
+      const out=await rpc('ai_thiet_chan_admin_create_expert_review_invite_v1',{p_admin_token:token(),p_contributor_name:name,p_professional_title:title,p_professional_id:pid,p_days:14,p_target_cases:50});
+      const link=location.origin+String(out.reviewUrl||'');
+      try{await navigator.clipboard.writeText(link);}catch{}
+      $('adminExpertInviteProfessionalId').value='';
+      $('adminSystemStatus').textContent='Đã tạo link chuyên gia 50 ca cho '+String(out.contributorName||name)+'. Link đã được sao chép nếu trình duyệt cho phép.';
+      $('adminSystemStatus').className='admin-center-status good';
+      window.prompt('Gửi duy nhất link này cho chuyên gia:',link);
+      await loadVerifiedContributions();
+    }catch(err){$('adminSystemStatus').textContent='Không tạo được link chuyên gia: '+err.message;$('adminSystemStatus').className='admin-center-status warn';}
+    finally{if(btn)btn.disabled=false;}
   }
   async function reviewVerifiedContribution(id,decision){
     if(!id)return;

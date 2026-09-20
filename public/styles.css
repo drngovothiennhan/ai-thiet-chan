@@ -19,3 +19,28 @@
 .discussion-list li::marker{font-size:.86em}
 .discussion-empty{margin:0;line-height:1.6;color:#667b76}
 .clinical-boundary{margin-top:12px;line-height:1.5}
+
+
+/* Responsive shell v1: user-selectable mobile / PC layout. */
+.layout-mode-btn{font-size:12px;font-weight:850;padding:0 8px;min-width:48px;width:auto}
+.layout-mode-label{white-space:nowrap}
+.desktop-side-stack{display:contents}
+html[data-aitc-layout="desktop"] .app-shell{max-width:1280px}
+html[data-aitc-layout="desktop"] .content{grid-template-columns:minmax(0,1.18fr) minmax(340px,.82fr);align-items:start}
+html[data-aitc-layout="desktop"] .capture-card{grid-column:1;grid-row:1}
+html[data-aitc-layout="desktop"] .desktop-side-stack{display:grid;grid-column:2;grid-row:1;gap:16px;align-content:start;min-width:0}
+html[data-aitc-layout="desktop"] #resultCard,
+html[data-aitc-layout="desktop"] .quality-card{grid-column:1/-1}
+html[data-aitc-layout="desktop"] .chat-card,
+html[data-aitc-layout="desktop"] .clinical-feedback-card{margin:0;min-width:0}
+html[data-aitc-layout="mobile"] .app-shell{max-width:720px}
+html[data-aitc-layout="mobile"] .content{grid-template-columns:1fr!important}
+html[data-aitc-layout="mobile"] .capture-card,
+html[data-aitc-layout="mobile"] #resultCard,
+html[data-aitc-layout="mobile"] .quality-card,
+html[data-aitc-layout="mobile"] .chat-card,
+html[data-aitc-layout="mobile"] .clinical-feedback-card{grid-column:1!important;grid-row:auto!important}
+html[data-aitc-layout="mobile"] .desktop-side-stack{display:contents}
+@media(max-width:760px){
+  .layout-mode-btn{min-width:42px;width:42px;padding:0;font-size:11px}
+}

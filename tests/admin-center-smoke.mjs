@@ -7,6 +7,7 @@ const ui=fs.readFileSync(new URL('../public/ui-controls.js',import.meta.url),'ut
 const settings=fs.readFileSync(new URL('../public/settings.js',import.meta.url),'utf8');
 const quality=fs.readFileSync(new URL('../public/quality-dashboard.js',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../public/sw.js',import.meta.url),'utf8');
+const adminPage=fs.readFileSync(new URL('../public/admin-center.html',import.meta.url),'utf8');
 
 for(const marker of [
   'Admin Center','sessionStorage','ai_thiet_chan_admin_verify_v1',
@@ -22,9 +23,11 @@ for(const marker of [
 ]) assert.ok(credentials.includes(marker),`missing admin credential marker: ${marker}`);
 assert.ok(!credentials.includes('localStorage.setItem(TOKEN_KEY'),'admin password must not persist in localStorage');
 for(const marker of ['qualityToggleBtn','clinicalFeedbackToggleBtn','aitc:quality-open','body.hidden=true']) assert.ok(ui.includes(marker),`missing collapsed UI marker: ${marker}`);
-for(const marker of ["const RELEASE='2.9.0'","load('/ui-controls.js','aitcUiControls')","load('/admin-center.js','aitcAdminCenter')","load('/admin-credentials.js','aitcAdminCredentials')","load('/feedback-lifecycle.js','aitcFeedbackLifecycle')","load('/upload-controls.js','aitcUploadControls')"]) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
+for(const marker of ["const RELEASE='2026.09.20-responsive-admin-r1'","load('/ui-controls.js','aitcUiControls')","load('/admin-center.js','aitcAdminCenter')","load('/admin-credentials.js','aitcAdminCredentials')","load('/feedback-lifecycle.js','aitcFeedbackLifecycle')","load('/upload-controls.js','aitcUploadControls')"]) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
 assert.ok(quality.includes("window.addEventListener('aitc:quality-open'"),'quality metrics must load on demand');
 assert.ok(!quality.includes('requestIdleCallback(()=>load()'),'quality metrics must not auto-load');
+assert.ok(adminPage.includes('data-admin-center-page="true"')&&adminPage.includes('/admin-center.js?v=2026.09.20-responsive-admin-r1'),'Admin Center must have a dedicated page');
+assert.ok(admin.includes("location.href='/admin-center.html'"),'main settings entry must navigate to dedicated Admin Center');
 assert.ok(sw.includes("ai-thiet-chan-v2.9.8-knowledge-5doc-complete"),'PWA cache must match Knowledge 5doc release');
 assert.ok(sw.includes("'/ui-controls.js'")&&sw.includes("'/admin-center.js'")&&sw.includes("'/admin-credentials.js'")&&sw.includes("'/feedback-lifecycle.js'")&&sw.includes("'/upload-controls.js'"),'Admin/lifecycle/upload assets missing from PWA shell');
 console.log('ADMIN CENTER SMOKE PASS: username/password login, forced first-login rotation, collapsed panels, upload controls, feedback lifecycle, diagnostics, backup and restore are wired');

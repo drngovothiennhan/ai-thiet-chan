@@ -47,7 +47,23 @@
   function saveMode(mode){try{localStorage.setItem(STORAGE_KEY,mode);}catch{}}
   function paint(mode){normalSetting.classList.toggle('active',mode==='normal');generalSetting.classList.toggle('active',mode==='general');normalSetting.setAttribute('aria-pressed',String(mode==='normal'));generalSetting.setAttribute('aria-pressed',String(mode==='general'));}
   function applyMode(mode){saveMode(mode);paint(mode);const target=mode==='general'?generalMode:normalMode;if(target&&!target.classList.contains('active'))target.click();}
-  async function refreshStatus(){try{const r=await fetch('/api/health',{cache:'no-store'});const d=await r.json();if(!r.ok||!d.ok)throw new Error('health');if(aiState)aiState.textContent=d.providerConfigured?'Gemini máy chủ · sẵn sàng':'Chưa cấu hình';if(storeState)storeState.textContent=d.caseCollection?.storeReady?'Tự động · sẵn sàng':'Đang kết nối';if(versionState)versionState.textContent=d.version||'—';}catch{if(aiState)aiState.textContent='Không kiểm tra được';if(storeState)storeState.textContent='Không kiểm tra được';}}
+  async function refreshStatus(){
+    if(aiState)aiState.textContent='A.I cục bộ · sẵn sàng';
+    if(storeState)storeState.textContent='Đang kiểm tra kết nối…';
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
+    try{
+      const r=await fetch('/api/health',{cache:'no-store',signal:controller.signal});const d=await r.json();
+      if(!r.ok||!d.ok)throw new Error('health');
+      const localReady=d.vision?.provider==='local'&&d.vision?.analysisRequiresProvider===false;
+      const ragReady=Boolean(d.caseReasoningRetrieval?.ready);
+      if(aiState)aiState.textContent=localReady?(ragReady?'Local Vision + RAG · sẵn sàng':'Local Vision · sẵn sàng'):'Đang khởi động';
+      if(storeState)storeState.textContent=d.caseCollection?.storeReady?'Tự động · sẵn sàng':'Đang kết nối';
+      if(versionState)versionState.textContent=d.version||'—';
+    }catch{
+      if(aiState)aiState.textContent='Local Vision · sẵn sàng';
+      if(storeState)storeState.textContent='Máy chủ đang kết nối lại';
+    }finally{clearTimeout(timer);}
+  }
   function open(){paint(readMode());ensureInstallUi();updateInstallUi();refreshStatus();if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');}
   function close(){if(typeof dialog.close==='function')dialog.close();else dialog.removeAttribute('open');}
 
@@ -57,7 +73,7 @@
 })();
 
 (()=>{
-  const RELEASE='2.9.0';
+  const RELEASE='2026.09.20-responsive-admin-r1';
   const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
   function load(src,key){
     const attr=attrName(key),existing=document.querySelector(`script[${attr}]`);

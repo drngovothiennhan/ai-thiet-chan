@@ -5,6 +5,7 @@
   const DRIVE_FOLDER_URL='https://drive.google.com/drive/folders/1vPOIc34DkRnfbe5SIgZRTsJZcFJvEyWB';
   const DRIVE_BACKUP_URL='https://drive.google.com/drive/folders/1zxcIuA9Uk1T3F_VRa2mJsZRFHSscUBD5';
   const $=id=>document.getElementById(id);
+  const standalone=Boolean(document.body?.dataset?.adminCenterPage==='true'||$('adminCenterPageRoot'));
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   async function rpc(name,payload){
@@ -16,10 +17,15 @@
   function stripLegacyAdmin(){$('clinicalAdminOpenBtn')?.remove();$('clinicalAdminDialog')?.remove();}
 
   function ensureUi(){
-    stripLegacyAdmin();const panel=document.querySelector('#settingsDialog .settings-panel');
-    if(panel&&!$('adminCenterOpenBtn')){const g=document.createElement('div');g.className='settings-group admin-center-entry';g.innerHTML='<strong>Quản trị hệ thống</strong><button id="adminCenterOpenBtn" class="btn primary full" type="button">Đăng nhập Admin Center</button><p class="settings-note" style="margin-top:8px">Kiểm tra A.I, dữ liệu học, duyệt góp ý và quản lý backup.</p>';panel.appendChild(g);$('adminCenterOpenBtn')?.addEventListener('click',openCenter);}
+    stripLegacyAdmin();
+    if(!standalone){
+      const panel=document.querySelector('#settingsDialog .settings-panel');
+      if(panel&&!$('adminCenterOpenBtn')){const g=document.createElement('div');g.className='settings-group admin-center-entry';g.innerHTML='<strong>Quản trị hệ thống</strong><button id="adminCenterOpenBtn" class="btn primary full" type="button">Mở trang Admin Center</button><p class="settings-note" style="margin-top:8px">Admin Center chạy ở trang riêng để không chồng lên giao diện thiệt chẩn.</p>';panel.appendChild(g);$('adminCenterOpenBtn')?.addEventListener('click',()=>{location.href='/admin-center.html';});}
+      $('adminCenterDialog')?.remove();
+      return;
+    }
     if(!$('adminCenterDialog')){
-      const d=document.createElement('dialog');d.id='adminCenterDialog';d.className='admin-center-dialog';
+      const d=document.createElement('div');d.id='adminCenterDialog';d.className='admin-center-dialog admin-center-page-surface';
       d.innerHTML=`<div class="admin-center-panel">
         <div class="admin-center-head"><div><h2>Admin Center</h2><p>Kiểm tra hệ thống · enhancement · duyệt góp ý · dữ liệu học · backup/khôi phục</p></div><button id="adminCenterCloseBtn" class="settings-close" type="button">×</button></div>
         <section id="adminLoginView" class="admin-login-view"><label>Khóa quản trị<input id="adminCenterToken" type="password" autocomplete="current-password" placeholder="Nhập khóa admin" /></label><button id="adminCenterLoginBtn" class="btn primary full" type="button">Đăng nhập</button><div id="adminCenterStatus" class="admin-center-status" hidden></div></section>
@@ -47,9 +53,9 @@
           <section class="admin-block"><div class="admin-block-head"><div><h3>Học liên tục · serve-and-learn</h3><p>Serving không đổi model trong lúc học. Chỉ gold đã adjudication và không thuộc prospective holdout mới vào snapshot huấn luyện; silver được dùng làm replay.</p></div><button id="adminContinualRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div><div id="adminContinualStatus" class="admin-center-status"></div></section>
           <section class="admin-block"><div class="admin-block-head"><div><h3>Backup & khôi phục</h3><p>Backup vận hành được lưu trong hệ thống và đồng bộ định kỳ sang Drive A.I Thiệt Chẩn.</p></div><button id="adminCreateBackupBtn" class="btn primary compact" type="button">Tạo backup</button></div><div class="admin-backup-links"><a href="${DRIVE_FOLDER_URL}" target="_blank" rel="noopener">Drive A.I Thiệt Chẩn</a><a href="${DRIVE_BACKUP_URL}" target="_blank" rel="noopener">Thư mục Backups</a></div><div class="admin-import-row"><label class="btn ghost compact">Nhập backup từ Drive<input id="adminBackupFile" type="file" accept="application/json,.json" hidden /></label><span>Chọn file JSON đã tải từ thư mục Backups.</span></div><div id="adminBackupList" class="admin-list"></div></section>
         </section></div>`;
-      document.body.appendChild(d);
-      $('adminCenterCloseBtn')?.addEventListener('click',()=>d.close());$('adminCenterLoginBtn')?.addEventListener('click',login);$('adminRefreshBtn')?.addEventListener('click',refreshAll);$('adminLogoutBtn')?.addEventListener('click',logout);$('adminEnhancementToggle')?.addEventListener('click',toggleEnhancement);$('adminFeedbackRefreshBtn')?.addEventListener('click',loadFeedback);$('adminVerifiedContributionRefreshBtn')?.addEventListener('click',loadVerifiedContributions);$('adminCreateExpertInviteBtn')?.addEventListener('click',createExpertReviewInvite);$('adminContinualRefreshBtn')?.addEventListener('click',loadContinualStatus);$('adminCreateBackupBtn')?.addEventListener('click',createBackup);$('adminBackupFile')?.addEventListener('change',importBackupFile);$('adminCenterToken')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});d.addEventListener('cancel',e=>{e.preventDefault();d.close();});
-      $('adminHistoryToggleBtn')?.addEventListener('click',toggleAdminHistory);
+      (document.getElementById('adminCenterPageRoot')||document.body).appendChild(d);
+      $('adminCenterCloseBtn')?.addEventListener('click',()=>{location.href='/';});$('adminCenterLoginBtn')?.addEventListener('click',login);$('adminRefreshBtn')?.addEventListener('click',refreshAll);$('adminLogoutBtn')?.addEventListener('click',logout);$('adminEnhancementToggle')?.addEventListener('click',toggleEnhancement);$('adminFeedbackRefreshBtn')?.addEventListener('click',loadFeedback);$('adminVerifiedContributionRefreshBtn')?.addEventListener('click',loadVerifiedContributions);$('adminCreateExpertInviteBtn')?.addEventListener('click',createExpertReviewInvite);$('adminContinualRefreshBtn')?.addEventListener('click',loadContinualStatus);$('adminCreateBackupBtn')?.addEventListener('click',createBackup);$('adminBackupFile')?.addEventListener('change',importBackupFile);$('adminCenterToken')?.addEventListener('keydown',e=>{if(e.key==='Enter')login();});d.addEventListener('cancel',e=>e.preventDefault());
+      $('adminHistoryToggleBtn')?.addEventListener('click',toggleAdminHistory);$('refreshHistoryBtn')?.addEventListener('click',loadAdminHistory);
       $('adminLearnedToggleBtn')?.addEventListener('click',toggleAdminLearned);
       $('adminLearnedRefreshBtn')?.addEventListener('click',loadApprovedKnowledge);
     }
@@ -68,7 +74,24 @@
   function toggleAdminHistory(){
     const panel=$('adminHistoryPanel');if(!panel)return;const open=panel.hidden;
     setCompactPanel('adminHistoryToggleBtn','adminHistoryPanel',open);
-    if(open)window.dispatchEvent(new CustomEvent('aitc:history-open'));
+    if(open)loadAdminHistory();
+  }
+  async function loadAdminHistory(){
+    const list=$('historyList'),count=$('historyCount'),refresh=$('refreshHistoryBtn');if(!list||!count)return;
+    if(refresh)refresh.disabled=true;list.innerHTML='<div class="history-empty">Đang tải…</div>';
+    try{
+      const r=await fetch('/api/cases?limit=30',{cache:'no-store'}),d=await r.json();if(!r.ok)throw new Error(d?.error||('HTTP '+r.status));
+      const cases=Array.isArray(d.cases)?d.cases:[];count.textContent=cases.length+' ca gần nhất';
+      if(!cases.length){list.innerHTML='<div class="history-empty">Chưa có ca được lưu.</div>';return;}
+      list.innerHTML=cases.map(item=>{
+        const conf=Math.round(Math.max(0,Math.min(1,Number(item.confidence)||0))*100);
+        const when=item.created_at?new Date(item.created_at).toLocaleString('vi-VN'):'—';
+        const mode=item.assessment_mode==='general'?'Tổng quát · 2 ảnh':'Bình thường · 1 ảnh';
+        const features=[item.top_tongue_color?'Lưỡi: '+item.top_tongue_color:'',item.top_coating_color?'Rêu: '+item.top_coating_color:''].filter(Boolean).join(' · ');
+        return '<article class="history-item admin-compact-item"><div class="history-top"><strong>'+esc(when)+'</strong><span class="chip">'+esc(mode)+'</span><span class="status-pill good">'+conf+'%</span></div><div class="history-features">'+esc(features)+'</div><p>'+esc(item.summary||'Không có tóm tắt.')+'</p></article>';
+      }).join('');
+    }catch(err){list.innerHTML='<div class="history-empty">Chưa tải được lịch sử ca: '+esc(err.message)+'</div>';}
+    finally{if(refresh)refresh.disabled=false;}
   }
   function toggleAdminLearned(){
     const panel=$('adminLearnedPanel');if(!panel)return;const open=panel.hidden;
@@ -211,5 +234,5 @@
   async function restoreBackup(id){if(!id||!window.confirm('Khôi phục backup này sẽ thay thế kho ca, góp ý và kiến thức học hiện tại. Tiếp tục?'))return;try{await rpc('ai_thiet_chan_admin_restore_backup_v1',{p_admin_token:token(),p_backup_id:id,p_confirm:'KHOI_PHUC'});$('adminSystemStatus').textContent='Khôi phục thành công. Đang kiểm tra lại dữ liệu…';$('adminSystemStatus').className='admin-center-status good';await refreshAll();}catch(err){$('adminSystemStatus').textContent='Khôi phục thất bại: '+err.message;$('adminSystemStatus').className='admin-center-status warn';}}
   async function importBackupFile(e){const file=e.target.files?.[0];if(!file)return;try{const snapshot=JSON.parse(await file.text());if(snapshot?.schemaVersion!=='ai-thiet-chan-backup-v1')throw new Error('File không đúng định dạng backup A.I Thiệt Chẩn.');const id=await rpc('ai_thiet_chan_admin_import_backup_v1',{p_admin_token:token(),p_snapshot:snapshot,p_label:`Drive import · ${file.name}`});$('adminSystemStatus').textContent=`Đã nhập backup ${String(id).slice(0,8)}. Chọn Khôi phục khi cần.`;$('adminSystemStatus').className='admin-center-status good';await loadBackups();}catch(err){$('adminSystemStatus').textContent='Nhập backup thất bại: '+err.message;$('adminSystemStatus').className='admin-center-status warn';}finally{e.target.value='';}}
 
-  ensureUi();new MutationObserver(()=>{stripLegacyAdmin();ensureUi();}).observe(document.body,{childList:true,subtree:true});
+  ensureUi();if(standalone)queueMicrotask(()=>openCenter());new MutationObserver(()=>{stripLegacyAdmin();ensureUi();}).observe(document.body,{childList:true,subtree:true});
 })();

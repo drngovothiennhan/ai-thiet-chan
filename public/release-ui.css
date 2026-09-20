@@ -65,3 +65,12 @@ body{padding-bottom:92px}
   .aitc-bottom-nav button{padding:5px 1px}
   .aitc-bottom-nav button small{font-size:.64rem}
 }
+
+/* Responsive workspace v3 */
+.aitc-bottom-nav{display:none!important}
+html[data-aitc-layout="mobile"] body{padding-bottom:88px}
+html[data-aitc-layout="mobile"] .aitc-bottom-nav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));width:calc(100% - 16px)}
+html[data-aitc-layout="desktop"] body{padding-bottom:0}
+html[data-aitc-layout="desktop"] .aitc-workspace-hidden{display:block!important}
+html[data-aitc-layout="desktop"] #resultCard[hidden]{display:none!important}
+html[data-aitc-layout="desktop"] .aitc-bottom-nav{display:none!important}

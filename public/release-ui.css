@@ -65,3 +65,46 @@ html[data-aitc-layout="mobile"] body{padding-bottom:88px}
 html[data-aitc-layout="mobile"] .aitc-bottom-nav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));width:calc(100% - 16px)}
 html[data-aitc-layout="desktop"] body{padding-bottom:0}
 html[data-aitc-layout="desktop"] #resultCard[hidden]{display:none!important}
+
+
+/* Compact unified topbar control cluster r2 */
+.topbar-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:0;padding:3px;
+  flex:0 0 auto!important;width:max-content;max-width:100%;min-width:0!important;
+  border:1px solid rgba(255,255,255,.18);border-radius:13px;
+  background:rgba(255,255,255,.075);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  overflow:hidden
+}
+.topbar-actions .icon-btn{
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  width:38px;min-width:38px;height:36px;padding:0 8px;border:0;border-radius:9px;
+  background:transparent;color:#fff;font-size:16px;line-height:1;font-weight:750;
+  box-shadow:none
+}
+.topbar-actions .icon-btn+.icon-btn{border-left:1px solid rgba(255,255,255,.16);border-top-left-radius:0;border-bottom-left-radius:0}
+.topbar-actions .icon-btn:hover{background:rgba(255,255,255,.10)}
+.topbar-actions .icon-btn:active{background:rgba(255,255,255,.15);transform:translateY(1px)}
+.topbar-actions #accessBtn{
+  width:auto;min-width:72px!important;max-width:96px;height:36px;padding:0 10px;
+  font-size:11.5px;line-height:1;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.topbar-actions .layout-mode-btn{width:auto!important;min-width:54px!important;max-width:66px;padding:0 10px;font-size:12px;font-weight:850}
+.topbar-actions .settings-btn{width:38px!important;min-width:38px!important;padding:0!important}
+.topbar-actions .settings-label{display:none!important}
+.topbar-actions>a.icon-btn{width:38px;min-width:38px}
+@media(max-width:760px){
+  .topbar{min-height:58px;padding-top:max(8px,env(safe-area-inset-top));padding-bottom:8px}
+  .topbar-actions{gap:0;padding:2px;border-radius:12px}
+  .topbar-actions .icon-btn{width:34px;min-width:34px;height:32px;padding:0 6px;border-radius:8px;font-size:15px}
+  .topbar-actions #accessBtn{min-width:68px!important;max-width:82px;height:32px;padding:0 8px;font-size:10.5px}
+  .topbar-actions .layout-mode-btn{min-width:48px!important;max-width:58px;padding:0 7px;font-size:11px}
+  .topbar-actions .settings-btn,.topbar-actions>a.icon-btn{width:34px!important;min-width:34px!important}
+}
+@media(max-width:390px){
+  .topbar-actions .icon-btn{width:32px;min-width:32px;height:30px;font-size:14px}
+  .topbar-actions #accessBtn{min-width:62px!important;max-width:74px;height:30px;padding:0 6px;font-size:10px}
+  .topbar-actions .layout-mode-btn{min-width:44px!important;max-width:52px;padding:0 6px;font-size:10.5px}
+  .topbar-actions .settings-btn,.topbar-actions>a.icon-btn{width:32px!important;min-width:32px!important}
+}
+
+/* PR-preview-build: compact-topbar-r2 */

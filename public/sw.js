@@ -19,6 +19,10 @@ const OPTIONAL_SHELL=[
   '/academic-vision.js','/academic-source.js','/academic-signature.js','/academic-atlas-a.js','/academic-atlas-b.js','/academic-atlas-thiet-chan-1.js','/academic-atlas-thiet-chan-2.js','/academic-atlas-thiet-chan-3.js','/academic-atlas-thiet-chan-4.js','/academic-page-meta.js','/academic-page-atlas-1.js','/academic-page-atlas-2.js','/academic-page-atlas-3.js','/academic-page-atlas-4.js','/academic-page-atlas-5.js','/open-source.html'
 ];
 const NAV_TIMEOUT_MS=2500;
+const SUPABASE_URL='https://gzmpnsrwqjpsbklyflqr.supabase.co';
+const SUPABASE_KEY='sb_publishable_Y4hMhXROZ-aVgWoaQ5fFKQ_ZAcXuIzG';
+const CASE_IMAGE_BUCKET='aitc-case-images';
+const STORAGE_DIRECT_VERSION='supabase-storage-direct-v1';
 
 try{importScripts('/academic-vision.js');}catch{}
 
@@ -72,36 +76,93 @@ async function digestBase64Payload(dataUrl){
 function hasCompleteDevicePayload(body){
   return Boolean(body?.deviceRuntime?.status==='complete'&&body?.academicSignature&&body?.academicSource?.execution==='device-worker'&&body?.academicSource?.topImageDigest);
 }
+async function dataUrlBlob(dataUrl){
+  const response=await fetch(dataUrl);
+  const blob=await response.blob();
+  if(blob.type&&blob.type!=='image/jpeg')throw new Error('STORAGE_DIRECT_JPEG_REQUIRED');
+  if(blob.size>6291456)throw new Error('STORAGE_DIRECT_IMAGE_TOO_LARGE');
+  return blob;
+}
+async function uploadCaseImage(dataUrl,digest){
+  if(!/^[0-9a-f]{64}$/.test(String(digest||'')))throw new Error('STORAGE_DIRECT_DIGEST_INVALID');
+  const path=`sha256/${digest}.jpg`;
+  const blob=await dataUrlBlob(dataUrl);
+  const encoded=path.split('/').map(encodeURIComponent).join('/');
+  const response=await fetch(`${SUPABASE_URL}/storage/v1/object/${CASE_IMAGE_BUCKET}/${encoded}`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'authorization':`Bearer ${SUPABASE_KEY}`,'content-type':'image/jpeg','x-upsert':'false'},
+    body:blob,
+    cache:'no-store'
+  });
+  if(response.ok)return path;
+  const detail=await response.text().catch(()=>'');
+  if((response.status===400||response.status===409)&&/duplicate|already exists|exists/i.test(detail))return path;
+  throw new Error(`STORAGE_DIRECT_UPLOAD_FAILED:${response.status}`);
+}
 async function enrichAnalyzeRequest(request){
-  try{
-    const body=await request.clone().json();
-    const image=body?.topImage||body?.image;const vision=self.AITCAcademicVision;
-    if(hasCompleteDevicePayload(body)){
-      const claimed=String(body?.academicSource?.topImageDigest||'');
-      const actual=await digestBase64Payload(image);
-      if(actual&&claimed===actual)return request;
-    }
-    if(!image||!vision?.signatureFromDataUrl)return request;
-    const signature=await vision.signatureFromDataUrl(image);if(!signature)return request;
-    const topImageDigest=await digestBase64Payload(image);
-    body.academicSignature=signature;
-    body.academicSource={
-      ...(vision.source||{}),
-      execution:'service-worker-fallback',
-      runtimeVersion:'service-worker-academic-vision-v1',
-      schemaVersion:'legacy-academic-signature-v1',
-      topImageDigest
-    };
-    const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
-    return new Request(request,{headers,body:JSON.stringify(body)});
-  }catch{return request;}
+  const body=await request.clone().json();
+  const image=body?.topImage||body?.image;
+  const vision=self.AITCAcademicVision;
+  if(!image||!vision?.signatureFromDataUrl)throw new Error('STORAGE_DIRECT_TOP_IMAGE_REQUIRED');
+  const topImageDigest=await digestBase64Payload(image);
+  if(!topImageDigest)throw new Error('STORAGE_DIRECT_TOP_DIGEST_FAILED');
+
+  let signature=null;
+  if(hasCompleteDevicePayload(body)){
+    const claimed=String(body?.academicSource?.topImageDigest||'');
+    const actual=await digestBase64Payload(image);
+    if(actual&&claimed===actual)signature=body.academicSignature;
+  }
+  if(!signature)signature=await vision.signatureFromDataUrl(image);
+  if(!signature)throw new Error('STORAGE_DIRECT_SIGNATURE_FAILED');
+
+  const mode=body?.mode==='general'?'general':'normal';
+  const bottomImage=mode==='general'?body?.bottomImage:null;
+  const bottomImageDigest=bottomImage?await digestBase64Payload(bottomImage):'';
+  if(mode==='general'&&!bottomImageDigest)throw new Error('STORAGE_DIRECT_BOTTOM_DIGEST_FAILED');
+
+  const [topStoragePath,bottomStoragePath]=await Promise.all([
+    uploadCaseImage(image,topImageDigest),
+    bottomImage?uploadCaseImage(bottomImage,bottomImageDigest):Promise.resolve(null)
+  ]);
+
+  body.academicSignature=signature;
+  body.academicSource={
+    ...(vision.source||{}),
+    execution:'storage-direct-service-worker',
+    runtimeVersion:'storage-direct-sw-v1',
+    schemaVersion:'storage-direct-payload-v1',
+    topImageDigest,
+    bottomImageDigest:bottomImageDigest||''
+  };
+  body.storageTransport={version:STORAGE_DIRECT_VERSION,direct:true,bucket:CASE_IMAGE_BUCKET};
+  body.topImageHash=topImageDigest;
+  body.topStoragePath=topStoragePath;
+  body.topMimeType='image/jpeg';
+  if(mode==='general'){
+    body.bottomImageHash=bottomImageDigest;
+    body.bottomStoragePath=bottomStoragePath;
+    body.bottomMimeType='image/jpeg';
+  }
+  delete body.topImage;
+  delete body.image;
+  delete body.bottomImage;
+  delete body.topOriginalImage;
+  delete body.bottomOriginalImage;
+
+  const headers=new Headers(request.headers);headers.set('content-type','application/json');headers.delete('content-length');
+  return new Request(request,{headers,body:JSON.stringify(body)});
 }
 self.addEventListener('fetch',event=>{
   const request=event.request,url=new URL(request.url);if(url.origin!==self.location.origin)return;
   if(request.method==='POST'&&url.pathname==='/api/analyze'){
     event.respondWith((async()=>{
-      const forwarded=await enrichAnalyzeRequest(request);
-      return fetch(forwarded);
+      try{
+        const forwarded=await enrichAnalyzeRequest(request);
+        return await fetch(forwarded);
+      }catch(error){
+        return new Response(JSON.stringify({error:'STORAGE_DIRECT_UNAVAILABLE',message:'Chưa tải được ảnh trực tiếp vào kho lưu trữ. Vui lòng thử lại.'}),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}});
+      }
     })());return;
   }
   if(request.method!=='GET')return;

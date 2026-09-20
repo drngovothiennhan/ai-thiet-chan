@@ -350,13 +350,46 @@ function imageHash(image){
   const base64=String(image||'').includes(',')?String(image).split(',').pop():String(image||'');
   return createHash('sha256').update(base64).digest('hex');
 }
-function caseHash(mode,topImage,bottomImage){
-  const top=imageHash(topImage);const bottom=bottomImage?imageHash(bottomImage):'';
-  return createHash('sha256').update(`${mode}:${top}:${bottom}`).digest('hex');
+function validImageHash(value){return /^[0-9a-f]{64}$/.test(String(value||''));}
+function storagePathForHash(hash){return `sha256/${hash}.jpg`;}
+function validateStorageImageRef(hash,path,label){
+  if(!validImageHash(hash)){const err=new Error(`${label}_HASH_INVALID`);err.status=400;throw err;}
+  if(String(path||'')!==storagePathForHash(hash)){const err=new Error(`${label}_STORAGE_PATH_INVALID`);err.status=400;throw err;}
+  return {hash:String(hash),path:String(path)};
 }
-async function storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment}){
+function caseHashFromHashes(mode,topHash,bottomHash=''){
+  return createHash('sha256').update(`${mode}:${topHash}:${bottomHash||''}`).digest('hex');
+}
+function caseHash(mode,topImage,bottomImage){
+  return caseHashFromHashes(mode,imageHash(topImage),bottomImage?imageHash(bottomImage):'');
+}
+async function storeTrainingCase({mode,storageDirect=false,topImage,topImageHash,topImageStoragePath,topMimeType,topQc,bottomImage,bottomImageHash,bottomImageStoragePath,bottomMimeType,bottomQc,assessment}){
   if(!caseStoreReady) await ensureCaseStoreSecret();
   if(!caseStoreReady) throw new Error('CASE_STORE_NOT_READY');
+  if(storageDirect){
+    const payload={
+      p_token:caseStoreToken(),
+      p_case_hash:caseHashFromHashes(mode,topImageHash,bottomImageHash||''),
+      p_assessment_mode:mode,
+      p_top_image_hash:topImageHash,
+      p_top_image_storage_path:topImageStoragePath,
+      p_top_mime_type:topMimeType||'image/jpeg',
+      p_bottom_image_hash:bottomImageHash||null,
+      p_bottom_image_storage_path:bottomImageStoragePath||null,
+      p_bottom_mime_type:bottomImageHash?(bottomMimeType||'image/jpeg'):null,
+      p_qc:{top:topQc||{},bottom:bottomQc||null},
+      p_analysis:assessment||{},
+      p_feature_vector:assessment?.ml?.featureVector||{},
+      p_model:assessment?.ml?.visionEngine?.engine||LOCAL_VISION_HEALTH.engine,
+      p_knowledge_version:KNOWLEDGE_VERSION
+    };
+    let lastError;
+    for(let attempt=0;attempt<3;attempt++){
+      try{return await supabaseRpc('ai_thiet_chan_store_case_v3',payload);}
+      catch(err){lastError=err;if(attempt<2) await new Promise(r=>setTimeout(r,350*(attempt+1)));}
+    }
+    throw lastError;
+  }
   const payload={
     p_token:caseStoreToken(),p_case_hash:caseHash(mode,topImage,bottomImage),p_assessment_mode:mode,
     p_top_image_hash:imageHash(topImage),p_top_image_data_url:topImage,p_top_mime_type:topMimeType||'image/jpeg',
@@ -391,6 +424,7 @@ app.get('/api/health',async(req,res)=>res.json({
   knowledgeSources:KNOWLEDGE_SOURCES.length,openSourceReferences:OPEN_SOURCE_REFERENCES.length,openSourceVisionPolicy:OPEN_SOURCE_VISION_POLICY.policyVersion,
   assessmentModes:['normal','general'],generalAssessmentViews:['top','bottom'],
   academicVision:ACADEMIC_HEALTH,
+  imageTransport:{primary:'supabase-storage-direct',bucket:'aitc-case-images',legacyInlineFallback:true},
   caseCollection:{mode:'automatic',history:true,deduplicate:'sha256-composite',storeReady:caseStoreReady},
   aiRateLimit:{windowMs:AI_RATE_LIMIT_WINDOW_MS,max:AI_RATE_LIMIT_MAX,appliesTo:['analyze','report']},
   chatPolicy:{provider:'local-grounded',applicationRateLimit:false,externalProviderRequired:false,auxiliaryGemini:Boolean(apiKey()),documentVoice:true,atlasLanguageThreshold:ACADEMIC_HEALTH.atlasLanguageThreshold},
@@ -408,28 +442,45 @@ app.get('/api/cases',async(req,res)=>{
 app.post('/api/analyze',aiRateLimit,async(req,res)=>{
   try{
     const body=req.body||{};const mode=body.mode==='general'?'general':'normal';
-    const topImage=body.topImage||body.image;const topMimeType=body.topMimeType||body.mimeType||'image/jpeg';const topQc=body.topQc||body.qc||{};
-    const bottomImage=mode==='general'?body.bottomImage:null;const bottomMimeType=body.bottomMimeType||'image/jpeg';const bottomQc=mode==='general'?(body.bottomQc||{}):null;
-    validateImage(topImage,'TOP_IMAGE');
-    if(mode==='general')validateImage(bottomImage,'BOTTOM_IMAGE');
+    const storageDirect=Boolean(body?.storageTransport?.direct===true&&body?.storageTransport?.bucket==='aitc-case-images'&&body?.topStoragePath&&body?.topImageHash);
+    const topImage=storageDirect?null:(body.topImage||body.image);
+    const topMimeType=body.topMimeType||body.mimeType||'image/jpeg';const topQc=body.topQc||body.qc||{};
+    const bottomImage=!storageDirect&&mode==='general'?body.bottomImage:null;const bottomMimeType=body.bottomMimeType||'image/jpeg';const bottomQc=mode==='general'?(body.bottomQc||{}):null;
+    let topImageHash=null,topImageStoragePath=null,bottomImageHash=null,bottomImageStoragePath=null;
+    if(storageDirect){
+      const topRef=validateStorageImageRef(body.topImageHash,body.topStoragePath,'TOP_IMAGE');
+      topImageHash=topRef.hash;topImageStoragePath=topRef.path;
+      if(mode==='general'){
+        const bottomRef=validateStorageImageRef(body.bottomImageHash,body.bottomStoragePath,'BOTTOM_IMAGE');
+        bottomImageHash=bottomRef.hash;bottomImageStoragePath=bottomRef.path;
+      }
+    }else{
+      validateImage(topImage,'TOP_IMAGE');
+      if(mode==='general')validateImage(bottomImage,'BOTTOM_IMAGE');
+    }
     const accessQuota=await consumeCaseAccess(req);
 
     const local=analyzeLocalVision(body,{mode,topQc,bottomQc});
     let assessment=normalizeAssessment(local.assessment,{mode,topQc,bottomQc});
     assessment.ml=assessment.ml||{};
     assessment.ml.visionEngine={...local.provenance,geminiVision:false,authority:'image-observation'};
+    assessment.ml.imageTransport=storageDirect?{mode:'supabase-storage-direct',bucket:'aitc-case-images',topStoragePath:topImageStoragePath,bottomStoragePath:bottomImageStoragePath}:{mode:'legacy-inline'};
     try{assessment=applyAcademicFusion(assessment,body);}catch(err){console.error('academic_fusion_error',err?.message||err);}
 
     let collection={ok:false,stored:false,duplicate:false};
     try{
-      const saved=await storeTrainingCase({mode,topImage,topMimeType,topQc,bottomImage,bottomMimeType,bottomQc,assessment});
-      collection={ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null};
+      const saved=await storeTrainingCase({
+        mode,storageDirect,topImage,topImageHash,topImageStoragePath,topMimeType,topQc,
+        bottomImage,bottomImageHash,bottomImageStoragePath,bottomMimeType,bottomQc,assessment
+      });
+      collection={ok:true,stored:Boolean(saved?.stored),duplicate:Boolean(saved?.duplicate),caseId:saved?.id||null,transport:saved?.transport||(storageDirect?'supabase-storage-direct':'legacy-inline')};
     }catch(err){console.error('case_store_error',err?.message||err);collection={ok:false,error:'CASE_STORE_FAILED'};}
 
     return res.json({
       ok:true,assessment,analysis:assessment,
       model:LOCAL_VISION_HEALTH.engine,visionModel:LOCAL_VISION_HEALTH.engine,
       geminiVision:false,consultationModel:LOCAL_REASONING_HEALTH.engine,auxiliaryModel:apiKey()?MODEL:null,knowledgeVersion:KNOWLEDGE_VERSION,
+      imageTransport:storageDirect?'supabase-storage-direct':'legacy-inline',
       collection,access:accessQuota
     });
   }catch(err){

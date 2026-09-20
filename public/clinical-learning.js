@@ -70,11 +70,7 @@
   }
 
   function renderLearningEvidence(){
-    removeLearningEvidence();if(!resultCard||!learning.matches.length)return;
-    const box=document.createElement('div');box.id='clinicalLearningEvidence';box.className='clinical-evidence';
-    const items=learning.matches.map(row=>{const pct=Math.round(Number(row.similarity||0)*100);const when=row.approved_at?new Date(row.approved_at).toLocaleString('vi-VN'):'';return `<li>${row.exact_image_match?'Ca trùng/khớp ảnh':'Ca tương tự'} · ${pct}% · duyệt ${escapeHtml(when)} · bản học #${escapeHtml(row.knowledge_revision||'—')}</li>`;}).join('');
-    box.innerHTML=`<strong>Kiến thức lâm sàng đã được admin duyệt</strong><span>Hệ thống đã đối chiếu ${learning.matches.length} ca tương tự và ưu tiên nội dung học mới nhất khi độ tương tự tương đương.</span><ul>${items}</ul>`;
-    resultCard.querySelector('.combined-section')?.appendChild(box);
+    removeLearningEvidence();
   }
 
   async function submitClinicalFeedback(event){

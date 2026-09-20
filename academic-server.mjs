@@ -147,9 +147,48 @@ function saneBottomFeatures(raw){
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
   return out;
 }
+function validSha256(value){return /^[0-9a-f]{64}$/.test(String(value||''));}
+function storagePathForDigest(digest){return `sha256/${digest}.jpg`;}
 export function verifyClientVisualPayload(body={}){
   const signature=saneSignature(body?.academicSignature);if(!signature)return {verified:false,reason:'signature-missing-or-invalid'};
   const source=body?.academicSource&&typeof body.academicSource==='object'?body.academicSource:{};
+  const mode=body?.mode==='general'?'general':'normal';
+  if(source.execution==='storage-direct-service-worker'){
+    const claimedTop=String(source.topImageDigest||'');
+    const topHash=String(body?.topImageHash||'');
+    const topPath=String(body?.topStoragePath||'');
+    if(!validSha256(topHash)||claimedTop!==topHash)return {verified:false,reason:'top-storage-digest-invalid'};
+    if(topPath!==storagePathForDigest(topHash))return {verified:false,reason:'top-storage-path-mismatch'};
+    if(String(body?.storageTransport?.bucket||'')!=='aitc-case-images')return {verified:false,reason:'storage-bucket-invalid'};
+    let bottomVerified=false;
+    if(mode==='general'){
+      const claimedBottom=String(source.bottomImageDigest||'');
+      const bottomHash=String(body?.bottomImageHash||'');
+      const bottomPath=String(body?.bottomStoragePath||'');
+      if(!validSha256(bottomHash)||claimedBottom!==bottomHash)return {verified:false,reason:'bottom-storage-digest-invalid'};
+      if(bottomPath!==storagePathForDigest(bottomHash))return {verified:false,reason:'bottom-storage-path-mismatch'};
+      bottomVerified=true;
+    }
+    return {
+      verified:true,mode:'storage-direct-service-worker',signature,
+      clientSource:{
+        execution:'storage-direct-service-worker',
+        runtimeVersion:String(source.runtimeVersion||'storage-direct-sw-v1'),
+        schemaVersion:String(source.schemaVersion||'storage-direct-payload-v1'),
+        topImageDigest:topHash,
+        bottomImageDigest:bottomVerified?String(body.bottomImageHash):'',
+        topStoragePath:topPath,
+        bottomStoragePath:bottomVerified?String(body.bottomStoragePath):'',
+        source:String(source.id||source.source||SOURCE.id)
+      },
+      deviceCompute:{
+        verifyVersion:DEVICE_VERIFY_VERSION,verified:true,tier:'storage-direct',
+        activeBackend:'device-preprocessed-storage-direct',trainingVectorCoverage:1,
+        diagnosticSignatureCoverage:Number((298/1027).toFixed(6)),
+        groundTruthContext:{available:false},bottomVerified,bottomFeatures:null
+      }
+    };
+  }
   const topImage=body?.topImage||body?.image||'';if(!topImage)return {verified:false,reason:'top-image-missing'};
   const expectedTop=imageDigest(topImage),claimedTop=String(source.topImageDigest||'');
   if(!claimedTop||claimedTop!==expectedTop)return {verified:false,reason:'top-image-digest-mismatch'};

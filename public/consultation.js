@@ -3,52 +3,43 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
 
 (()=>{
   const $=id=>document.getElementById(id);
-  const form=$('chatForm'),input=$('chatInput'),log=$('chatLog'),startBtn=$('startInquiryBtn'),progress=$('inquiryProgress'),resultCard=$('resultCard');
-  const historyToggle=$('toggleHistoryBtn'),historyPanel=$('historyPanel');
-  const inquiryNote=document.querySelector('.inquiry-note');
-  const SESSION_KEY='aitc-consultation-session-v2';
-  const MAX_TURNS=4;
-
-  if(historyToggle&&historyPanel){
-    historyPanel.hidden=true;
-    historyToggle.setAttribute('aria-expanded','false');
-    historyToggle.addEventListener('click',()=>{
-      const open=historyPanel.hidden;
-      historyPanel.hidden=!open;
-      historyToggle.textContent=open?'Ẩn lịch sử':'Xem lịch sử';
-      historyToggle.setAttribute('aria-expanded',String(open));
-      if(open)window.dispatchEvent(new CustomEvent('aitc:history-open'));
-    });
-  }
-
-  if(!form||!input||!log||!startBtn||!progress) return;
-
-  if(inquiryNote) inquiryNote.textContent='Không dùng bộ 10 câu cố định. Sau thiệt chẩn, Trợ lý hỏi từng chứng trạng chưa được hỏi, dựa trên ca tương tự trong CSDL; câu hỏi trước và câu trả lời được giữ nguyên ngữ cảnh để tránh lặp; tối đa 4 lượt.';
-  progress.removeAttribute('role');
-  progress.removeAttribute('tabindex');
-  progress.style.cursor='default';
-
-  const inquiry={active:false,turn:0,answers:[],interactions:[],askedConceptIds:[],currentConceptId:null,completed:false,transcript:''};
-  let pendingPrompt='';
-  let pendingKind='';
-  const requestClient=window.AITCRequestClient;if(!requestClient)throw new Error('AITC_REQUEST_CLIENT_MISSING');
+  const form=$('chatForm'),input=$('chatInput'),log=$('chatLog'),
+    supplementBtn=$('startInquiryBtn'),readyBtn=$('readyCompareBtn'),
+    progress=$('inquiryProgress'),resultCard=$('resultCard');
+  const SESSION_KEY='aitc-consultation-session-v4';
+  const MAX_FOLLOWUPS=3;
+  const SUPPLEMENT_LABEL='Bổ sung triệu chứng';
+  const READY_LABEL='Sẵn sàng đối chiếu';
+  const requestClient=window.AITCRequestClient;
+  if(!form||!input||!log||!supplementBtn||!readyBtn||!progress||!resultCard||!requestClient)return;
   const nativeFetch=(inputArg,init)=>requestClient.fetchAfter('consultation',inputArg,init);
+
+  const flow={
+    mode:null,active:false,turn:0,answers:[],interactions:[],
+    askedConceptIds:[],currentConceptId:null,completed:false
+  };
+  let pendingKind='';
+  let busy=false;
 
   function savedMessages(){
     return [...log.querySelectorAll('.bubble')]
-      .map(node=>({who:node.classList.contains('user')?'user':'bot',text:node.textContent||''}))
-      .filter(item=>item.text.trim());
+      .map(node=>({who:node.classList.contains('user')?'user':'bot',text:String(node.textContent||'').slice(0,2000)}))
+      .filter(item=>item.text.trim())
+      .slice(-24);
   }
-
   function saveSessionState(){
     try{
       sessionStorage.setItem(SESSION_KEY,JSON.stringify({
-        inquiry:{...inquiry,answers:[...inquiry.answers]},
+        flow:{
+          ...flow,
+          answers:[...flow.answers],
+          interactions:[...flow.interactions],
+          askedConceptIds:[...flow.askedConceptIds]
+        },
         messages:savedMessages(),draft:input.value,savedAt:Date.now()
       }));
     }catch{}
   }
-
   function bubble(text,who='bot',{persist=true}={}){
     const div=document.createElement('div');
     div.className='bubble '+who;
@@ -57,218 +48,204 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     log.scrollTop=log.scrollHeight;
     if(persist)saveSessionState();
   }
-
-  function setProgress(){
-    if(inquiry.completed)progress.textContent='Đã đối chiếu';
-    else if(inquiry.active)progress.textContent='Đối chiếu '+Math.min(inquiry.turn+1,MAX_TURNS)+'/'+MAX_TURNS;
-    else progress.textContent='Sẵn sàng đối chiếu';
+  function hasResult(){return !resultCard.hidden;}
+  function syncControls(){
+    const ready=hasResult();
+    supplementBtn.disabled=!ready||busy;
+    readyBtn.disabled=!ready||busy;
+    supplementBtn.textContent=SUPPLEMENT_LABEL;
+    readyBtn.textContent=READY_LABEL;
+    if(busy)progress.textContent='Đang đối chiếu…';
+    else if(flow.completed&&ready)progress.textContent='Đã kết thúc tư vấn';
+    else if(flow.active)progress.textContent='Đối chiếu '+Math.min(flow.turn+1,MAX_FOLLOWUPS)+'/'+MAX_FOLLOWUPS;
+    else if(ready)progress.textContent='Chọn cách đối chiếu';
+    else progress.textContent='Phân tích ảnh trước';
   }
-
-  function transcriptText(){
-    if(Array.isArray(inquiry.interactions)&&inquiry.interactions.length){
-      return inquiry.interactions.map((item,index)=>{
-        const q=String(item?.question||'').trim();
-        const a=String(item?.answer||'').trim();
-        const concept=String(item?.conceptId||'').trim();
-        return (index+1)+'. '+(q?'Hỏi: '+q+'\n   ':'')+'Đáp: '+a+(concept?'\n   Mục đã hỏi: '+concept:'');
-      }).join('\n');
-    }
-    return inquiry.answers.map((answer,index)=>(index+1)+'. Đáp: '+answer).join('\n');
+  function resetFlow({clearLog=false}={}){
+    flow.mode=null;flow.active=false;flow.turn=0;flow.answers=[];flow.interactions=[];
+    flow.askedConceptIds=[];flow.currentConceptId=null;flow.completed=false;
+    pendingKind='';busy=false;
+    if(clearLog)log.innerHTML='';
+    syncControls();saveSessionState();
   }
-
-  function lastBotQuestion(){
-    const nodes=[...log.querySelectorAll('.bubble.bot')];
-    return String(nodes.at(-1)?.textContent||'').trim().slice(0,500);
-  }
-
-  function rememberAskedConcept(value){
-    const id=String(value||'').trim();
-    if(!id)return;
-    if(!inquiry.askedConceptIds.includes(id))inquiry.askedConceptIds.push(id);
-    inquiry.currentConceptId=id;
-  }
-
   function normalizeText(value){
     return String(value||'').trim().toLocaleLowerCase('vi-VN').normalize('NFD')
       .replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d')
       .replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
   }
-
   function noMoreSymptoms(value){
     const n=normalizeText(value);
     if(!n)return false;
-    return /^(khong|khong con|khong co|het|khong them|khong kho chiu gi|binh thuong|khong co gi them)$/.test(n)
+    return /^(khong|khong con|khong co|het|khong them|binh thuong|khong co gi them)$/.test(n)
       || /^(toi )?khong (con |co )?(trieu chung|kho chiu)/.test(n);
   }
-
   function openingQuestion(){
-    return 'Trước khi đối chiếu sâu hơn, xin bạn cho biết hiện còn triệu chứng hoặc khó chịu nào khác không. Có thể mô tả tự nhiên; nếu không có thêm, hãy trả lời “không”.';
+    return 'Bạn có triệu chứng hoặc khó chịu nào muốn bổ sung để đối chiếu cùng kết quả thiệt chẩn không? Có thể mô tả tự nhiên; nếu không có thêm, hãy trả lời “không”.';
   }
-
-  function adaptivePrompt({final=false}={}){
-    const transcript=transcriptText()||'Người dùng chưa cung cấp thêm triệu chứng.';
-    if(final){
-      return '[ADAPTIVE_SYMPTOM_INTAKE]\n'
-        +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận:\n'+transcript+'\n\n'
-        +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại, hệ tri thức và các CA TƯƠNG TỰ được truy hồi từ CSDL để tổng hợp đối chiếu. '
-        +'Trình bày ngắn gọn: (1) dữ kiện thiệt chẩn đã quan sát; (2) triệu chứng người dùng đã xác nhận; '
-        +'(3) điểm tương đồng/khác biệt có căn cứ với các ca được truy hồi; (4) nhận định YHCT chỉ ở mức tham khảo khi có đủ căn cứ; '
-        +'(5) dữ kiện còn thiếu hoặc mâu thuẫn. Không tự thêm triệu chứng, không biến ca lịch sử thành chẩn đoán cho người dùng, không kê đơn và không sao chép phương thuốc từ corpus.';
-    }
-    return '[ADAPTIVE_SYMPTOM_INTAKE]\n'
-      +'Dữ kiện triệu chứng/khó chịu do chính người dùng xác nhận đến lúc này:\n'+transcript+'\n\n'
-      +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại cùng các CA TƯƠNG TỰ được truy hồi từ CSDL để chọn ĐÚNG MỘT câu hỏi tiếp theo có giá trị phân biệt cao nhất. '
-      +'Chỉ hỏi về triệu chứng hoặc đặc điểm diễn tiến chưa được người dùng xác nhận. Câu hỏi phải ngắn, tự nhiên, dễ trả lời; '
-      +'ưu tiên kiểu “Bạn có ... không?”, “Bạn còn khó chịu ... không?” hoặc hỏi thời điểm/tính chất khi thật sự giúp phân biệt các ca tương tự. '
-      +'Không liệt kê nhiều câu, không chạy bộ Thập vấn cố định, không tự gán triệu chứng, không chẩn đoán và không kê đơn. '
-      +'Nếu dữ kiện đã đủ và không còn câu hỏi phân biệt có căn cứ từ các ca truy hồi, hãy chuyển sang tổng hợp ngắn thay vì hỏi cho đủ lượt.';
+  function transcriptText(){
+    if(!flow.interactions.length)return '';
+    return flow.interactions.map((item,index)=>{
+      const q=String(item?.question||'').trim();
+      const a=String(item?.answer||'').trim();
+      const concept=String(item?.conceptId||'').trim();
+      return (index+1)+'. '+(q?'Hỏi: '+q+'\n   ':'')+'Đáp: '+a+(concept?'\n   Mục đã hỏi: '+concept:'');
+    }).join('\n');
   }
-
-  function resetAdaptive(clearLog=false){
-    inquiry.active=false;inquiry.turn=0;inquiry.answers=[];inquiry.interactions=[];inquiry.askedConceptIds=[];inquiry.currentConceptId=null;inquiry.completed=false;inquiry.transcript='';
-    pendingPrompt='';pendingKind='';
-    startBtn.textContent='Bổ sung triệu chứng';
-    setProgress();
-    if(clearLog){
-      log.innerHTML='';
-      bubble('Sau khi phân tích lưỡi, tôi sẽ chủ động hỏi triệu chứng để đối chiếu các ca tương tự trong CSDL. Bạn không cần tự nghĩ câu hỏi cho chatbot.');
-    }else saveSessionState();
+  function finalPrompt(){
+    const transcript=transcriptText()||'Người dùng không cung cấp thêm triệu chứng.';
+    return '[DUAL_CONSULT_FINAL]\n'
+      +'Dữ kiện người dùng đã xác nhận trong phiên:\n'+transcript+'\n\n'
+      +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại, hệ tri thức YHCT và các CA TƯƠNG TỰ được truy hồi từ CSDL để kết thúc tư vấn. '
+      +'Trình bày ngắn gọn: (1) dữ kiện thiệt chẩn quan sát được; (2) triệu chứng người dùng đã xác nhận nếu có; '
+      +'(3) điểm tương đồng/khác biệt có căn cứ với ca truy hồi; (4) nhận định YHCT chỉ ở mức tham khảo khi đủ căn cứ; '
+      +'(5) dữ kiện còn thiếu hoặc mâu thuẫn. Không tự thêm triệu chứng, không chạy bộ Thập vấn cố định, '
+      +'không biến ca lịch sử thành chẩn đoán, không kê đơn và không sao chép phương thuốc từ corpus.';
   }
-
-  function beginAdaptive({preserveLog=false}={}){
-    if(resultCard?.hidden){
-      bubble('Hãy phân tích ảnh lưỡi trước để có kết quả làm nền cho đối chiếu triệu chứng.');
-      return;
-    }
-    inquiry.active=true;inquiry.turn=0;inquiry.answers=[];inquiry.interactions=[];inquiry.askedConceptIds=[];inquiry.currentConceptId=null;inquiry.completed=false;inquiry.transcript='';
-    pendingPrompt='';pendingKind='';
-    if(!preserveLog)log.innerHTML='';
-    startBtn.textContent='Bắt đầu lại';
-    setProgress();
+  function lastBotQuestion(){
+    const nodes=[...log.querySelectorAll('.bubble.bot')];
+    return String(nodes.at(-1)?.textContent||'').trim().slice(0,500);
+  }
+  function rememberAskedConcept(value){
+    const id=String(value||'').trim();
+    if(!id)return;
+    if(!flow.askedConceptIds.includes(id))flow.askedConceptIds.push(id);
+    flow.currentConceptId=id;
+  }
+  function startSupplement(){
+    if(!hasResult()){bubble('Hãy phân tích ảnh lưỡi trước để có kết quả làm nền.');syncControls();return;}
+    resetFlow({clearLog:true});
+    flow.mode='supplement';flow.active=true;
     bubble(openingQuestion());
-    input.focus();
-    saveSessionState();
+    input.focus();syncControls();saveSessionState();
   }
-
-  function loadSessionState(){
+  function startReady(){
+    if(!hasResult()){bubble('Hãy phân tích ảnh lưỡi trước để có kết quả làm nền.');syncControls();return;}
+    resetFlow({clearLog:true});
+    flow.mode='ready';
+    pendingKind='ready-probe';
+    input.value=READY_LABEL;
+    form.requestSubmit();
+  }
+  function restoreSession(){
     try{
       const data=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
       if(!data||!data.savedAt||Date.now()-data.savedAt>12*60*60*1000)return false;
-      if(data.inquiry&&typeof data.inquiry==='object'){
-        inquiry.active=Boolean(data.inquiry.active);
-        inquiry.turn=Math.max(0,Math.min(MAX_TURNS,Number(data.inquiry.turn)||0));
-        inquiry.answers=Array.isArray(data.inquiry.answers)?data.inquiry.answers.slice(0,MAX_TURNS):[];
-        inquiry.interactions=Array.isArray(data.inquiry.interactions)?data.inquiry.interactions.slice(0,MAX_TURNS).map(item=>({
-          question:String(item?.question||'').slice(0,500),
-          answer:String(item?.answer||'').slice(0,1000),
-          conceptId:String(item?.conceptId||'').slice(0,80)
-        })):[];
-        inquiry.askedConceptIds=Array.isArray(data.inquiry.askedConceptIds)?[...new Set(data.inquiry.askedConceptIds.map(String).filter(Boolean))].slice(0,MAX_TURNS):[];
-        inquiry.currentConceptId=String(data.inquiry.currentConceptId||'')||null;
-        inquiry.completed=Boolean(data.inquiry.completed);
-        inquiry.transcript=String(data.inquiry.transcript||'');
-      }
+      const saved=data.flow&&typeof data.flow==='object'?data.flow:{};
+      flow.mode=saved.mode==='supplement'||saved.mode==='ready'?saved.mode:null;
+      flow.active=Boolean(saved.active);
+      flow.turn=Math.max(0,Math.min(MAX_FOLLOWUPS,Number(saved.turn)||0));
+      flow.answers=Array.isArray(saved.answers)?saved.answers.slice(0,MAX_FOLLOWUPS):[];
+      flow.interactions=Array.isArray(saved.interactions)?saved.interactions.slice(0,MAX_FOLLOWUPS).map(item=>({
+        question:String(item?.question||'').slice(0,500),
+        answer:String(item?.answer||'').slice(0,1000),
+        conceptId:String(item?.conceptId||'').slice(0,80)
+      })):[];
+      flow.askedConceptIds=Array.isArray(saved.askedConceptIds)?[...new Set(saved.askedConceptIds.map(String).filter(Boolean))].slice(0,MAX_FOLLOWUPS):[];
+      flow.currentConceptId=String(saved.currentConceptId||'')||null;
+      flow.completed=Boolean(saved.completed);
       log.innerHTML='';
       for(const item of Array.isArray(data.messages)?data.messages:[])bubble(item.text,item.who,{persist:false});
       input.value=String(data.draft||'');
-      startBtn.textContent=inquiry.active?'Bắt đầu lại':'Bổ sung triệu chứng';
-      setProgress();
       return true;
     }catch{return false;}
   }
+  async function finalizeFromBody(body,init){
+    flow.active=false;flow.completed=true;pendingKind='';
+    const finalBody={...body,message:finalPrompt()};
+    const response=await nativeFetch('/api/chat',{...init,body:JSON.stringify(finalBody)});
+    syncControls();saveSessionState();
+    return response;
+  }
+  async function requestNext(body,init){
+    const nextBody={
+      ...body,
+      symptomContext:transcriptText(),
+      askedConceptIds:[...flow.askedConceptIds],
+      message:String(body.message||'')
+    };
+    const response=await nativeFetch('/api/symptom-next',{...init,body:JSON.stringify(nextBody)});
+    if(!response.ok)return finalizeFromBody(body,init);
+    let payload={};
+    try{payload=await response.clone().json();}catch{}
+    if(payload?.evidenceBased===true&&payload?.selectedConcept&&flow.turn<MAX_FOLLOWUPS){
+      rememberAskedConcept(payload.selectedConcept);
+      flow.active=true;flow.completed=false;
+      syncControls();saveSessionState();
+      return response;
+    }
+    return finalizeFromBody(body,init);
+  }
 
-  startBtn.addEventListener('click',()=>beginAdaptive());
+  supplementBtn.addEventListener('click',startSupplement);
+  readyBtn.addEventListener('click',startReady);
   input.addEventListener('input',saveSessionState);
+  new MutationObserver(saveSessionState).observe(log,{childList:true});
 
   form.addEventListener('submit',ev=>{
-    if(!inquiry.active)return;
+    if(!flow.active)return;
     const answer=input.value.trim();
     if(!answer){ev.preventDefault();ev.stopImmediatePropagation();return;}
     const answeredQuestion=lastBotQuestion();
-    inquiry.answers.push(answer);
-    inquiry.interactions.push({
+    flow.answers.push(answer);
+    flow.interactions.push({
       question:answeredQuestion,
       answer,
-      conceptId:inquiry.currentConceptId||''
+      conceptId:flow.currentConceptId||''
     });
-    if(inquiry.currentConceptId)rememberAskedConcept(inquiry.currentConceptId);
-    inquiry.currentConceptId=null;
-    inquiry.turn=inquiry.answers.length;
-    inquiry.transcript=transcriptText();
-    const shouldFinish=noMoreSymptoms(answer)||inquiry.turn>=MAX_TURNS;
-    pendingPrompt=adaptivePrompt({final:shouldFinish});
-    pendingKind=shouldFinish?'adaptive-final':'adaptive-next';
-    if(shouldFinish){
-      inquiry.active=false;
-      inquiry.completed=true;
-      startBtn.textContent='Bổ sung triệu chứng';
-    }
-    setProgress();
-    saveSessionState();
+    if(flow.currentConceptId)rememberAskedConcept(flow.currentConceptId);
+    flow.currentConceptId=null;
+    flow.turn=flow.answers.length;
+    pendingKind=(noMoreSymptoms(answer)||flow.turn>=MAX_FOLLOWUPS)?'final':'next';
+    if(pendingKind==='final')flow.active=false;
+    syncControls();saveSessionState();
   },true);
 
-  const __aitcAdaptiveFetch=async(inputArg,init={})=>{
+  const __aitcDualConsultFetch=async(inputArg,init={})=>{
     const url=typeof inputArg==='string'?inputArg:inputArg?.url||'';
     const method=String(init?.method||'GET').toUpperCase();
 
     if(url.includes('/api/chat')&&method==='POST'&&typeof init?.body==='string'){
-      try{
-        const body=JSON.parse(init.body);
-        const originalMessage=String(body.message||'');
-        let requestKind='';
-        let requestTarget=inputArg;
-        if(pendingPrompt){
-          requestKind=pendingKind;
-          if(requestKind==='adaptive-next'){
-            body.symptomContext=inquiry.transcript;
-            body.askedConceptIds=[...inquiry.askedConceptIds];
-            body.message=originalMessage;
-            requestTarget='/api/symptom-next';
-          }else{
-            body.message=pendingPrompt;
-          }
-          pendingPrompt='';
-          pendingKind='';
-        }else if(inquiry.transcript&&typeof body.message==='string'){
-          body.message='[ADAPTIVE_SYMPTOM_CONTEXT]\n'
-            +'Triệu chứng/khó chịu người dùng đã xác nhận:\n'+inquiry.transcript+'\n\n'
-            +'Câu hỏi hiện tại của người dùng: '+body.message+'\n'
-            +'Ưu tiên đối chiếu kết quả thiệt chẩn, đúng dữ kiện người dùng đã xác nhận và các ca tương tự được truy hồi. '
-            +'Không tự thêm triệu chứng, không chẩn đoán xác định, không kê đơn.';
-        }
-
-        const response=await nativeFetch(requestTarget,{...init,body:JSON.stringify(body)});
-        if(requestKind==='adaptive-next'&&response.ok){
-          try{
-            const payload=await response.clone().json();
-            rememberAskedConcept(payload?.selectedConcept);
-          }catch{}
-        }else if(!response.ok&&requestKind==='adaptive-next'){
-          inquiry.currentConceptId=null;
-          queueMicrotask(()=>bubble('Lượt này chưa lấy được câu hỏi đối chiếu từ CSDL. Dữ kiện bạn vừa nhập vẫn được giữ; nếu còn triệu chứng khác, bạn có thể mô tả trực tiếp.'));
-        }
-        saveSessionState();
-        return response;
-      }catch{
-        return nativeFetch(inputArg,init);
+      let body;
+      try{body=JSON.parse(init.body);}catch{return nativeFetch(inputArg,init);}
+      const kind=pendingKind;pendingKind='';
+      if(kind==='ready-probe'){
+        busy=true;syncControls();
+        try{return await requestNext(body,init);}
+        finally{busy=false;syncControls();saveSessionState();}
       }
+      if(kind==='next'){
+        busy=true;syncControls();
+        try{return await requestNext(body,init);}
+        finally{busy=false;syncControls();saveSessionState();}
+      }
+      if(kind==='final'){
+        busy=true;syncControls();
+        try{return await finalizeFromBody(body,init);}
+        finally{busy=false;syncControls();saveSessionState();}
+      }
+      return nativeFetch(inputArg,init);
     }
 
     if(url.includes('/api/analyze')&&method==='POST'){
       const response=await nativeFetch(inputArg,init);
       if(response.ok&&!window.__aitcRestoringSession){
         setTimeout(()=>{
-          resetAdaptive(true);
-          beginAdaptive({preserveLog:true});
+          resetFlow({clearLog:true});
+          bubble('Kết quả thiệt chẩn đã sẵn sàng. Chọn “Bổ sung triệu chứng” nếu muốn cung cấp thêm dữ kiện, hoặc “Sẵn sàng đối chiếu” để hệ thống tự quyết định hỏi thêm vài ý cần thiết hay kết thúc tư vấn.');
+          syncControls();saveSessionState();
         },0);
       }
       return response;
     }
-
     return nativeFetch(inputArg,init);
   };
 
-  requestClient.register('consultation',__aitcAdaptiveFetch,300);
-
-  if(!loadSessionState())resetAdaptive(true);
+  requestClient.register('consultation',__aitcDualConsultFetch,300);
+  if(!restoreSession()){
+    log.innerHTML='';
+    bubble('Sau khi phân tích lưỡi, bạn có thể chọn “Bổ sung triệu chứng” hoặc “Sẵn sàng đối chiếu”. Hệ thống chỉ hỏi thêm tối đa vài ý có căn cứ rồi kết thúc tư vấn.');
+  }
+  new MutationObserver(syncControls).observe(resultCard,{attributes:true,attributeFilter:['hidden']});
+  window.addEventListener('aitc:clear-session',()=>{try{sessionStorage.removeItem(SESSION_KEY);}catch{}resetFlow();});
+  syncControls();
 })();

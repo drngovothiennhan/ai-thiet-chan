@@ -4,7 +4,8 @@
     "deploymentEnabled": {
       "*": false,
       "main": true,
-      "ui-topbar-compact-r2": true
+      "ui-topbar-compact-r2": true,
+      "ui-topbar-compact-r3-no-build": true
     }
   }
 }

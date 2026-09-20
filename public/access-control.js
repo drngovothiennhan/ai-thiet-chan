@@ -91,7 +91,12 @@
     const admin=data?.role==='admin',student=data?.role==='student',btn=$('accessBtn');
     const limit=Number.isFinite(Number(data?.limit))?Number(data.limit):5;
     const remaining=Number.isFinite(Number(data?.remaining))?Number(data.remaining):null;
-    if(btn)btn.textContent=admin?'Admin':student?`SV · ${data.student?.mssv||''}`:(remaining===null?'Khách':`Khách · còn ${remaining}/${limit}`);
+    if(btn){
+      const mssv=String(data.student?.mssv||'');
+      btn.textContent=admin?'Admin':student?(mssv?`SV ${mssv.slice(-4)}`:'SV'):(remaining===null?'Khách':`Khách ${remaining}/${limit}`);
+      const fullLabel=admin?'Tài khoản Admin':student?(mssv?`Sinh viên · MSSV ${mssv}`:'Sinh viên'):(remaining===null?'Tài khoản khách':`Khách · còn ${remaining}/${limit} lượt hôm nay`);
+      btn.title=fullLabel;btn.setAttribute('aria-label',fullLabel);
+    }
     if($('accessGuestView'))$('accessGuestView').hidden=admin||student;
     if($('accessStudentView'))$('accessStudentView').hidden=!student;
     if($('accessAdminView'))$('accessAdminView').hidden=!admin;

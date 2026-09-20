@@ -83,6 +83,13 @@ $('clear').onclick=()=>{mask.fill(0);renderMask()};
 function countMask(){var n=0;for(var i=0;i<mask.length;i++)n+=mask[i]?1:0;return n}
 function encodeRle(){var counts=[],value=0,count=0;for(var i=0;i<mask.length;i++){var bit=mask[i]?1:0;if(bit===value){count++;continue}counts.push(count);count=1;value=bit}counts.push(count);return {size:[H,W],counts:counts,order:'row-major',startsWith:0}}
 function loadImage(url){return new Promise((resolve,reject)=>{var im=new Image();im.onload=()=>{imgCtx.clearRect(0,0,W,H);imgCtx.drawImage(im,0,0,W,H);resolve()};im.onerror=reject;im.src=url})}
+async function resolveTopImage(task){
+  if(task&&task.image&&task.image.top)return task.image.top;
+  if(!(task&&task.image&&task.image.top_storage_path))throw new Error('Ảnh ca chưa sẵn sàng.');
+  var r=await fetch(SUPABASE_URL+'/functions/v1/aitc-expert-review-image-v1',{method:'POST',headers:{'content-type':'application/json','apikey':SUPABASE_KEY},body:JSON.stringify({token:token,blindId:task.blind_id})});
+  var d=await r.json().catch(()=>null);if(!r.ok||!(d&&d.url))throw new Error((d&&d.error)||'Không mở được ảnh riêng tư.');
+  return d.url;
+}
 function resetForm(){mask=new Uint8Array(W*H);renderMask();$('present').checked=true;$('quality').value='usable';$('medianSulcus').value='uncertain';$('fissureStatus').value='uncertain';$('fissureBranching').value='uncertain';$('fissurePattern').value='uncertain';$('toothmarks').value='uncertain';$('bodyShape').value='uncertain';$('notes').value=''}
 async function next(){
   try{
@@ -90,7 +97,7 @@ async function next(){
     if(d.complete){show('task',false);show('done',true);$('doneTitle').textContent='Đã hoàn tất';$('doneText').textContent='Đã đủ '+d.target+' ca trong phiên chuyên gia này.';return}
     if(d.waitingForCases){show('task',false);show('done',true);$('doneTitle').textContent='Đang chờ thêm ca';$('doneText').textContent='Đã duyệt '+d.done+'/'+d.target+' ca. Hiện kho có '+d.availableCases+' ca xem được; hệ thống sẽ tiếp tục khi có thêm ca đủ điều kiện.';return}
     current=d;resetForm();show('loading',false);show('attest',false);show('done',false);show('task',true);
-    var p=d.progress||{};$('progress').textContent=String(p.done||0)+'/'+String(p.target||50)+' ca';status('Sẵn sàng','ok');await loadImage(d.image.top);
+    var p=d.progress||{};$('progress').textContent=String(p.done||0)+'/'+String(p.target||50)+' ca';status('Sẵn sàng','ok');await loadImage(await resolveTopImage(d));
   }catch(e){fail('Không mở được phiên: '+e.message)}
 }
 async function accept(){if(!$('attestCheck').checked){alert('Vui lòng xác nhận trách nhiệm chuyên môn.');return}$('startBtn').disabled=true;try{await rpc('ai_thiet_chan_expert_review_accept_v1',{p_token:token});await next()}catch(e){fail('Không xác nhận được phiên: '+e.message)}finally{$('startBtn').disabled=false}}

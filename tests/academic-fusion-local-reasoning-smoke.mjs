@@ -35,7 +35,7 @@ const screenshotLikeAssessment={
     coatingColor:'trắng',
     coatingThickness:'mỏng',
     coatingTexture:'Không xác định',
-    moisture:'Không xác định',
+    moisture:'khô ướt vừa phải',
     fissures:'Chưa đủ căn cứ đánh giá nứt lưỡi.',
     toothmarks:'Không xác định',
     pricklesSpots:'Không thấy tín hiệu điểm đỏ/gai nổi bật',
@@ -43,7 +43,9 @@ const screenshotLikeAssessment={
   }
 };
 const screenshotPatterns=directPatterns(screenshotLikeAssessment);
-assert.ok(screenshotPatterns.some(x=>/gần bình thường/.test(x.label)),'light-red + thin white coating must surface the near-normal tongue pattern');
+const nearNormal=screenshotPatterns.find(x=>/gần bình thường/.test(x.label));
+assert.ok(nearNormal,'light-red + thin white coating must surface the near-normal tongue pattern');
+assert.ok(nearNormal.score>=.80,'balanced moisture should strengthen the near-normal pattern above the 80% review band');
 assert.ok(screenshotPatterns.some(x=>/biểu \/ hàn nhẹ/.test(x.label)),'thin white coating may remain a weak differential signal');
 assert.equal(screenshotPatterns.some(x=>/hư hàn/.test(x.label)),false,'đỏ nhạt must not be misread as pallor/hư hàn');
 assert.equal(screenshotPatterns.some(x=>/ứ trệ/.test(x.label)),false);

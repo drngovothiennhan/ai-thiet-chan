@@ -73,7 +73,7 @@
 })();
 
 (()=>{
-  const RELEASE='2026.09.20-responsive-admin-r1';
+  const RELEASE='2026.09.21-recognition-prod-r1';
   const attrName=key=>'data-'+key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase());
   function load(src,key){
     const attr=attrName(key),existing=document.querySelector(`script[${attr}]`);

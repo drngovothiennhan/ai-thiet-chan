@@ -6,7 +6,7 @@ let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';
 const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
-const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/layout-mode.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
+const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/qc-engine.js','/app.js','/layout-mode.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
 const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',

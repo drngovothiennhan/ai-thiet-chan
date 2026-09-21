@@ -1,0 +1,33 @@
+{
+  "schema": "aitc-local-runtime-checkpoint-v1",
+  "branch": "feat/local-runtime-v1-20260921",
+  "lastVerifiedCommit": "15df1eb0b547aabe0d4f021704b20030467c0a01",
+  "lastCompletedMilestone": "source-fetched-and-contracts-read",
+  "completed": [
+    "Fetched branch; HEAD matches supplied commit; working tree clean",
+    "Read plan, schemas and reuse targets"
+  ],
+  "inProgress": [
+    "native vertical slice"
+  ],
+  "pending": [
+    "native shell",
+    "hardware profile",
+    "local vision adapter",
+    "SQLite retrieval",
+    "queue",
+    "signed packs",
+    "tests",
+    "Android and Windows builds"
+  ],
+  "knownIssues": [
+    "Rust toolchain absent in current environment",
+    "Repository model is shadow-only pixel MLP; no ONNX artifact or cases.sqlite bundled; must not promote shadow model to validated observations"
+  ],
+  "testsPassed": [],
+  "testsFailed": [],
+  "buildArtifacts": [],
+  "ciRuns": [],
+  "nextExactAction": "Implement isolated local-runtime Tauri shell and tested contracts; preserve production files.",
+  "updatedAt": "2026-09-21T02:24:12.862204+00:00"
+}

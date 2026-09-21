@@ -39,6 +39,71 @@ function evidenceScore(e,queryTokens){
 function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam xuc|buon|hoang|mat ngu|tu hai|hanh vi|cang thang)/.test(normalizeSearchText(query));}
 function moistureRelevant(query){return /(do am|kho|uot|nhuan|tron|gloss|bong be mat|nuoc bot|moisture|wet|dry)/.test(normalizeSearchText(query));}
 function regionalTopographyRelevant(query){return /(phan khu|dau luoi|ria luoi|hai ben luoi|giua luoi|goc luoi|tam phe|can dom|ty vi|than|bang quang|tongue region|topograph)/.test(normalizeSearchText(query));}
+function evidenceText(entry){return normalizeSearchText(`${entry?.topics?.join(' ')||''} ${entry?.text||''}`);}
+function positiveValue(value,pattern){
+  const v=normalizeSearchText(value);
+  if(!v||/(khong xac dinh|chua du|chua xac nhan|khong thay|khong co|unknown|not assessable)/.test(v))return false;
+  return pattern.test(v);
+}
+function observationProfile(assessment){
+  if(!assessment||typeof assessment!=='object')return null;
+  const top=assessment.top&&typeof assessment.top==='object'?assessment.top:{};
+  const bottom=assessment.bottom&&typeof assessment.bottom==='object'?assessment.bottom:null;
+  const vessels=bottom?.vessels&&typeof bottom.vessels==='object'?bottom.vessels:{};
+  return {
+    topPurple:positiveValue(top.tongueColor,/(tim|xanh tim|am tim)/),
+    topRed:positiveValue(top.tongueColor,/(do|do sam|do giang)/)&&!positiveValue(top.tongueColor,/(nhot|nhat)/),
+    topPale:positiveValue(top.tongueColor,/(nhot|nhat|trang nhot)/),
+    whiteCoat:positiveValue(top.coatingColor,/trang/),
+    yellowCoat:positiveValue(top.coatingColor,/vang/),
+    thickCoat:positiveValue(top.coatingThickness,/day/),
+    thinCoat:positiveValue(top.coatingThickness,/(mong|rat mong)/),
+    toothmarks:positiveValue(top.toothmarks,/(han rang|dau rang)/),
+    fissure:positiveValue(top?.morphology?.fissure?.status||top.fissures,/nut/),
+    dry:positiveValue(top.moisture,/(kho|thien kho)/),
+    moist:positiveValue(top.moisture,/(nhuan|uot|am)/),
+    bottomPresent:Boolean(bottom),
+    bottomVisible:Boolean(bottom?.visualValidity?.undersideVisible!==false),
+    vesselVisible:vessels.visible===true||bottom?.visualValidity?.vesselsVisible===true,
+    bottomPurple:positiveValue(`${bottom?.undersideColor||''} ${vessels.color||''}`,/(tim|xanh tim|am tim|toi)/),
+    bottomDilated:positiveValue(vessels.dilation,/(gian|phinh|cang)/)
+  };
+}
+function observationQueryText(assessment){
+  if(!assessment||typeof assessment!=='object')return '';
+  const top=assessment.top||{},bottom=assessment.bottom||null,v=bottom?.vessels||{};
+  return ['mặt trên lưỡi',top.tongueColor,top.shape,top.coatingColor,top.coatingThickness,top.coatingTexture,top.moisture,top.toothmarks,top.pricklesSpots,top.stasisMarks,bottom?'mặt dưới lưỡi tĩnh mạch dưới lưỡi':'',bottom?.undersideColor,v.color,v.dilation,v.prominence,v.tortuosity].filter(Boolean).join(' ');
+}
+function atlasApplicability(entry,profile){
+  if(!profile)return {blocked:false,bonus:0};
+  const source=String(entry?.source||'');
+  if(source!=='AT1'&&source!=='TCATLAS1')return {blocked:false,bonus:0};
+  const hay=evidenceText(entry);
+  const ventral=/(mat duoi|tinh mach duoi luoi|mach duoi luoi)/.test(hay);
+  if(ventral){
+    if(!profile.bottomPresent||!profile.bottomVisible)return {blocked:true,bonus:-10};
+    if(/tim|xanh tim|am tim/.test(hay)&&!profile.bottomPurple)return {blocked:true,bonus:-10};
+    if(/gian|phinh/.test(hay)&&!profile.bottomDilated&&!profile.vesselVisible)return {blocked:true,bonus:-10};
+    return {blocked:false,bonus:(profile.bottomPurple?4:0)+(profile.vesselVisible?2:0)};
+  }
+  if(/xanh tim|am tim|mau tim|luoi tim/.test(hay)&&!profile.topPurple)return {blocked:true,bonus:-10};
+  if(/dau rang|han rang/.test(hay)&&!profile.toothmarks)return {blocked:true,bonus:-10};
+  if(/reu vang/.test(hay)&&profile.whiteCoat&&!profile.yellowCoat)return {blocked:true,bonus:-10};
+  if(/reu trang/.test(hay)&&profile.yellowCoat&&!profile.whiteCoat)return {blocked:true,bonus:-10};
+  if(/reu day/.test(hay)&&profile.thinCoat&&!profile.thickCoat)return {blocked:true,bonus:-10};
+  if(/nhot|trang nhot/.test(hay)&&profile.topRed&&!profile.topPale)return {blocked:true,bonus:-10};
+  if(/do sam|do giang|luoi do/.test(hay)&&profile.topPale&&!profile.topRed)return {blocked:true,bonus:-10};
+  let bonus=0;
+  if(profile.topPurple&&/tim|xanh tim|am tim/.test(hay))bonus+=4;
+  if(profile.whiteCoat&&/reu trang/.test(hay))bonus+=2;
+  if(profile.yellowCoat&&/reu vang/.test(hay))bonus+=2;
+  if(profile.toothmarks&&/dau rang|han rang/.test(hay))bonus+=2;
+  if(profile.fissure&&/nut/.test(hay))bonus+=2;
+  if(profile.dry&&/kho/.test(hay))bonus+=1;
+  if(profile.moist&&/nhuan|uot|am/.test(hay))bonus+=1;
+  return {blocked:false,bonus};
+}
+
 function renderCitedEvidence(items){
   return items.map(e=>{
     const doc=documentById.get(e.source);
@@ -47,36 +112,28 @@ function renderCitedEvidence(items){
   }).join('\n');
 }
 
-export function knowledgeForQuery(query,{limit=18}={}){
-  const qTokens=[...new Set([...tokens(query),...ontologyTokensForQuery(query)])];
+export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
+  const profile=observationProfile(assessment);
+  const structured=observationQueryText(assessment);
+  const qTokens=[...new Set([...tokens(query),...tokens(structured),...ontologyTokensForQuery(`${query||''} ${structured}`)])];
   const allowPsych=psychRelevant(query);
   const ranked=ALL_EVIDENCE
     .filter(e=>allowPsych||e.source!=='PSY1')
-    .map(e=>({e,score:evidenceScore(e,qTokens)}))
+    .map(e=>{
+      const applicability=atlasApplicability(e,profile);
+      return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus};
+    })
+    .filter(item=>!item.blocked&&item.score>0)
     .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||(Number(a.e.page)||0)-(Number(b.e.page)||0));
-  const effectiveLimit=Math.max(Number(limit)||18,12);
+  const effectiveLimit=Math.max(4,Math.min(24,Number(limit)||18));
   const selected=[];const seen=new Set();
-  for(const item of ranked){if(item.score<=0&&selected.length>=8)break;if(seen.has(item.e.id))continue;selected.push(item.e);seen.add(item.e.id);if(selected.length>=effectiveLimit)break;}
-  const requiredSources=[
-    'TC1','DY1','MC1','AT1',
-    ...(moistureRelevant(query)?['TCATLAS1','OA17','OA18']:[]),
-    ...(regionalTopographyRelevant(query)?['OA19']:[]),
-    ...(allowPsych?['PSY1']:[])
-  ];
-  for(const source of requiredSources){
-    if(selected.some(e=>e.source===source))continue;
-    const fallback=ALL_EVIDENCE.find(e=>e.source===source);
-    if(!fallback||seen.has(fallback.id))continue;
-    if(selected.length>=effectiveLimit){
-      const protectedSources=new Set(requiredSources);
-      let replaceAt=-1;
-      for(let i=selected.length-1;i>=0;i--){if(!protectedSources.has(selected[i].source)){replaceAt=i;break;}}
-      if(replaceAt>=0){seen.delete(selected[replaceAt].id);selected.splice(replaceAt,1);}
-    }
-    if(selected.length<effectiveLimit){selected.push(fallback);seen.add(fallback.id);}
+  for(const item of ranked){
+    if(seen.has(item.e.id))continue;
+    selected.push(item.e);seen.add(item.e.id);
+    if(selected.length>=effectiveLimit)break;
   }
-  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${renderCitedEvidence(selected.slice(0,effectiveLimit))}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.
-- Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
+  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${selected.length?renderCitedEvidence(selected):'- Chưa có dẫn chứng đủ khớp với quan sát cấu trúc hiện tại; không ghép nguồn cho đủ số lượng.'}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.
+- Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Dẫn chứng atlas phải cùng mặt lưỡi và không được mâu thuẫn với màu/rêu/hình thể đã quan sát; nếu không khớp phải loại, không chỉ hạ điểm.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
 }
 
 export const TONGUE_KNOWLEDGE = `

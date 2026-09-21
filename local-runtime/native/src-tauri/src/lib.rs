@@ -179,7 +179,7 @@ fn normalize_case_terms(values: Vec<String>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for raw in values.into_iter().take(14) {
         let mut term = String::new();
-        for ch in raw.nfkc().chars() {
+        for ch in raw.nfkc() {
             if ch.is_alphanumeric() || ch.is_whitespace() || ch == '-' {
                 term.push(ch);
             }

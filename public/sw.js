@@ -76,6 +76,15 @@ async function digestBase64Payload(dataUrl){
 function hasCompleteDevicePayload(body){
   return Boolean(body?.deviceRuntime?.status==='complete'&&body?.academicSignature&&body?.academicSource?.execution==='device-worker'&&body?.academicSource?.topImageDigest);
 }
+function hasCurrentSpatialSignature(signature){
+  const spatial=signature?.spatial;
+  return Boolean(
+    spatial?.schemaVersion==='tongue-spatial-observation-v3'&&
+    spatial?.shapeMetrics&&
+    spatial?.toothmarkMetrics&&
+    spatial?.moisture?.schemaVersion==='tongue-moisture-features-v1'
+  );
+}
 async function dataUrlBlob(dataUrl){
   const response=await fetch(dataUrl);
   const blob=await response.blob();
@@ -111,7 +120,7 @@ async function enrichAnalyzeRequest(request){
   if(hasCompleteDevicePayload(body)){
     const claimed=String(body?.academicSource?.topImageDigest||'');
     const actual=await digestBase64Payload(image);
-    if(actual&&claimed===actual)signature=body.academicSignature;
+    if(actual&&claimed===actual&&hasCurrentSpatialSignature(body.academicSignature))signature=body.academicSignature;
   }
   if(!signature)signature=await vision.signatureFromDataUrl(image);
   if(!signature)throw new Error('STORAGE_DIRECT_SIGNATURE_FAILED');

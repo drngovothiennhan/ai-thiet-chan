@@ -117,11 +117,17 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
   const structured=observationQueryText(assessment);
   const qTokens=[...new Set([...tokens(query),...tokens(structured),...ontologyTokensForQuery(`${query||''} ${structured}`)])];
   const allowPsych=psychRelevant(query);
+  const wantMoisture=moistureRelevant(query);
+  const wantRegions=regionalTopographyRelevant(query);
   const ranked=ALL_EVIDENCE
     .filter(e=>allowPsych||e.source!=='PSY1')
     .map(e=>{
       const applicability=atlasApplicability(e,profile);
-      return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus};
+      let domainBonus=0;
+      if(allowPsych&&e.source==='PSY1')domainBonus+=6;
+      if(wantMoisture&&['TCATLAS1','OA17','OA18'].includes(e.source))domainBonus+=4;
+      if(wantRegions&&e.source==='OA19')domainBonus+=6;
+      return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus+domainBonus};
     })
     .filter(item=>!item.blocked&&item.score>0)
     .sort((a,b)=>b.score-a.score||a.e.source.localeCompare(b.e.source)||(Number(a.e.page)||0)-(Number(b.e.page)||0));

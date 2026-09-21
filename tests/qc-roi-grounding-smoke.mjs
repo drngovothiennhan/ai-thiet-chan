@@ -27,6 +27,11 @@ assert.equal(sharpQc.roiDetected,true,'tongue ROI should be detected despite a m
 assert.equal(sharpQc.checks.shadow,true,'dark pixels outside tongue ROI must not fail the shadow check');
 assert.ok(sharpQc.grade!=='poor','sharp tongue ROI should remain usable');
 
+const downsampled=synthetic({sharp:true});
+const sourceAware=qcEngine.computePixelsQc(downsampled.d,downsampled.w,downsampled.h,{view:'top',sourceWidth:1440,sourceHeight:1920});
+assert.equal(sourceAware.checks.resolution,true,'QC must score original capture resolution rather than the downsample dimensions');
+assert.ok(sourceAware.roi.sourceMin>=110,'source-mapped tongue ROI must retain enough effective pixels');
+
 const flat=synthetic({sharp:false});
 const flatQc=qcEngine.computePixelsQc(flat.d,flat.w,flat.h,{view:'top'});
 assert.equal(flatQc.checks.focus,false,'uniform tongue ROI must fail focus');

@@ -3,6 +3,7 @@ import {verifyClientVisualPayload} from './academic-server.mjs';
 import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from './spatial-observation-policy.mjs';
 import {interpretVentralObservation,VENTRAL_OBSERVATION_POLICY_VERSION} from './ventral-observation-policy.mjs';
 import {interpretMoistureObservation,MOISTURE_OBSERVATION_POLICY_VERSION} from './moisture-observation-policy.mjs';
+import {interpretTongueFeatureKnowledge,TONGUE_FEATURE_KNOWLEDGE_VERSION} from './tongue-feature-knowledge.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -12,6 +13,7 @@ export const LOCAL_VISION_HEALTH=Object.freeze({
   semanticMode:'conservative-feature-mapping',
   modelRuntime:'planned-onnx-web-adapter',
   moistureObservationPolicy:MOISTURE_OBSERVATION_POLICY_VERSION,
+  featureKnowledgePolicy:TONGUE_FEATURE_KNOWLEDGE_VERSION,
   unsupportedClaims:['disease-diagnosis','pulse-inference','treatment','prescription']
 });
 
@@ -75,10 +77,18 @@ function topObservation(signature,qc,matches){
   const best=Array.isArray(matches)&&matches.length?matches[0]:null;
   const morphology=buildTongueMorphology(signature,qc);
   const spatialPolicy=interpretSpatialObservation(signature?.spatial||{},qc);
-  const tongueColor=spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN);
+  const featureKnowledge=interpretTongueFeatureKnowledge(signature?.spatial||{},qc);
+  if(featureKnowledge?.active){
+    morphology.toothmarks={status:featureKnowledge.toothmarks.label,confidence:featureKnowledge.toothmarks.confidence,source:TONGUE_FEATURE_KNOWLEDGE_VERSION};
+    morphology.swellingOrThinness={status:featureKnowledge.shape.label,confidence:featureKnowledge.shape.confidence,source:TONGUE_FEATURE_KNOWLEDGE_VERSION};
+  }
+  const tongueColor=featureKnowledge?.active&&featureKnowledge?.bodyColor?.label&&featureKnowledge.bodyColor.label!==UNKNOWN?String(featureKnowledge.bodyColor.label):(spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN));
   const coatingColor=spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN);
-  const coatingThickness=spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN);
+  const coatingThickness=featureKnowledge?.active&&featureKnowledge?.coatingThickness?.label&&featureKnowledge.coatingThickness.label!==UNKNOWN?String(featureKnowledge.coatingThickness.label):(spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN));
   const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
+  const coatingTexture=featureKnowledge?.active?String(featureKnowledge?.coatingTexture?.label||UNKNOWN):UNKNOWN;
+  const shape=featureKnowledge?.active?String(featureKnowledge?.shape?.label||UNKNOWN):UNKNOWN;
+  const toothmarks=featureKnowledge?.active?String(featureKnowledge?.toothmarks?.label||UNKNOWN):UNKNOWN;
   const moistureObservation=interpretMoistureObservation(signature?.spatial?.moisture||{},qc);
   const moisture=String(moistureObservation?.surface?.label||UNKNOWN);
   const limitations=[
@@ -92,29 +102,30 @@ function topObservation(signature,qc,matches){
     quality:grade(qc),
     visualValidity:{
       tongueVisible:true,
-      wholeTongueVisible:null,
-      rootVisible:null,
+      wholeTongueVisible:featureKnowledge?.visibility?.wholeTongueVisible??null,
+      rootVisible:featureKnowledge?.visibility?.rootVisible??null,
       framing:framing(qc),
       occlusion:'unknown',
       colorReliability:colorReliability(qc)
     },
     tongueColor,
-    shape:UNKNOWN,
+    shape,
     coatingColor,
     coatingThickness,
     coatingDistribution,
-    coatingTexture:UNKNOWN,
+    coatingTexture,
     moisture,
     moistureObservation,
     morphology,
     fissures:fissureCompatibilityText(morphology),
-    toothmarks:UNKNOWN,
+    toothmarks,
     pricklesSpots:spotText(Boolean(c.spots)),
     stasisMarks:UNKNOWN,
     otherVisibleFeatures:[
       ...(morphology?.medianSulcus?.status==='visible-signal'?['Có tín hiệu rãnh dọc giữa theo trục đối xứng của lưỡi; không đồng nhất với nứt bệnh lý.']:[]),
       ...(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?['Phân bố rêu: '+coatingDistribution+'.']:[]),
       ...(moistureObservation?.surface?.status&&moistureObservation.surface.status!=='unknown'?['Độ ẩm bề mặt: '+moisture+'; thân lưỡi '+String(moistureObservation?.body?.label||UNKNOWN)+'; rêu '+String(moistureObservation?.coating?.label||UNKNOWN)+'.']:[]),
+      ...(featureKnowledge?.active?['Hình thể: '+shape+'; dấu răng: '+toothmarks+'; kết cấu rêu: '+coatingTexture+'.']:[]),
       ...(best?['Đối chiếu atlas gần nhất '+Math.round(Number(best.similarity||0)*100)+'% (chỉ tham khảo hình ảnh).']:[])
     ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
@@ -128,35 +139,45 @@ function bottomObservation(verification,qc){
   const verified=Boolean(verification?.deviceCompute?.bottomVerified);
   const ventral=interpretVentralObservation(f||{},qc);
   const bilateral=Boolean(verified&&ventral.bilateralStructureVisible===true);
-  const confidence=verified?Number(Math.min(.45,grade(qc)==='good'?.42:grade(qc)==='fair'?.30:.16).toFixed(3)):.12;
+  const confidence=verified?Number(Math.min(.58,grade(qc)==='good'?.54:grade(qc)==='fair'?.42:.20).toFixed(3)):.12;
   const notes=[];
-  if(bilateral)notes.push('Ghi nhận tín hiệu cấu trúc mạch dưới lưỡi hai bên theo tương phản cục bộ; đây là quan sát hình ảnh, không phải kết luận ứ trệ hay giãn mạch.');
+  const vesselRatio=Math.max(0,Math.min(1,Number(f?.vesselCandidateRatio)||0));
+  const darkPurple=Math.max(0,Math.min(1,Number(f?.darkPurpleRatio)||0));
+  const rb=Math.max(-1,Math.min(1,Number(f?.redBlueMinusGreen)||0));
+  const color=bilateral?(darkPurple>=.035||rb>=.025?'Tím/xanh tím':'Tím nhạt'):UNKNOWN;
+  const prominence=bilateral?(vesselRatio>=.075?'Nổi rõ':vesselRatio>=.025?'Thấy mức vừa':'Ít nổi'):UNKNOWN;
+  let undersideColor=UNKNOWN;
+  const mr=Number(f?.mucosaMeanR),mg=Number(f?.mucosaMeanG),mb=Number(f?.mucosaMeanB);
+  if(verified&&Number.isFinite(mr)&&Number.isFinite(mg)&&Number.isFinite(mb)&&mr>0){
+    undersideColor=mr>mg*1.08&&mr>mb*1.03?'hồng/đỏ nhạt':'hồng nhạt';
+  }
+  if(bilateral)notes.push('Ghi nhận cấu trúc mạch dưới lưỡi hai bên; màu '+color.toLowerCase()+', '+prominence.toLowerCase()+'. Đây là mô tả hình ảnh, không phải kết luận ứ trệ hay giãn mạch.');
   if(f)notes.push('Đặc trưng định lượng mặt dưới: vesselCandidateRatio='+f.vesselCandidateRatio+', darkPurpleRatio='+f.darkPurpleRatio+', bilateralBalance='+(f.bilateralBalance??'n/a')+'.');
   return {
     quality:grade(qc),
     visualValidity:{
-      undersideVisible:bilateral?true:(verified?null:false),
-      vesselsVisible:bilateral?true:null,
+      undersideVisible:bilateral?true:(verified?true:false),
+      vesselsVisible:bilateral?true:(verified?false:null),
       framing:framing(qc),
       occlusion:'unknown',
       colorReliability:colorReliability(qc)
     },
-    undersideColor:UNKNOWN,
+    undersideColor,
     vessels:{
       visible:bilateral,
-      color:UNKNOWN,
-      prominence:UNKNOWN,
-      dilation:UNKNOWN,
-      tortuosity:UNKNOWN,
-      stasisSigns:UNKNOWN,
+      color,
+      prominence,
+      dilation:bilateral?'Chưa đánh giá định lượng vì ảnh không có chuẩn kích thước tuyệt đối':UNKNOWN,
+      tortuosity:bilateral?'Chưa đủ chuẩn hình học để kết luận ngoằn ngoèo':UNKNOWN,
+      stasisSigns:bilateral?'Chỉ ghi nhận màu/cấu trúc; không tự suy ứ trệ':UNKNOWN,
       bilateralSignal:bilateral,
       policyVersion:VENTRAL_OBSERVATION_POLICY_VERSION,
-      measurement:'Chỉ mô tả cấu trúc nhìn thấy; không suy diễn kích thước, giãn, ngoằn ngoèo hoặc ứ trệ khi chưa có mô hình/chuẩn đo phù hợp.'
+      measurement:'Màu và mức nổi được mô tả định tính; kích thước/giãn cần chuẩn đo phù hợp.'
     },
     otherVisibleFeatures:notes,
     confidence,
-    summary:bilateral?'Ảnh mặt dưới đã xác minh; ghi nhận tín hiệu cấu trúc mạch hai bên, chưa suy diễn dấu bệnh lý.':verified?'Đã xác minh ảnh mặt dưới và trích xuất đặc trưng định lượng; chưa đủ tín hiệu chuyên biệt để mô tả mạch.':'Chưa xác minh được đầy đủ payload mặt dưới.',
-    limitations:['Quan sát mặt dưới chỉ dùng cho đặc trưng nhìn thấy; không quy đổi trực tiếp thành chẩn đoán YHCT, giãn mạch hay ứ trệ.']
+    summary:bilateral?'Ảnh mặt dưới đã xác minh; thấy cấu trúc mạch hai bên màu '+color.toLowerCase()+', '+prominence.toLowerCase()+'.':verified?'Ảnh mặt dưới đã xác minh; chưa đạt gate cấu trúc mạch hai bên rõ.':'Chưa xác minh được đầy đủ payload mặt dưới.',
+    limitations:['Không suy bệnh mạch máu, huyết ứ hoặc giãn tuyệt đối từ ảnh không có chuẩn kích thước.']
   };
 }
 export function analyzeLocalVision(body={},options={}){

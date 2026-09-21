@@ -6,7 +6,7 @@ let RELEASE_ID='2026.09.17-hardening-r1';
 try{importScripts('/release-meta.js');RELEASE_ID=String(self.AITC_RELEASE_ID||RELEASE_ID);}catch{}
 const CACHE_PREFIX='ai-thiet-chan-shell-';
 const CACHE=`${CACHE_PREFIX}${RELEASE_ID}`;
-const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/app.js','/layout-mode.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
+const REQUIRED_SHELL=['/','/release-meta.js','/styles.css','/qc-engine.js','/app.js','/layout-mode.js','/request-client.js','/access-control.js','/consultation-lock.js','/request-integrity.js','/manifest.webmanifest','/icon.svg'];
 const OPTIONAL_SHELL=[
   '/history.css','/dual-view.css','/settings.css','/quality-dashboard.css','/release-ui.css',
   '/hardware-profile.js','/device-runtime.js','/device-analysis-worker.js','/ground-truth-profile.js',
@@ -121,9 +121,10 @@ async function enrichAnalyzeRequest(request){
   const bottomImageDigest=bottomImage?await digestBase64Payload(bottomImage):'';
   if(mode==='general'&&!bottomImageDigest)throw new Error('STORAGE_DIRECT_BOTTOM_DIGEST_FAILED');
 
-  const [topStoragePath,bottomStoragePath]=await Promise.all([
+  const [topStoragePath,bottomStoragePath,bottomFeatures]=await Promise.all([
     uploadCaseImage(image,topImageDigest),
-    bottomImage?uploadCaseImage(bottomImage,bottomImageDigest):Promise.resolve(null)
+    bottomImage?uploadCaseImage(bottomImage,bottomImageDigest):Promise.resolve(null),
+    bottomImage&&vision?.bottomFeaturesFromDataUrl?vision.bottomFeaturesFromDataUrl(bottomImage):Promise.resolve(null)
   ]);
 
   body.academicSignature=signature;
@@ -133,7 +134,8 @@ async function enrichAnalyzeRequest(request){
     runtimeVersion:'storage-direct-sw-v1',
     schemaVersion:'storage-direct-payload-v1',
     topImageDigest,
-    bottomImageDigest:bottomImageDigest||''
+    bottomImageDigest:bottomImageDigest||'',
+    bottomFeatures:bottomFeatures||null
   };
   body.storageTransport={version:STORAGE_DIRECT_VERSION,direct:true,bucket:CASE_IMAGE_BUCKET};
   body.topImageHash=topImageDigest;

@@ -23,10 +23,10 @@ for(const marker of [
 ]) assert.ok(credentials.includes(marker),`missing admin credential marker: ${marker}`);
 assert.ok(!credentials.includes('localStorage.setItem(TOKEN_KEY'),'admin password must not persist in localStorage');
 for(const marker of ['qualityToggleBtn','clinicalFeedbackToggleBtn','aitc:quality-open','body.hidden=true']) assert.ok(ui.includes(marker),`missing collapsed UI marker: ${marker}`);
-for(const marker of ["const RELEASE='2026.09.20-responsive-admin-r1'","load('/ui-controls.js','aitcUiControls')","load('/admin-center.js','aitcAdminCenter')","load('/admin-credentials.js','aitcAdminCredentials')","load('/feedback-lifecycle.js','aitcFeedbackLifecycle')","load('/upload-controls.js','aitcUploadControls')"]) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
+for(const marker of ["const RELEASE='2026.09.21-responsive-shell-r2'","load('/ui-controls.js','aitcUiControls')","load('/admin-center.js','aitcAdminCenter')","load('/admin-credentials.js','aitcAdminCredentials')","load('/feedback-lifecycle.js','aitcFeedbackLifecycle')","load('/upload-controls.js','aitcUploadControls')"]) assert.ok(settings.includes(marker),`missing settings loader: ${marker}`);
 assert.ok(quality.includes("window.addEventListener('aitc:quality-open'"),'quality metrics must load on demand');
 assert.ok(!quality.includes('requestIdleCallback(()=>load()'),'quality metrics must not auto-load');
-assert.ok(adminPage.includes('data-admin-center-page="true"')&&adminPage.includes('/admin-center.js?v=2026.09.20-responsive-admin-r1'),'Admin Center must have a dedicated page');
+assert.ok(adminPage.includes('data-admin-center-page="true"')&&adminPage.includes('/admin-center.js?v=2026.09.21-responsive-shell-r2'),'Admin Center must have a dedicated page');
 assert.ok(admin.includes("location.href='/admin-center.html'"),'main settings entry must navigate to dedicated Admin Center');
 assert.ok(sw.includes("ai-thiet-chan-v2.9.8-knowledge-5doc-complete"),'PWA cache must match Knowledge 5doc release');
 assert.ok(sw.includes("'/ui-controls.js'")&&sw.includes("'/admin-center.js'")&&sw.includes("'/admin-credentials.js'")&&sw.includes("'/feedback-lifecycle.js'")&&sw.includes("'/upload-controls.js'"),'Admin/lifecycle/upload assets missing from PWA shell');

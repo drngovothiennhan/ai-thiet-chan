@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-thiet-chan.local/schemas/local-analysis-envelope-v1.schema.json",
+  "title": "AITC LocalAnalysisEnvelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "appVersion",
+    "runtimeVersion",
+    "modelSetVersion",
+    "knowledgeVersion",
+    "deviceProfile",
+    "executionProfile",
+    "imageHashes",
+    "qc",
+    "observations",
+    "localRetrieval",
+    "localReasoning",
+    "confidence",
+    "limitations",
+    "provenance",
+    "degraded",
+    "offline",
+    "timestamp"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "aitc-local-analysis-envelope-v1"
+    },
+    "appVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtimeVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "modelSetVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "knowledgeVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deviceProfile": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "executionProfile": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "imageHashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-fA-F0-9]{64}$"
+      }
+    },
+    "qc": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "localRetrieval": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "localReasoning": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "degraded": {
+      "type": "boolean"
+    },
+    "offline": {
+      "type": "boolean"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

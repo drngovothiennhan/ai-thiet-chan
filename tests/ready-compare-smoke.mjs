@@ -24,6 +24,6 @@ assert.doesNotMatch(consultation,/\[THAP_VAN_CONTEXT\]/);
 assert.match(server,/app\.post\('\/api\/symptom-next'/);
 assert.match(server,/app\.post\('\/api\/chat'/);
 assert.match(server,/retrieveSimilarCasesRuntime/);
-assert.match(release,/2026\.09\.20-responsive-admin-r1/);
+assert.match(release,/2026\.09\.21-recognition-prod-r1/);
 
 console.log('DUAL CONSULT PASS: users may supplement symptoms or start comparison immediately; case-RAG asks at most 3 evidence-backed follow-ups and then finalizes.');

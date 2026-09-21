@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use tauri::{AppHandle, Manager};
+use unicode_normalization::UnicodeNormalization;
 
 const RUNTIME_VERSION: &str = "aitc-local-runtime-v1";
 const QUEUE_SCHEMA: &str = "aitc-native-offline-queue-v1";

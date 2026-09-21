@@ -39,9 +39,10 @@ export function directPatterns(assessment){
   return out;
 }
 export function evidenceFor(patterns){
-  const hay=patterns.map(p=>p.label.toLowerCase()).join(' ');
+  const hay=patterns.map(p=>String(p?.label||'').toLowerCase()).filter(Boolean).join(' ');
+  if(!hay)return [];
   const scored=MODERN_EVIDENCE.map(e=>{let s=0;for(const t of e.topics)if(hay.includes(t.toLowerCase()))s++;return{...e,s};}).sort((a,b)=>b.s-a.s||String(a.source).localeCompare(String(b.source))||a.page-b.page);
-  return scored.filter((e,i)=>e.s>0||i<6).slice(0,10);
+  return scored.filter(e=>e.s>0).slice(0,10);
 }
 export function extractJson(text){const s=String(text||'').replace(/^```json\s*/i,'').replace(/^```\s*/i,'').trim(),first=s.indexOf('{'),last=s.lastIndexOf('}');if(first<0||last<=first)return null;try{return JSON.parse(s.slice(first,last+1));}catch{return null;}}
 export function fuse(assessment,sig,matches,reasoning,evidence){

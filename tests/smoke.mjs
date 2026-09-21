@@ -44,7 +44,7 @@ try{
   requireMarkers(lifecycle,['hideSubmittedFeedback','reopenForNewCase','Đã gửi về admin',"url.includes('/api/analyze')",'feedbackSubmitted'],'feedback lifecycle');
 
   const settings=await text('/settings.js');
-  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2026.09.20-responsive-admin-r1'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
+  requireMarkers(settings,['beforeinstallprompt','pwaInstallBtn',"const RELEASE='2026.09.21-recognition-prod-r1'",'/ui-controls.js','/admin-center.js','/admin-credentials.js','/feedback-lifecycle.js','/upload-controls.js'],'settings');
 
   const uploads=await text('/upload-controls.js');
   requireMarkers(uploads,['topUploadBtn','bottomUploadBtn','Tải ảnh mặt trên','Tải ảnh mặt dưới','input.click()'],'upload controls');

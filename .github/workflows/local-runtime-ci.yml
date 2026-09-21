@@ -1,0 +1,100 @@
+name: AITC Local Runtime V1
+
+on:
+  push:
+    branches: [feat/local-runtime-v1-20260921]
+    paths:
+      - 'local-runtime/**'
+      - '.github/workflows/local-runtime-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'local-runtime/**'
+      - '.github/workflows/local-runtime-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Local Runtime contracts and fail-closed smoke
+        run: |
+          node --check local-runtime/core/device-execution-profile.mjs
+          node --check local-runtime/core/local-vision-adapter.mjs
+          node --check local-runtime/core/offline-queue.mjs
+          node --check local-runtime/core/local-envelope.mjs
+          node --check local-runtime/core/pack-verifier.mjs
+          node --check local-runtime/native/ui/app.js
+          node local-runtime/tests/local-runtime-v1-smoke.mjs
+
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Rust versions
+        run: rustc --version && cargo --version
+      - name: Check native core
+        run: cargo check --manifest-path local-runtime/native/src-tauri/Cargo.toml
+
+  windows-installer:
+    runs-on: windows-latest
+    needs: [contracts]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Tauri CLI
+        working-directory: local-runtime/native
+        run: npm install
+      - name: Build Windows NSIS installer
+        working-directory: local-runtime/native
+        run: npm run tauri build -- --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aitc-local-runtime-windows
+          path: local-runtime/native/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+  android-apk:
+    runs-on: ubuntu-latest
+    needs: [contracts]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Select installed Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$SDK"
+          NDK="$(find "$SDK/ndk" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$NDK"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$NDK" >> "$GITHUB_ENV"
+      - name: Install Tauri CLI
+        working-directory: local-runtime/native
+        run: npm install
+      - name: Initialize Android project
+        working-directory: local-runtime/native
+        env:
+          CI: 'true'
+        run: npm run tauri android init -- --ci
+      - name: Build Android APK aarch64
+        working-directory: local-runtime/native
+        run: npm run tauri android build -- --apk --target aarch64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aitc-local-runtime-android
+          path: local-runtime/native/src-tauri/gen/android/app/build/outputs/**/*.apk
+          if-no-files-found: error

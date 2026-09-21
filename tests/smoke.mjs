@@ -29,7 +29,7 @@ try{
   if(home.includes('<strong>Tóm tắt</strong>')||home.includes('<strong>Giới hạn sử dụng y tế</strong>'))throw new Error('legacy summary/long-limit presentation must stay removed');
 
   const appJs=await text('/app.js');
-  requireMarkers(appJs,["mode:'normal'","openCamera('top')","openCamera('bottom')",'bottomImage','bottomQc','laplacianVariance','loadHistory','Kết luận sơ bộ','Dữ liệu máy học','Đối chiếu y văn'], 'app');
+  requireMarkers(appJs,["mode:'normal'","openCamera('top')","openCamera('bottom')",'bottomImage','bottomQc','laplacianVariance','loadHistory','Tóm tắt nhận diện','Quan sát trực tiếp','Đối chiếu y văn'], 'app');
   if(appJs.includes('<div class="theory-title">Chưa thể kết luận</div>')||appJs.includes('Gemini/LLM không được phép tạo quan sát hình ảnh'))throw new Error('internal vision-policy text must not be rendered as a user conclusion');
   if(appJs.includes('aiThietChanGeminiKey')||appJs.includes('x-gemini-key'))throw new Error('client Gemini key path must stay absent');
 

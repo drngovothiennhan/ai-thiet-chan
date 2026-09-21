@@ -43,13 +43,30 @@ const screenshotLikeAssessment={
   }
 };
 const screenshotPatterns=directPatterns(screenshotLikeAssessment);
-assert.deepEqual(
-  screenshotPatterns.map(x=>x.label),
-  ['Tín hiệu hư hàn'],
-  'negated/unknown fissure, dryness, red-spot and stasis wording must not create false-positive theory signals'
-);
+assert.ok(screenshotPatterns.some(x=>/gần bình thường/.test(x.label)),'light-red + thin white coating must surface the near-normal tongue pattern');
+assert.ok(screenshotPatterns.some(x=>/biểu \/ hàn nhẹ/.test(x.label)),'thin white coating may remain a weak differential signal');
+assert.equal(screenshotPatterns.some(x=>/hư hàn/.test(x.label)),false,'đỏ nhạt must not be misread as pallor/hư hàn');
 assert.equal(screenshotPatterns.some(x=>/ứ trệ/.test(x.label)),false);
 assert.equal(screenshotPatterns.some(x=>/âm dịch hao tổn/.test(x.label)),false);
+
+const truePallorAssessment={
+  top:{
+    tongueColor:'trắng nhợt',
+    shape:'mập bệu',
+    coatingColor:'trắng',
+    coatingThickness:'mỏng',
+    coatingTexture:'bình thường',
+    moisture:'nhuận',
+    fissures:'Chưa đủ căn cứ',
+    toothmarks:'Có hằn răng',
+    pricklesSpots:'Không xác định',
+    stasisMarks:'Không xác định'
+  }
+};
+const pallorPatterns=directPatterns(truePallorAssessment);
+const deficiency=pallorPatterns.find(x=>x.label==='Tín hiệu hư hàn');
+assert.ok(deficiency,'true pallor + white coating must retain the deficiency-cold differential');
+assert.ok(deficiency.score>=.70,'supporting moist/toothmark/puffy features should cross the 70% warning band');
 
 const positiveMorphologyAssessment={
   top:{

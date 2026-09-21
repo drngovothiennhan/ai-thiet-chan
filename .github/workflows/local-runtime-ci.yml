@@ -31,8 +31,11 @@ jobs:
           node --check local-runtime/core/offline-queue.mjs
           node --check local-runtime/core/local-envelope.mjs
           node --check local-runtime/core/pack-verifier.mjs
+          node --check local-runtime/core/atomic-pack-store.mjs
+          node --check local-runtime/core/provider-gate.mjs
           node --check local-runtime/native/ui/app.js
           node local-runtime/tests/local-runtime-v1-smoke.mjs
+          node local-runtime/tests/signed-pack-provider-gate-smoke.mjs
 
   rust-check:
     runs-on: windows-latest

@@ -14,7 +14,11 @@ const sw=fs.readFileSync('public/sw.js','utf8');
 
 assert.match(home,/id="layoutModeBtn"/);
 assert.match(home,/layout-mode\.js\?v=2026\.09\.20-responsive-admin-r1/);
-assert.match(layout,/aitc-layout-mode-v1/);
+assert.match(layout,/aitc-layout-mode-session-v2/);
+assert.match(layout,/sessionStorage/);
+assert.match(layout,/matchMedia/);
+assert.match(layout,/naturalMode/);
+assert.match(layout,/localStorage\.removeItem\(LEGACY_KEY\)/);
 assert.match(layout,/mobile/);
 assert.match(layout,/desktop/);
 assert.match(ui,/if\(!content\|\|!capture\|\|!result\|\|!chat\|\|!quality\)return/);
@@ -24,6 +28,10 @@ assert.match(ui,/ensureDesktopStack/);
 assert.match(ui,/desktop-side-stack/);
 assert.match(css,/repeat\(4,minmax\(0,1fr\)\)/);
 assert.match(css,/Compact unified topbar control cluster r2/);
+assert.match(css,/Responsive desktop shell r5/);
+assert.match(css,/@media\(max-width:1023px\)/);
+assert.match(css,/grid-template-columns:minmax\(0,1fr\)!important/);
+assert.match(css,/Mobile mode always returns to the mobile workspace model cleanly/);
 assert.match(css,/\.topbar-actions \.settings-label\{display:none!important\}/);
 assert.match(css,/\.topbar-actions #accessBtn\{/);
 assert.match(styles,/data-aitc-layout="desktop"/);
@@ -38,7 +46,7 @@ assert.match(settings,/Local Vision \+ RAG · sẵn sàng/);
 assert.match(sw,/\/layout-mode\.js/);
 assert.match(sw,/\/admin-center\.html/);
 
-console.log('RESPONSIVE SHELL PASS: mobile taskbar no longer depends on removed history, desktop uses a stable side stack, Admin Center is standalone, layout can switch Mobile/PC, and health states are resilient.');
+console.log('RESPONSIVE SHELL PASS: mobile defaults by viewport per session, Mobile/PC switching is stable, compact Android PC mode cannot collapse into narrow columns, wide desktop keeps the side stack, and Admin Center remains standalone.');
 
 
 for(const module of ['user-admin.js','admin-credentials.js','admin-enhancement-collapse.js']) assert.ok(adminPage.includes('/'+module),'standalone Admin Center must retain '+module);

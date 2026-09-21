@@ -1,33 +1,69 @@
 {
   "schema": "aitc-local-runtime-checkpoint-v1",
   "branch": "feat/local-runtime-v1-20260921",
-  "lastVerifiedCommit": "15df1eb0b547aabe0d4f021704b20030467c0a01",
-  "lastCompletedMilestone": "source-fetched-and-contracts-read",
+  "lastVerifiedCommit": "7d075ffcc33d045f686140fbdb2c4c052de904d5",
+  "lastCompletedMilestone": "native-sqlite-retrieval-compiled-and-cross-platform-build-passed",
   "completed": [
-    "Fetched branch; HEAD matches supplied commit; working tree clean",
-    "Read plan, schemas and reuse targets"
+    "Tauri 2 native shell",
+    "LocalAnalysisEnvelope v1 contract",
+    "AITC Pack Manifest v1 contract",
+    "DeviceExecutionProfile core",
+    "Fail-closed native vision adapter",
+    "Persistent offline queue core/native bridge",
+    "Ed25519 and SHA-256 verification primitives",
+    "Bundled SQLite + FTS5 read-only local retrieval bridge",
+    "Contracts/smoke CI passed",
+    "Rust native core check passed on Windows",
+    "Windows NSIS build passed",
+    "Android aarch64 APK build passed"
   ],
   "inProgress": [
-    "native vertical slice"
+    "signed pack atomic install/rollback",
+    "ONNX/provider probe"
   ],
   "pending": [
-    "native shell",
-    "hardware profile",
-    "local vision adapter",
-    "SQLite retrieval",
-    "queue",
-    "signed packs",
-    "tests",
-    "Android and Windows builds"
+    "pack staging health gate",
+    "active/previous pack atomic swap",
+    "rollback command",
+    "provider discovery + benchmark evidence",
+    "validated ONNX model artifact",
+    "cases.sqlite signed pack",
+    "real-device validation matrix"
   ],
   "knownIssues": [
-    "Rust toolchain absent in current environment",
-    "Repository model is shadow-only pixel MLP; no ONNX artifact or cases.sqlite bundled; must not promote shadow model to validated observations"
+    "Repository vision model remains shadow/candidate; no validated ONNX clinical artifact is bundled",
+    "No signed cases.sqlite pack has been installed in the app artifact yet",
+    "GPU/NPU providers must remain disabled until actual provider load + benchmark succeeds"
   ],
-  "testsPassed": [],
-  "testsFailed": [],
-  "buildArtifacts": [],
-  "ciRuns": [],
-  "nextExactAction": "Implement isolated local-runtime Tauri shell and tested contracts; preserve production files.",
-  "updatedAt": "2026-09-21T02:24:12.862204+00:00"
+  "testsPassed": [
+    "local-runtime contracts and fail-closed smoke",
+    "cargo check Windows target",
+    "Windows NSIS build",
+    "Android aarch64 APK build"
+  ],
+  "testsFailed": [
+    "8c099d6a: nfkc trait missing",
+    "f8afd719: nfkc iterator incorrectly followed by chars(); fixed"
+  ],
+  "buildArtifacts": [
+    {
+      "name": "aitc-local-runtime-windows",
+      "artifactId": 10620941281,
+      "runId": 35556726415
+    },
+    {
+      "name": "aitc-local-runtime-android",
+      "artifactId": 10620737560,
+      "runId": 35556726415
+    }
+  ],
+  "ciRuns": [
+    {
+      "runId": 35556726415,
+      "headSha": "7d075ffcc33d045f686140fbdb2c4c052de904d5",
+      "conclusion": "success"
+    }
+  ],
+  "nextExactAction": "Implement signed-pack staging -> verify manifest/signature/digests -> health-check -> atomic active/previous swap -> rollback; then add fail-closed ONNX/provider discovery and benchmark probe.",
+  "updatedAt": "2026-09-21T03:19:15Z"
 }

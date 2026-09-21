@@ -119,6 +119,7 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
   const allowPsych=psychRelevant(query);
   const wantMoisture=moistureRelevant(query);
   const wantRegions=regionalTopographyRelevant(query);
+  const wantVentral=/(mat duoi|tinh mach|mach duoi luoi|sublingual|vein)/.test(normalizeSearchText(`${query||''} ${structured}`));
   const ranked=ALL_EVIDENCE
     .filter(e=>allowPsych||e.source!=='PSY1')
     .map(e=>{
@@ -127,6 +128,8 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
       if(allowPsych&&e.source==='PSY1')domainBonus+=6;
       if(wantMoisture&&['TCATLAS1','OA17','OA18'].includes(e.source))domainBonus+=4;
       if(wantRegions&&e.source==='OA19')domainBonus+=6;
+      if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=12;
+      if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=8;
       return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus+domainBonus};
     })
     .filter(item=>!item.blocked&&item.score>0)

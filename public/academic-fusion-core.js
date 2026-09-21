@@ -60,6 +60,18 @@ export function directPatterns(assessment){
   if(moist&&thinCoat&&!dry){
     add('Tín hiệu tân dịch bề mặt còn tương đối bảo tồn','Rêu mỏng và bề mặt còn nhuận/ẩm; chưa thấy dấu khô rõ từ trường quan sát hiện tại.',.60,{warningEligible:false});
   }
+  if(whiteCoat&&thickCoat&&moist){
+    add('Rêu trắng dày nhuận — cần đối chiếu thấp/hàn-thấp','Rêu trắng dày phối hợp bề mặt nhuận/ướt; trong y văn YHCT đây là tổ hợp cần đối chiếu thấp trọc hoặc hàn-thấp, nhưng không đủ để tự xác định thể.',.64,{warningEligible:false,missing:'Cần triệu chứng nặng người, ăn uống, đại tiện, cảm giác lạnh/nóng và mạch.'});
+  }
+  if(lightRed&&thickCoat){
+    add('Nền chất lưỡi còn đỏ nhạt, chưa có bằng chứng nhợt','Chất lưỡi đỏ nhạt làm giảm mức hỗ trợ cho các mẫu hư hàn vốn cần màu nhợt/trắng nhợt; rêu dày phải được đọc như một trục riêng.',.72,{warningEligible:false});
+  }
+  if(puffy&&!pale){
+    add('Hình thể bản rộng/mập cần đối chiếu riêng','Hình thể bản rộng/mập là dấu hình học hỗ trợ; khi chưa có màu nhợt hoặc dấu răng rõ, không nên tự quy thành Tỳ hư.',.56,{warningEligible:false,missing:'Cần dấu răng, màu thân lưỡi, triệu chứng tiêu hóa và mạch.'});
+  }
+  if(whiteCoat&&thickCoat&&!greasy){
+    add('Rêu dày nhưng chưa đủ dấu nhầy/dính','Độ dày rêu và tính chất nhầy/dính là hai trường khác nhau; rêu dày khá đều không được tự gọi là đàm thấp nếu chưa thấy nhầy/dính.',.58,{warningEligible:false});
+  }
 
   if(pale&&whiteCoat){
     let score=.66+(moist?.06:0)+(explicitToothmarks?.08:0)+(puffy?.06:0);
@@ -85,11 +97,31 @@ export function directPatterns(assessment){
   if(purpleTongue||visibleStasis){
     add('Tín hiệu khí huyết ứ trệ','Màu tím/ám tím hoặc dấu ứ nhìn thấy ở mặt trên.',.68+(purpleTongue&&visibleStasis?.08:0),{missing:'Cần vị trí đau, tính chất đau, sắc diện và mạch.'});
   }
-  if(ventralPurple&&ventralDilated){
-    add('Tín hiệu mạch dưới lưỡi ứ trệ cần đối chiếu','Mạch dưới lưỡi có màu tím/xanh tím kèm giãn thấy được.',.74,{missing:'Chỉ là tín hiệu đối chiếu YHCT; không suy bệnh mạch máu từ ảnh.'});
+  if(ventralPurple){
+    add(ventralDilated?'Tín hiệu mạch dưới lưỡi ứ trệ cần đối chiếu':'Mạch dưới lưỡi tím/xanh tím — tín hiệu đối chiếu','Mặt dưới ghi nhận màu mạch tím/xanh tím'+(ventralDilated?' kèm tín hiệu giãn.':'; chưa có chuẩn kích thước để kết luận giãn.'),ventralDilated?.74:.60,{warningEligible:ventralDilated,missing:'Cần đối chiếu triệu chứng, mạch chẩn; không suy bệnh mạch máu từ ảnh.'});
   }
 
   return out.sort((a,b)=>b.score-a.score).slice(0,8);
+}
+function featureDiscussion(assessment,directPatternsList,agreement){
+  const top=assessment?.top||{},bottom=assessment?.bottom||null,v=bottom?.vessels||{};
+  const clean=x=>String(x??'').trim();
+  const unknown=x=>!clean(x)||/không xác định|chưa đủ|chưa đánh giá|unknown/i.test(clean(x));
+  const parts=[];
+  if(!unknown(top.tongueColor))parts.push(`Màu thân lưỡi: ${clean(top.tongueColor)}; màu thân được đọc tách khỏi màu rêu để tránh đồng nhất “đỏ nhạt” với “nhợt”.`);
+  const coat=[clean(top.coatingColor),clean(top.coatingThickness),clean(top.coatingDistribution),clean(top.coatingTexture)].filter(x=>x&&!unknown(x));
+  if(coat.length)parts.push(`Rêu lưỡi: ${coat.join(', ')}; độ dày, phân bố và tính chất rêu được đối chiếu như các feature độc lập, không dùng một trường thay cho trường khác.`);
+  if(!unknown(top.moisture))parts.push(`Độ nhuận/khô: ${clean(top.moisture)}; tín hiệu này hỗ trợ đánh giá tân dịch/thấp nhưng không xác định nguyên nhân nếu đứng riêng.`);
+  const morph=[!unknown(top.shape)?`hình thể ${clean(top.shape)}`:'',!unknown(top.toothmarks)?`dấu răng ${clean(top.toothmarks)}`:''].filter(Boolean);
+  if(morph.length)parts.push(`Hình thể và bờ lưỡi: ${morph.join('; ')}; hình thể và dấu răng phải được đọc cùng màu thân và rêu.`);
+  if(bottom&&v.visible===true){
+    const vent=[clean(v.color),clean(v.prominence)].filter(x=>x&&!unknown(x));
+    parts.push(`Mặt dưới: thấy cấu trúc mạch hai bên${vent.length?`, ${vent.join(', ')}`:''}; màu/mức nổi chỉ là mô tả ảnh, không thay thế chuẩn đo kích thước hay mạch chẩn.`);
+  }
+  const ranked=(directPatternsList||[]).filter(x=>x?.label&&Number(x?.score)>0).slice(0,3);
+  if(ranked.length)parts.push('Các hướng đối chiếu ưu tiên: '+ranked.map(x=>`${x.label} (${Math.round(clamp(x.score)*100)}%)`).join('; ')+'. Đây là mức phù hợp dấu hiệu, không phải xác suất chẩn đoán.');
+  parts.push(agreement==='strong'?'Đối chiếu đa lớp hiện đồng thuận cao, nhưng vẫn cần Tứ chẩn.':agreement==='moderate'?'Đối chiếu đa lớp hiện đồng thuận trung bình; cần Vấn chẩn/Tứ chẩn để phân biệt các hướng gần nhau.':'Đối chiếu đa lớp còn chưa đồng nhất; ưu tiên giữ các feature quan sát thay vì ép thành một thể duy nhất.');
+  return parts.slice(0,6).join(' ');
 }
 export function evidenceFor(patterns){
   const hay=patterns.map(p=>String(p?.label||'').toLowerCase()).filter(Boolean).join(' ');
@@ -151,9 +183,7 @@ export function fuse(assessment,sig,matches,reasoning,evidence){
   }
   assessment.combined.generalSignals=[...bySignal.values()].sort((a,b)=>(Number(b.confidence)||0)-(Number(a.confidence)||0)).slice(0,8);
   assessment.combined.confidence=Number(finalConfidence.toFixed(3));
-  const base=String(assessment.combined.summary||assessment?.top?.summary||'').trim();
-  const tail=agreement==='strong'?'Đối chiếu học thuật đa lớp có độ đồng thuận cao.':agreement==='moderate'?'Đối chiếu học thuật đa lớp có độ đồng thuận trung bình; vẫn cần Vấn chẩn/Tứ chẩn để củng cố.':'Đối chiếu học thuật đa lớp còn yếu hoặc không đồng nhất; không nâng mức kết luận.';
-  assessment.combined.summary=[base,tail].filter(Boolean).join(' ');
+  assessment.combined.summary=featureDiscussion(assessment,directP,agreement);
   assessment.combined.academicFusion={version:FUSION_VERSION,knowledgeVersion:KNOWLEDGE_VERSION,weights:WEIGHTS,agreement,finalConfidence:Number(finalConfidence.toFixed(3)),sourceDocument:SOURCE,atlasMatches:matches.map(m=>({id:m.id,sourceId:m.sourceId,page:m.page,kind:m.kind,similarity:m.similarity,hash:m.hash,usage:'visual-similarity-only'})),evidence:evidence.map(e=>({source:e.source,page:e.page,text:e.text})),academicReasoning:reasoning||null,acceptedPatterns:candidates.map(p=>({label:p.label,score:p.score,layers:p.layers,warningEligible:p.warningEligible!==false,missing:p.missing||''})),reviewPatterns:directP.map(p=>({label:p.label,score:p.score,warningEligible:p.warningEligible!==false,missing:p.missing||''})),rule:'Không chuyển bệnh danh ca atlas thành chẩn đoán; chỉ nhận định khi ít nhất 2/3 lớp bằng chứng đồng thuận.'};
   assessment.ml=assessment.ml||{};assessment.ml.academicFusion=assessment.combined.academicFusion;
   if(assessment.ml.featureVector)assessment.ml.featureVector.academic={source:'KNOWLEDGE-5DOC',signature:sig,atlasMatches:assessment.combined.academicFusion.atlasMatches,acceptedPatterns:assessment.combined.academicFusion.acceptedPatterns};

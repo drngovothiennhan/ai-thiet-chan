@@ -34,3 +34,8 @@ assert.match(css,/line-height:1\.62/);
 assert.match(release,/2026\.09\.20-responsive-admin-r1/);
 
 console.log('RESULT PRESENTATION PASS: preliminary conclusion and Discussion use professional spacing; Discussion is rendered as separated bullets and duplicate long limitations are presentation-filtered.');
+
+// Camera fast-capture regression: do not reintroduce the old 3-frame/520 ms path.
+assert.match(app,/roi-qc-fast-best-of-2/);
+assert.match(app,/captureLatencyMs/);
+assert.match(app,/Nét đủ phân tích/);

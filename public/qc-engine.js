@@ -1,6 +1,6 @@
 (function(scope){
 'use strict';
-const VERSION='roi-qc-v3-source-aware';
+const VERSION='roi-qc-v4-usable-focus';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
 function q(v,n=2){return Number(Number(v||0).toFixed(n));}
 function rgbToHsv(r,g,b){
@@ -104,15 +104,18 @@ function computePixelsQc(data,w,h,{view='top',sourceWidth=w,sourceHeight=h}={}){
   const dynamic=contrast>=18&&dynamicRange>=38;
   // Tongue surfaces are naturally low-texture; use two spatial scales and a bounded
   // edge floor instead of requiring a large single-scale Laplacian variance.
-  const focusFine=fine.laplacianVariance>=22&&fine.edge>=4.2;
-  const focusCoarse=coarse.laplacianVariance>=16&&coarse.edge>=3.4;
-  const focus=(focusFine&&coarse.edge>=2.8)||(focusCoarse&&fine.edge>=3.8);
+  const focusOptimal=(fine.laplacianVariance>=22&&fine.edge>=4.2&&coarse.edge>=2.8)||(coarse.laplacianVariance>=16&&coarse.edge>=3.4&&fine.edge>=3.8);
+  // A tongue ROI is naturally low-texture. "Usable" focus is intentionally separated
+  // from "optimal" focus so a visually adequate image is not downgraded merely because
+  // the mucosal surface has few high-frequency edges. Flat/blurred ROIs still fail.
+  const focusUsable=(fine.laplacianVariance>=16&&fine.edge>=2.35)||(coarse.laplacianVariance>=11&&coarse.edge>=1.90&&fine.laplacianVariance>=10);
+  const focus=focusUsable;
   const clipping=highlight&&shadow;
-  const checks={resolution,light,dynamic,focus,highlight,shadow,clipping};
+  const checks={resolution,light,dynamic,focus,focusOptimal,highlight,shadow,clipping};
   const passed=[resolution,light,dynamic,focus,clipping].filter(Boolean).length;
   let grade=passed===5?'good':passed>=3?'fair':'poor';
   if(!roi.detected&&grade==='good')grade='fair';
-  const focusScore=clamp(Math.max(fine.laplacianVariance/70,fine.edge/8.5,coarse.laplacianVariance/55));
+  const focusScore=clamp(Math.max(fine.laplacianVariance/58,fine.edge/6.5,coarse.laplacianVariance/45,coarse.edge/5.4));
   const exposureScore=clamp(1-highlightRatio/.12)*.5+clamp(1-shadowRatio/.16)*.5;
   const lightScore=clamp(1-Math.abs(brightness-140)/120);
   const dynamicScore=clamp(dynamicRange/80);

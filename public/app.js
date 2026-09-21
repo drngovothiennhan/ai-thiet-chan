@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 const emptyImage=()=>({data:'',mimeType:'image/jpeg',qc:null});
 const state={
-  mode:'normal',stream:null,facingMode:'environment',videoInputs:[],activeTarget:null,currentCameraProfile:null,cameraProfileByTarget:{top:null,bottom:null},
+  mode:'normal',stream:null,facingMode:'environment',videoInputs:[],activeTarget:null,currentCameraProfile:null,cameraOpenedAt:0,cameraProfileByTarget:{top:null,bottom:null},
   images:{top:emptyImage(),bottom:emptyImage()},assessment:null,serverKey:false,knowledgeVersion:'',model:'',history:[]
 };
 const els={
@@ -61,7 +61,7 @@ function setMode(mode){
 
 function stopCamera(){
   if(state.stream){state.stream.getTracks().forEach(t=>t.stop());state.stream=null;}
-  els.video.srcObject=null;els.video.classList.remove('mirror');els.cameraPanel.hidden=true;state.activeTarget=null;state.currentCameraProfile=null;
+  els.video.srcObject=null;els.video.classList.remove('mirror');els.cameraPanel.hidden=true;state.activeTarget=null;state.currentCameraProfile=null;state.cameraOpenedAt=0;
 }
 async function refreshVideoInputs(){
   try{const devices=await navigator.mediaDevices.enumerateDevices();state.videoInputs=devices.filter(d=>d.kind==='videoinput');}catch{state.videoInputs=[];}
@@ -88,7 +88,7 @@ async function startCamera(target,facingMode=state.facingMode){
   if(!navigator.mediaDevices?.getUserMedia) throw new Error('CAMERA_UNSUPPORTED');
   if(state.stream){state.stream.getTracks().forEach(t=>t.stop());state.stream=null;}
   const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facingMode},width:{ideal:1920},height:{ideal:1440},frameRate:{ideal:30,min:20}},audio:false});
-  state.stream=stream;state.facingMode=facingMode;state.activeTarget=target;state.currentCameraProfile=await optimizeCameraTrack(stream,facingMode);els.video.srcObject=stream;els.video.classList.toggle('mirror',state.currentCameraProfile?.facingMode==='user'||facingMode==='user');els.cameraPanel.hidden=false;els.cameraTargetLabel.textContent=`Đang chụp ${viewLabel(target)}${(state.currentCameraProfile?.facingMode||facingMode)==='user'?' · camera trước được tăng ổn định nét/phơi sáng':''}`;await refreshVideoInputs();els.cameraPanel.scrollIntoView({behavior:'smooth',block:'center'});
+  state.stream=stream;state.facingMode=facingMode;state.activeTarget=target;state.currentCameraProfile=await optimizeCameraTrack(stream,facingMode);state.cameraOpenedAt=performance.now();els.video.srcObject=stream;els.video.classList.toggle('mirror',state.currentCameraProfile?.facingMode==='user'||facingMode==='user');els.cameraPanel.hidden=false;els.cameraTargetLabel.textContent=`Đang chụp ${viewLabel(target)}${(state.currentCameraProfile?.facingMode||facingMode)==='user'?' · camera trước được tăng ổn định nét/phơi sáng':''}`;await refreshVideoInputs();els.cameraPanel.scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function openCamera(target){
   try{await startCamera(target,state.facingMode);}catch(err){appendBubble(err?.name==='NotAllowedError'?'Thiết bị đang chặn quyền camera. Bạn vẫn có thể tải ảnh có sẵn từ máy.':`Không mở được camera để chụp ${viewLabel(target)}. Hãy thử tải ảnh từ thiết bị.`);}
@@ -100,50 +100,60 @@ async function switchCamera(){
   finally{els.switchCamera.disabled=false;}
 }
 function waitForStableVideoFrame(){
-  const delay=(state.currentCameraProfile?.facingMode||state.facingMode)==='user'?320:180;
-  return new Promise(resolve=>{
-    let done=false;const finish=()=>{if(done)return;done=true;resolve();};const timer=setTimeout(finish,Math.max(520,delay+160));
-    if(typeof els.video.requestVideoFrameCallback==='function'){
-      let count=0;const next=()=>els.video.requestVideoFrameCallback(()=>{count++;if(count>=3){clearTimeout(timer);finish();}else next();});next();
-    }else setTimeout(()=>{clearTimeout(timer);finish();},delay);
-  });
-}
-function waitForNextVideoFrame(timeout=140){
+  const elapsed=Math.max(0,performance.now()-(state.cameraOpenedAt||0));
+  if(elapsed>=220&&els.video.readyState>=2)return Promise.resolve();
+  const remaining=Math.max(0,220-elapsed);
+  const timeout=Math.min(160,Math.max(60,remaining));
   return new Promise(resolve=>{
     let done=false;const finish=()=>{if(done)return;done=true;resolve();};const timer=setTimeout(finish,timeout);
     if(typeof els.video.requestVideoFrameCallback==='function')els.video.requestVideoFrameCallback(()=>{clearTimeout(timer);finish();});
   });
 }
+function waitForNextVideoFrame(timeout=70){
+  return new Promise(resolve=>{
+    let done=false;const finish=()=>{if(done)return;done=true;resolve();};const timer=setTimeout(finish,timeout);
+    if(typeof els.video.requestVideoFrameCallback==='function')els.video.requestVideoFrameCallback(()=>{clearTimeout(timer);finish();});
+  });
+}
+function captureCandidate(target,vw,vh){
+  els.canvas.width=vw;els.canvas.height=vh;
+  const ctx=els.canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(els.video,0,0,vw,vh);
+  const qc=computeQc(ctx,vw,vh,target);
+  return {data:els.canvas.toDataURL('image/jpeg',.91),qc,score:(Number(qc?.qualityScore)||0)+(qc?.checks?.focus?12:0)};
+}
 async function captureFrame(){
   if(!state.stream||!state.activeTarget)return;
   const target=state.activeTarget;
+  const started=performance.now();
   await waitForStableVideoFrame();
   const vw=els.video.videoWidth||1280,vh=els.video.videoHeight||960;
-  const candidates=[];
-  for(let i=0;i<3;i++){
-    els.canvas.width=vw;els.canvas.height=vh;
-    const ctx=els.canvas.getContext('2d',{willReadFrequently:true});
-    ctx.drawImage(els.video,0,0,vw,vh);
-    const qc=computeQc(ctx,vw,vh,target);
-    candidates.push({data:els.canvas.toDataURL('image/jpeg',.92),score:Number(qc?.qualityScore)||0,qc});
-    if(i<2)await waitForNextVideoFrame();
+  const first=captureCandidate(target,vw,vh);
+  let best=first,frames=1;
+  if(!first.qc?.checks?.focus||Number(first.qc?.qualityScore||0)<78){
+    await waitForNextVideoFrame();
+    const second=captureCandidate(target,vw,vh);frames=2;
+    if(second.score>first.score)best=second;
   }
-  const best=candidates.reduce((a,b)=>b.score>a.score?b:a,candidates[0]);
   const captureMeta={
     ...(state.currentCameraProfile||{source:'camera',facingMode:state.facingMode}),
-    capturedAt:Date.now(),burstFrames:candidates.length,bestFrameScore:Number(best?.score||0),selection:'roi-qc-best-of-3'
+    capturedAt:Date.now(),burstFrames:frames,bestFrameScore:Number(best?.score||0),
+    selection:frames===1?'roi-qc-fast-single':'roi-qc-fast-best-of-2',
+    captureLatencyMs:Math.round(performance.now()-started),
+    precomputedQc:best.qc
   };
-  state.cameraProfileByTarget[target]=captureMeta;
+  state.cameraProfileByTarget[target]={...captureMeta,precomputedQc:undefined};
   stopCamera();
   await acceptImage(target,best.data,'image/jpeg',captureMeta);
 }
+
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});}
 
 async function acceptImage(target,dataUrl,mimeType,captureMeta={source:'upload',facingMode:'unknown'}){
   const img=await loadImage(dataUrl),max=1440,scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
   const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,w,h);
-  const qc=computeQc(ctx,w,h,target);qc.capture={...captureMeta,frontCamera:captureMeta?.facingMode==='user'};
+  const {precomputedQc,...captureInfo}=captureMeta||{};const qc=precomputedQc?{...precomputedQc}:computeQc(ctx,w,h,target);qc.capture={...captureInfo,frontCamera:captureMeta?.facingMode==='user'};
   state.images[target]={data:c.toDataURL('image/jpeg',.90),mimeType:'image/jpeg',qc};state.assessment=null;els.resultCard.hidden=true;els.reportBox.hidden=true;renderImageSlot(target);updateAnalyzeState();
 }
 function clearImage(target){state.images[target]=emptyImage();state.cameraProfileByTarget[target]=null;state.assessment=null;renderImageSlot(target);els.resultCard.hidden=true;els.reportBox.hidden=true;updateAnalyzeState();}
@@ -172,7 +182,8 @@ function renderQc(q,chips){
   chips.innerHTML=labels.map(([label,ok])=>`<span class="chip ${ok?'good':'warn'}">${ok?'✓':'!'} ${label}</span>`).join('')
     +`<span class="chip ${q.grade==='good'?'good':q.grade==='poor'?'bad':'warn'}">QC: ${q.grade.toUpperCase()}</span>`
     +(q.roiDetected===false?'<span class="chip warn">ROI chưa chắc chắn</span>':'')
-    +(q.capture?.frontCamera?'<span class="chip">Camera trước · tối ưu nét</span>':'');
+    +((q.checks?.focus&&q.checks?.focusOptimal===false)?'<span class="chip">Nét đủ phân tích · chưa tối ưu</span>':'')
+    +(q.capture?.frontCamera?'<span class="chip">Camera trước · lấy nét liên tục</span>':'');
 }
 
 async function checkHealth(attempt=0){

@@ -80,8 +80,8 @@ assert.match(academic,/ATLAS_LANGUAGE_THRESHOLD=\.85/);
 assert.match(academic,/ATLAS_LANGUAGE_MAX_MATCHES=3/);
 assert.match(academic,/ATLAS_LANGUAGE_MAX_SNIPPETS=3/);
 assert.match(academic,/documentWordingForMatches/);
-assert.match(academic,/Tham Vấn: tương đồng atlas/);
-assert.match(academic,/ưu tiên đúng thuật ngữ\/văn phong của mẫu tài liệu tương ứng/);
+assert.match(academic,/atlasSupport/);
+assert.match(academic,/support-only-not-diagnostic-probability/);
 assert.match(academic,/QC-qualified atlas matches >= 0\.85/);
 
-console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, camera shutdown, compact enhancement audit, full-tongue landmark guidance, and QC-qualified >=85% multi-atlas wording are present.');
+console.log('THAM VAN / ADMIN UI SMOKE PASS: consultation lock, camera shutdown, compact enhancement audit, full-tongue landmark guidance, and QC-qualified atlas wording remains support-only metadata.');

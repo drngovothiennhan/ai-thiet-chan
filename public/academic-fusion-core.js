@@ -40,8 +40,9 @@ export function directPatterns(assessment){
   const purpleTongue=positive(tongueColor,/tím|ám tím|xanh tím/u);
   const visibleStasis=positive(stasisMarks,/ứ|ban|điểm/u);
   const confirmedFissure=positive(fissures,/nứt|confirmed|visible/u);
-  const dry=positive(moisture,/khô|thiên khô|táo/u);
-  const moist=positive(moisture,/nhuận|ướt|ẩm/u);
+  const balancedMoisture=positive(moisture,/khô\s*ướt\s*vừa\s*phải|vừa\s*phải|bình\s*thường/u);
+  const dry=!balancedMoisture&&positive(moisture,/khô|thiên khô|táo/u);
+  const moist=balancedMoisture||positive(moisture,/nhuận|ướt|ẩm/u);
   const explicitToothmarks=positive(toothmarks,/hằn răng|dấu răng/u);
   const puffy=positive(shape,/mập|bệu|phì|to/u);
   const thinBody=positive(shape,/gầy|mỏng/u);

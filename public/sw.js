@@ -121,9 +121,10 @@ async function enrichAnalyzeRequest(request){
   const bottomImageDigest=bottomImage?await digestBase64Payload(bottomImage):'';
   if(mode==='general'&&!bottomImageDigest)throw new Error('STORAGE_DIRECT_BOTTOM_DIGEST_FAILED');
 
-  const [topStoragePath,bottomStoragePath]=await Promise.all([
+  const [topStoragePath,bottomStoragePath,bottomFeatures]=await Promise.all([
     uploadCaseImage(image,topImageDigest),
-    bottomImage?uploadCaseImage(bottomImage,bottomImageDigest):Promise.resolve(null)
+    bottomImage?uploadCaseImage(bottomImage,bottomImageDigest):Promise.resolve(null),
+    bottomImage&&vision?.bottomFeaturesFromDataUrl?vision.bottomFeaturesFromDataUrl(bottomImage):Promise.resolve(null)
   ]);
 
   body.academicSignature=signature;
@@ -133,7 +134,8 @@ async function enrichAnalyzeRequest(request){
     runtimeVersion:'storage-direct-sw-v1',
     schemaVersion:'storage-direct-payload-v1',
     topImageDigest,
-    bottomImageDigest:bottomImageDigest||''
+    bottomImageDigest:bottomImageDigest||'',
+    bottomFeatures:bottomFeatures||null
   };
   body.storageTransport={version:STORAGE_DIRECT_VERSION,direct:true,bucket:CASE_IMAGE_BUCKET};
   body.topImageHash=topImageDigest;

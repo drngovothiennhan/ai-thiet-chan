@@ -10,7 +10,7 @@ const SOURCE=Object.freeze({
   knowledgeVersion:'thiet-chan-kb-2026-09-15.5doc',
   noSilentOmission:true,
   segmentationVersion:'adaptive-tongue-mask-v2',
-  spatialObservationVersion:'tongue-spatial-observation-v2',
+  spatialObservationVersion:'tongue-spatial-observation-v3',
   moistureObservationVersion:'tongue-moisture-features-v1'
 });
 
@@ -84,6 +84,59 @@ function rowMean(gray,w,y,x0,x1){
   const a=Math.max(0,Math.floor(x0)),b=Math.min(w-1,Math.floor(x1));
   if(b<a)return 0;let sum=0,n=0;for(let x=a;x<=b;x++){sum+=gray[y*w+x];n++;}
   return n?sum/n:0;
+}
+function shapeAndToothmarkMetrics(mask,w,h,box){
+  const {minX,minY,maxX,maxY,width:bw,height:bh}=box;
+  const rows=[];let area=0;
+  for(let y=minY;y<=maxY;y++){
+    let first=-1,last=-1,count=0;
+    for(let x=minX;x<=maxX;x++){
+      if(!mask[y*w+x])continue;
+      area++;if(first<0)first=x;last=x;count++;
+    }
+    if(count>=4)rows.push({y,first,last,width:last-first+1,ny:(y-minY)/Math.max(1,bh)});
+  }
+  const widths=(a,b)=>rows.filter(r=>r.ny>=a&&r.ny<=b).map(r=>r.width/Math.max(1,bw));
+  const med=(a,b)=>{const v=widths(a,b);return v.length?median(v):0;};
+  const side=rows.filter(r=>r.ny>=.22&&r.ny<=.84);
+  let leftIndent=0,rightIndent=0,leftEvents=0,rightEvents=0,leftN=0,rightN=0;
+  for(let i=2;i<side.length-2;i++){
+    const r=side[i],neighbors=[side[i-2],side[i-1],side[i+1],side[i+2]];
+    const lf=neighbors.reduce((s,x)=>s+x.first,0)/neighbors.length;
+    const rt=neighbors.reduce((s,x)=>s+x.last,0)/neighbors.length;
+    const li=Math.max(0,r.first-lf),ri=Math.max(0,rt-r.last);
+    leftIndent+=li;rightIndent+=ri;leftN++;rightN++;
+    if(li>=bw*.028)leftEvents++;
+    if(ri>=bw*.028)rightEvents++;
+  }
+  const leftMean=leftN?leftIndent/leftN:0,rightMean=rightN?rightIndent/rightN:0;
+  const leftScore=clamp((leftMean/Math.max(1,bw*.045))*.68+Math.min(1,leftEvents/5)*.32);
+  const rightScore=clamp((rightMean/Math.max(1,bw*.045))*.68+Math.min(1,rightEvents/5)*.32);
+  const bilateral=Math.min(leftScore,rightScore);
+  const toothmarkScore=clamp(((leftScore+rightScore)/2)*.72+bilateral*.28);
+  return Object.freeze({
+    shape:Object.freeze({
+      aspect:q(bw/Math.max(1,bh)),
+      areaFill:q(area/Math.max(1,bw*bh)),
+      rootWidthRatio:q(med(.05,.28)),
+      midWidthRatio:q(med(.32,.68)),
+      tipWidthRatio:q(med(.72,.94)),
+      roiWidthRatio:q(bw/w),
+      roiHeightRatio:q(bh/h),
+      topMargin:q(minY/h),
+      bottomMargin:q((h-1-maxY)/h),
+      edgeRowCoverage:q(rows.length/Math.max(1,bh))
+    }),
+    toothmarks:Object.freeze({
+      score:q(toothmarkScore),
+      leftScore:q(leftScore),
+      rightScore:q(rightScore),
+      bilateralScore:q(bilateral),
+      leftEvents,
+      rightEvents,
+      method:'bilateral-smoothed-edge-concavity-v1'
+    })
+  });
 }
 function spatialObservation(px,w,h){
   let comp=largestComponent(buildSpatialMask(px,w,h,false),w,h);
@@ -239,8 +292,9 @@ function spatialObservation(px,w,h){
   const centrality=clamp(1-Math.abs(bestX-symmetryAxis)/Math.max(1,bw*.22));
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
+  const morphologyMetrics=shapeAndToothmarkMetrics(comp.mask,w,h,box);
   return {
-    schemaVersion:'tongue-spatial-observation-v2',
+    schemaVersion:'tongue-spatial-observation-v3',
     roiCoverage:q(comp.area/(w*h)),
     bodyLuma:q(bodyLuma/255),
     bodySaturation:q(bodySaturation),
@@ -253,6 +307,8 @@ function spatialObservation(px,w,h){
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
+    shapeMetrics:morphologyMetrics.shape,
+    toothmarkMetrics:morphologyMetrics.toothmarks,
     moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({
@@ -266,6 +322,59 @@ function spatialObservation(px,w,h){
     fissurePolicy:'median-sulcus-is-not-pathological-fissure',
     authority:'direct-image-observation-only'
   };
+}
+async function bottomFeaturesFromDataUrl(dataUrl){
+  if(typeof dataUrl!=='string'||dataUrl.length<100||typeof createImageBitmap!=='function'||typeof OffscreenCanvas!=='function')return null;
+  let bitmap=null;
+  try{
+    const blob=await (await fetch(dataUrl)).blob();bitmap=await createImageBitmap(blob);
+    const max=192,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),w=Math.max(48,Math.round(bitmap.width*scale)),h=Math.max(48,Math.round(bitmap.height*scale));
+    const canvas=new OffscreenCanvas(w,h),ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return null;
+    ctx.drawImage(bitmap,0,0,w,h);const px=ctx.getImageData(0,0,w,h).data,lum=new Float32Array(w*h);
+    let central=0,vessel=0,darkPurple=0,lumaSum=0,rbMinusG=0,mr=0,mg=0,mb=0,mucN=0;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const p=y*w+x,i=p*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b),lv=luma(r,g,b);lum[p]=lv;
+      if(x<w*.15||x>w*.85||y<h*.08||y>h*.95)continue;
+      central++;const purpleBlue=((hsv.h>=235&&hsv.h<=345)||(b>g*1.04&&r>g*1.04))&&hsv.s>.12;
+      if(purpleBlue&&hsv.v<.72)vessel++;
+      if(purpleBlue&&hsv.v<.55)darkPurple++;
+      lumaSum+=lv/255;rbMinusG+=(((r+b)/2)-g)/255;
+      const mucosa=r>45&&hsv.v>.18&&hsv.v<.92&&hsv.s>.06&&(r>g*.99||r>b*.95);
+      if(mucosa){mr+=r/255;mg+=g/255;mb+=b/255;mucN++;}
+    }
+    if(!central)return null;
+    let leftMuc=0,rightMuc=0,leftDark=0,rightDark=0,leftRows=0,rightRows=0,rowN=0;
+    const y0=Math.max(1,Math.floor(h*.25)),y1=Math.min(h-2,Math.ceil(h*.66));
+    for(let y=1;y<h-1;y++){
+      let rowLeft=false,rowRight=false;
+      for(let x=1;x<w-1;x++){
+        if(x<=w*.22||x>=w*.78||y<=h*.20||y>=h*.70)continue;
+        const p=y*w+x,i=p*4,r=px[i],g=px[i+1],b=px[i+2],hsv=rgbToHsv(r,g,b);
+        const mucosa=r>45&&hsv.v>.18&&hsv.v<.90&&hsv.s>.08&&(r>g*1.03||r>b*1.02);
+        if(!mucosa)continue;
+        const left=x>w*.28&&x<w*.47,right=x>w*.53&&x<w*.72;if(!left&&!right)continue;
+        const neighbor=(lum[p-1]+lum[p+1]+lum[p-w]+lum[p+w])/4;
+        const darkLine=neighbor-lum[p]>5&&lum[p]<170;
+        if(left){leftMuc++;if(darkLine){leftDark++;rowLeft=true;}}
+        if(right){rightMuc++;if(darkLine){rightDark++;rowRight=true;}}
+      }
+      if(y>=y0&&y<=y1){rowN++;if(rowLeft)leftRows++;if(rowRight)rightRows++;}
+    }
+    const leftRatio=leftMuc?leftDark/leftMuc:0,rightRatio=rightMuc?rightDark/rightMuc:0;
+    const balance=Math.max(leftRatio,rightRatio)>0?Math.min(leftRatio,rightRatio)/Math.max(leftRatio,rightRatio):0;
+    const leftContinuity=rowN?leftRows/rowN:0,rightContinuity=rowN?rightRows/rowN:0;
+    return Object.freeze({
+      schemaVersion:'bottom-device-feature-v2',
+      vesselCandidateRatio:q(vessel/central),darkPurpleRatio:q(darkPurple/central),
+      meanCentralLuminance:q(lumaSum/central),redBlueMinusGreen:q(rbMinusG/central),
+      leftDarkLineRatio:q(leftRatio),rightDarkLineRatio:q(rightRatio),bilateralBalance:q(balance),
+      leftRowContinuity:q(leftContinuity),rightRowContinuity:q(rightContinuity),
+      bilateralSignal:Math.min(leftRatio,rightRatio)>=.05&&balance>=.30&&leftContinuity>=.60&&rightContinuity>=.60,
+      mucosaMeanR:q(mucN?mr/mucN:0),mucosaMeanG:q(mucN?mg/mucN:0),mucosaMeanB:q(mucN?mb/mucN:0),
+      sampledPixels:central,
+      policy:'direct underside structure/color features only; no absolute-size or disease inference'
+    });
+  }catch{return null;}finally{try{bitmap?.close?.();}catch{}}
 }
 async function signatureFromDataUrl(dataUrl){
   if(typeof dataUrl!=='string'||dataUrl.length<100||typeof createImageBitmap!=='function'||typeof OffscreenCanvas!=='function')return null;
@@ -306,5 +415,5 @@ async function signatureFromDataUrl(dataUrl){
     };
   }catch{return null;}finally{try{bitmap?.close?.();}catch{}}
 }
-scope.AITCAcademicVision=Object.freeze({source:SOURCE,signatureFromDataUrl});
+scope.AITCAcademicVision=Object.freeze({source:SOURCE,signatureFromDataUrl,bottomFeaturesFromDataUrl});
 })(self);

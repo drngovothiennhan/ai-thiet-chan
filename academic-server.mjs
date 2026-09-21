@@ -52,7 +52,7 @@ function documentWordingForMatches(matches,assessment,body={}){
 function base64Payload(dataUrl){const text=String(dataUrl||'');return text.includes(',')?text.slice(text.indexOf(',')+1):text;}
 function imageDigest(dataUrl){return createHash('sha256').update(base64Payload(dataUrl)).digest('hex');}
 function saneSpatialObservation(raw){
-  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2'].includes(raw.schemaVersion))return null;
+  if(!raw||typeof raw!=='object'||!['tongue-spatial-observation-v1','tongue-spatial-observation-v2','tongue-spatial-observation-v3'].includes(raw.schemaVersion))return null;
   const unitKeys=['roiCoverage','bodyLuma','bodySaturation','coatingCandidateRatio'];
   const out={schemaVersion:String(raw.schemaVersion)};
   for(const key of unitKeys){
@@ -73,6 +73,22 @@ function saneSpatialObservation(raw){
   out.medianSulcus={visibleSignal:Boolean(sulcus.visibleSignal)};
   for(const key of ['score','continuity','centrality','meanDarkContrast']){
     const n=Number(sulcus[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out.medianSulcus[key]=n;
+  }
+  if(raw.shapeMetrics&&typeof raw.shapeMetrics==='object'){
+    const m=raw.shapeMetrics,outShape={};
+    for(const key of ['aspect','areaFill','rootWidthRatio','midWidthRatio','tipWidthRatio','roiWidthRatio','roiHeightRatio','topMargin','bottomMargin','edgeRowCoverage']){
+      const n=Number(m[key]);if(!Number.isFinite(n)||n<0||n>5)return null;outShape[key]=n;
+    }
+    out.shapeMetrics=outShape;
+  }
+  if(raw.toothmarkMetrics&&typeof raw.toothmarkMetrics==='object'){
+    const m=raw.toothmarkMetrics,outTooth={method:String(m.method||'').slice(0,80)};
+    for(const key of ['score','leftScore','rightScore','bilateralScore']){
+      const n=Number(m[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;outTooth[key]=n;
+    }
+    outTooth.leftEvents=Math.max(0,Math.min(20,Math.round(Number(m.leftEvents)||0)));
+    outTooth.rightEvents=Math.max(0,Math.min(20,Math.round(Number(m.rightEvents)||0)));
+    out.toothmarkMetrics=outTooth;
   }
   const bodyColor=String(raw.bodyColorCandidate||''),coatColor=String(raw.coatingColorCandidate||'');
   const thickness=String(raw.coatingThicknessCandidate||''),distribution=String(raw.coatingDistributionCandidate||'');
@@ -143,6 +159,10 @@ function saneBottomFeatures(raw){
     if(raw[key]===undefined)continue;
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
   }
+  for(const key of ['mucosaMeanR','mucosaMeanG','mucosaMeanB']){
+    if(raw[key]===undefined)continue;
+    const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
+  }
   out.bilateralSignal=Boolean(raw.bilateralSignal===true);
   out.sampledPixels=Math.max(0,Math.min(1000000,Number(raw.sampledPixels)||0));
   return out;
@@ -160,7 +180,7 @@ export function verifyClientVisualPayload(body={}){
     if(!validSha256(topHash)||claimedTop!==topHash)return {verified:false,reason:'top-storage-digest-invalid'};
     if(topPath!==storagePathForDigest(topHash))return {verified:false,reason:'top-storage-path-mismatch'};
     if(String(body?.storageTransport?.bucket||'')!=='aitc-case-images')return {verified:false,reason:'storage-bucket-invalid'};
-    let bottomVerified=false;
+    let bottomVerified=false,bottomFeatures=null;
     if(mode==='general'){
       const claimedBottom=String(source.bottomImageDigest||'');
       const bottomHash=String(body?.bottomImageHash||'');
@@ -168,6 +188,7 @@ export function verifyClientVisualPayload(body={}){
       if(!validSha256(bottomHash)||claimedBottom!==bottomHash)return {verified:false,reason:'bottom-storage-digest-invalid'};
       if(bottomPath!==storagePathForDigest(bottomHash))return {verified:false,reason:'bottom-storage-path-mismatch'};
       bottomVerified=true;
+      bottomFeatures=saneBottomFeatures(source.bottomFeatures);
     }
     return {
       verified:true,mode:'storage-direct-service-worker',signature,
@@ -179,13 +200,14 @@ export function verifyClientVisualPayload(body={}){
         bottomImageDigest:bottomVerified?String(body.bottomImageHash):'',
         topStoragePath:topPath,
         bottomStoragePath:bottomVerified?String(body.bottomStoragePath):'',
-        source:String(source.id||source.source||SOURCE.id)
+        source:String(source.id||source.source||SOURCE.id),
+        bottomFeatureSchema:bottomFeatures?.schemaVersion||null
       },
       deviceCompute:{
         verifyVersion:DEVICE_VERIFY_VERSION,verified:true,tier:'storage-direct',
         activeBackend:'device-preprocessed-storage-direct',trainingVectorCoverage:1,
         diagnosticSignatureCoverage:Number((298/1027).toFixed(6)),
-        groundTruthContext:{available:false},bottomVerified,bottomFeatures:null
+        groundTruthContext:{available:false},bottomVerified,bottomFeatures
       }
     };
   }

@@ -13,7 +13,7 @@ const adminPage=fs.readFileSync('public/admin-center.html','utf8');
 const sw=fs.readFileSync('public/sw.js','utf8');
 
 assert.match(home,/id="layoutModeBtn"/);
-assert.match(home,/layout-mode\.js\?v=2026\.09\.20-responsive-admin-r1/);
+assert.match(home,/layout-mode\.js\?v=2026\.09\.21-responsive-shell-r2/);
 assert.match(layout,/aitc-layout-mode-session-v2/);
 assert.match(layout,/sessionStorage/);
 assert.match(layout,/matchMedia/);

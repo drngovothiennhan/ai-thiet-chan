@@ -28,8 +28,9 @@
       stack=document.createElement('div');stack.id='aitcDesktopSideStack';stack.className='desktop-side-stack';
       capture.insertAdjacentElement('afterend',stack);
     }
-    if(chat.parentElement!==stack)stack.appendChild(chat);
-    const fb=feedback();if(fb&&fb.parentElement!==stack)stack.appendChild(fb);
+    stack.appendChild(chat);
+    const fb=feedback();if(fb)stack.appendChild(fb);
+    stack.appendChild(quality);
     return stack;
   }
 

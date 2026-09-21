@@ -49,7 +49,7 @@ assert.doesNotMatch(fissure.reply,/nứt lưỡi đã được xác nhận/i);
 const report=localGroundedReport({assessment,mode:'normal'});
 assert.equal(report.ok,true);
 assert.match(report.report,/BÁO CÁO THIỆT CHẨN/);
-assert.match(report.report,/Thiệt tượng mặt trên/);
+assert.match(report.report,/Quan sát mặt trên lưỡi/);
 assert.match(report.report,/QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN/);
 assert.ok(Array.isArray(report.sections));
 assert.ok(report.sections.some(s=>/Quan sát mặt trên/.test(s.title)));

@@ -108,7 +108,7 @@ function computePixelsQc(data,w,h,{view='top',sourceWidth=w,sourceHeight=h}={}){
   // A tongue ROI is naturally low-texture. "Usable" focus is intentionally separated
   // from "optimal" focus so a visually adequate image is not downgraded merely because
   // the mucosal surface has few high-frequency edges. Flat/blurred ROIs still fail.
-  const focusUsable=(fine.laplacianVariance>=16&&fine.edge>=2.35)||(coarse.laplacianVariance>=11&&coarse.edge>=1.90&&fine.laplacianVariance>=10);
+  const focusUsable=(fine.laplacianVariance>=20&&fine.edge>=2.00)||(fine.laplacianVariance>=12&&fine.edge>=2.40)||(coarse.laplacianVariance>=10&&coarse.edge>=2.10&&fine.laplacianVariance>=15);
   const focus=focusUsable;
   const clipping=highlight&&shadow;
   const checks={resolution,light,dynamic,focus,focusOptimal,highlight,shadow,clipping};

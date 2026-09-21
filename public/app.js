@@ -273,12 +273,25 @@ function renderTheoryAssessment(a){
     label:String(item.label||'').trim(),
     evidence:String(item.evidence||item.rule||'').trim()
   })).filter(item=>item.label||item.evidence);
-  const generalHtml=general.map(item=>`<li><strong>${escapeHtml(item.label||'Tín hiệu')}</strong><span>${escapeHtml(item.evidence||'')}</span>${item.rule?`<small>${escapeHtml(item.rule)}</small>`:''}</li>`).join('');
-  const stomachHtml=stomach.map(item=>{const pct=Math.round(Math.max(0,Math.min(1,Number(item.confidence)||0))*100);return `<li><strong>${escapeHtml(item.label||'')}</strong><span>${escapeHtml(item.evidence||'')}</span><small>Phù hợp thiệt tượng: ${pct}%${item.missingForConclusion?` · Còn thiếu: ${escapeHtml(item.missingForConclusion)}`:''}</small></li>`;}).join('');
+  const signalMeta=item=>{
+    const raw=Number(item?.confidence),has=Number.isFinite(raw),pct=has?Math.round(Math.max(0,Math.min(1,raw))*100):null;
+    const warnEligible=item?.warningEligible!==false;
+    const level=warnEligible&&pct!==null&&pct>=80?'high':warnEligible&&pct!==null&&pct>=70?'watch':'info';
+    const label=level==='high'?'Cảnh báo mức cao':level==='watch'?'Cần lưu ý':'Mức tham khảo';
+    const cls=level==='high'?'signal-alert high':level==='watch'?'signal-alert watch':'signal-alert';
+    return {pct,level,label,cls};
+  };
+  const generalHtml=general.map(item=>{
+    const meta=signalMeta(item);
+    const score=meta.pct===null?'':`<small>Mức phù hợp dấu hiệu: ${meta.pct}% · không phải xác suất chẩn đoán.</small>`;
+    const alert=meta.level==='info'?'':`<div class="${meta.cls}"><strong>${meta.label} ${meta.pct}%</strong><span>Cần đối chiếu thêm triệu chứng, mạch và Tứ chẩn trước khi nâng mức kết luận.</span></div>`;
+    return `<li class="theory-signal ${meta.level}"><strong>${escapeHtml(item.label||'Tín hiệu')}</strong><span>${escapeHtml(item.evidence||'')}</span>${score}${item.rule?`<small>${escapeHtml(item.rule)}</small>`:''}${alert}</li>`;
+  }).join('');
+  const stomachHtml=stomach.map(item=>{const pct=Math.round(Math.max(0,Math.min(1,Number(item.confidence)||0))*100);const alert=pct>=80?`<div class="signal-alert high"><strong>Cảnh báo mức cao ${pct}%</strong><span>Cần phối hợp triệu chứng và Tứ chẩn trước khi kết luận.</span></div>`:pct>=70?`<div class="signal-alert watch"><strong>Cần lưu ý ${pct}%</strong><span>Cần phối hợp triệu chứng và Tứ chẩn trước khi kết luận.</span></div>`:'';return `<li><strong>${escapeHtml(item.label||'')}</strong><span>${escapeHtml(item.evidence||'')}</span><small>Mức phù hợp dấu hiệu: ${pct}% · không phải xác suất chẩn đoán.${item.missingForConclusion?` · Còn thiếu: ${escapeHtml(item.missingForConclusion)}`:''}</small>${alert}</li>`;}).join('');
   const mlHtml=(mlItems.length?mlItems:['Chưa đủ dữ liệu cấu trúc để tổng hợp.']).map(item=>`<li>${escapeHtml(item)}</li>`).join('');
   const literatureHtml=(literatureItems.length?literatureItems:[{label:'',evidence:'Chưa có tín hiệu y văn đủ mạnh để quy nạp thêm từ dữ kiện hiện có.'}]).map(item=>`<li>${item.label?`<strong>${escapeHtml(item.label)}</strong>`:''}${item.evidence?`<span>${escapeHtml(item.evidence)}</span>`:''}</li>`).join('');
   const preliminaryHtml=`<section class="preliminary-conclusion"><div class="theory-title">Kết luận sơ bộ</div><div class="evidence-block"><h4>Dữ liệu máy học</h4><ul class="evidence-list">${mlHtml}</ul></div><div class="evidence-block"><h4>Đối chiếu y văn</h4><ul class="evidence-list">${literatureHtml}</ul></div></section>`;
-  els.theoryBox.innerHTML=`<strong>Đối chiếu lý thuyết thiệt chẩn</strong>${generalHtml?`<div class="theory-title">Tín hiệu chung</div><ul>${generalHtml}</ul>`:''}${stomachHtml?`<div class="theory-title">Tín hiệu Vị quản</div><ul>${stomachHtml}</ul>`:''}${preliminaryHtml}`;els.theoryBox.hidden=false;
+  els.theoryBox.innerHTML=`<strong>Đối chiếu lý thuyết thiệt chẩn</strong>${generalHtml?`<div class="theory-title">Các tín hiệu đối chiếu</div><ul>${generalHtml}</ul>`:''}${stomachHtml?`<div class="theory-title">Tín hiệu Vị quản</div><ul>${stomachHtml}</ul>`:''}${preliminaryHtml}`;els.theoryBox.hidden=false;
 }
 function renderResult(){
   const a=state.assessment||{},top=a.top||{},tv=top.visualValidity||{};

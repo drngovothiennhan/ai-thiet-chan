@@ -1,6 +1,6 @@
 (function(scope){
 'use strict';
-const VERSION='roi-qc-v2-multiscale';
+const VERSION='roi-qc-v3-source-aware';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
 function q(v,n=2){return Number(Number(v||0).toFixed(n));}
 function rgbToHsv(r,g,b){
@@ -79,7 +79,7 @@ function focusMetrics(gray,mask,w,h,step=1){
   const mean=lapN?lapSum/lapN:0;
   return {edge:edgeN?edge/edgeN:0,laplacianVariance:lapN?Math.max(0,lapSq/lapN-mean*mean):0,samples:lapN};
 }
-function computePixelsQc(data,w,h,{view='top'}={}){
+function computePixelsQc(data,w,h,{view='top',sourceWidth=w,sourceHeight=h}={}){
   if(!data||!w||!h)throw new Error('QC_IMAGE_REQUIRED');
   const roi=buildRoi(data,w,h,view),mask=roi.mask,box=roi.box||{width:0,height:0};
   const gray=new Float32Array(w*h),values=[];let sum=0,sumSq=0,high=0,low=0,n=0;
@@ -90,40 +90,49 @@ function computePixelsQc(data,w,h,{view='top'}={}){
   const brightness=n?sum/n:0,variance=n?Math.max(0,sumSq/n-brightness*brightness):0,contrast=Math.sqrt(variance);
   const p10=percentile(values,.10),p90=percentile(values,.90),dynamicRange=p90-p10;
   const fine=focusMetrics(gray,mask,w,h,1),coarse=focusMetrics(gray,mask,w,h,2);
-  const highlightRatio=n?high/n:1,shadowRatio=n?low/n:1,minSide=Math.min(w,h),roiMin=Math.min(box.width||0,box.height||0);
+  const highlightRatio=n?high/n:1,shadowRatio=n?low/n:1,roiMin=Math.min(box.width||0,box.height||0);
+  const srcW=Math.max(w,Number(sourceWidth)||w),srcH=Math.max(h,Number(sourceHeight)||h);
+  const sourceMinSide=Math.min(srcW,srcH);
+  const sourceScale=Math.min(srcW/w,srcH/h);
+  const sourceRoiMin=roiMin*sourceScale;
   const highlight=highlightRatio<.08,shadow=shadowRatio<.10;
-  const resolution=minSide>=480&&roiMin>=110;
+  // Resolution is a property of the original capture, not the downsample used for QC.
+  // The previous implementation evaluated the 560 px QC sample and could mark a
+  // 1080p/1440p camera image as low-resolution after downsampling.
+  const resolution=sourceMinSide>=480&&sourceRoiMin>=110;
   const light=brightness>=55&&brightness<=225&&highlightRatio<.12&&shadowRatio<.14;
-  const dynamic=contrast>=18&&dynamicRange>=42;
-  const focusFine=fine.laplacianVariance>=38&&fine.edge>=5.2;
-  const focusCoarse=coarse.laplacianVariance>=26&&coarse.edge>=4.2;
-  const focus=focusFine||(fine.laplacianVariance>=28&&fine.edge>=6.2&&focusCoarse);
+  const dynamic=contrast>=18&&dynamicRange>=38;
+  // Tongue surfaces are naturally low-texture; use two spatial scales and a bounded
+  // edge floor instead of requiring a large single-scale Laplacian variance.
+  const focusFine=fine.laplacianVariance>=22&&fine.edge>=4.2;
+  const focusCoarse=coarse.laplacianVariance>=16&&coarse.edge>=3.4;
+  const focus=(focusFine&&coarse.edge>=2.8)||(focusCoarse&&fine.edge>=3.8);
   const clipping=highlight&&shadow;
   const checks={resolution,light,dynamic,focus,highlight,shadow,clipping};
   const passed=[resolution,light,dynamic,focus,clipping].filter(Boolean).length;
   let grade=passed===5?'good':passed>=3?'fair':'poor';
   if(!roi.detected&&grade==='good')grade='fair';
-  const focusScore=clamp(Math.max(fine.laplacianVariance/90,fine.edge/10,coarse.laplacianVariance/70));
+  const focusScore=clamp(Math.max(fine.laplacianVariance/70,fine.edge/8.5,coarse.laplacianVariance/55));
   const exposureScore=clamp(1-highlightRatio/.12)*.5+clamp(1-shadowRatio/.16)*.5;
   const lightScore=clamp(1-Math.abs(brightness-140)/120);
-  const dynamicScore=clamp(dynamicRange/85);
-  const resolutionScore=clamp(Math.min(minSide/720,roiMin/220));
+  const dynamicScore=clamp(dynamicRange/80);
+  const resolutionScore=clamp(Math.min(sourceMinSide/720,sourceRoiMin/220));
   const qualityScore=Math.round(100*(.15*resolutionScore+.20*lightScore+.15*dynamicScore+.30*focusScore+.20*exposureScore)*(roi.detected?1:.82));
   return {
-    version:VERSION,grade,width:w,height:h,view,roiDetected:roi.detected,roiCoverage:q(roi.coverage,4),roi:{width:box.width||0,height:box.height||0},
+    version:VERSION,grade,width:srcW,height:srcH,sampleWidth:w,sampleHeight:h,view,roiDetected:roi.detected,roiCoverage:q(roi.coverage,4),roi:{width:box.width||0,height:box.height||0,sourceMin:q(sourceRoiMin,1)},
     brightness:q(brightness,1),contrast:q(contrast,1),dynamicRange:q(dynamicRange,1),
     edge:q(fine.edge,1),laplacianVariance:q(fine.laplacianVariance,1),coarseEdge:q(coarse.edge,1),coarseLaplacianVariance:q(coarse.laplacianVariance,1),
     glare:q(highlightRatio*100,1),darkness:q(shadowRatio*100,1),qualityScore,checks
   };
 }
 function computeCanvasQc(ctx,w,h,{view='top'}={}){
-  const maxSide=560,scale=Math.min(1,maxSide/Math.max(w,h)),sw=Math.max(1,Math.round(w*scale)),sh=Math.max(1,Math.round(h*scale));
+  const maxSide=720,scale=Math.min(1,maxSide/Math.max(w,h)),sw=Math.max(1,Math.round(w*scale)),sh=Math.max(1,Math.round(h*scale));
   let data;
   if(scale===1)data=ctx.getImageData(0,0,w,h).data;
   else{
     const temp=document.createElement('canvas');temp.width=sw;temp.height=sh;const t=temp.getContext('2d',{willReadFrequently:true});t.imageSmoothingEnabled=true;t.imageSmoothingQuality='high';t.drawImage(ctx.canvas,0,0,sw,sh);data=t.getImageData(0,0,sw,sh).data;
   }
-  const qc=computePixelsQc(data,sw,sh,{view});
+  const qc=computePixelsQc(data,sw,sh,{view,sourceWidth:w,sourceHeight:h});
   qc.width=w;qc.height=h;qc.sampleWidth=sw;qc.sampleHeight=sh;
   return qc;
 }

@@ -8,7 +8,7 @@ Nhánh này là lát cắt local-first độc lập, không thay production và 
 - Bộ chọn `DeviceExecutionProfile` chỉ kích hoạt provider khi native probe báo `ready=true` và benchmark thực sự thành công; không suy đoán NPU/GPU từ tên chip.
 - Native Vision adapter fail-closed: model shadow/candidate hoặc chưa `validationStatus=validated` + `productionEligible=true` không được nâng thành observation.
 - Offline queue có idempotency, retry state và dead-letter semantics ở core; native shell đã có hàng đợi bền vững trong app-private data.
-- Pack verifier kiểm chữ ký Ed25519 + SHA-256 artifact; native app fail-closed nếu chưa cấu hình khóa phát hành tin cậy lúc build.
+- Pack verifier kiểm chữ ký Ed25519 + SHA-256 artifact; native app fail-closed nếu chưa cấu hình khóa phát hành tin cậy lúc build.\n- Signed-pack store dùng staging, health-check, thư mục version bất biến và state generation append-only để activation/rollback chịu lỗi tốt hơn; anti-rollback chặn hạ version trực tiếp.\n- Native SQLite retrieval ưu tiên `cases.sqlite` của active signed pack.\n- ONNX/provider probe chỉ báo `ready=true` sau khi runtime, model, session, benchmark và output validation đều có bằng chứng; ở checkpoint này production vision vẫn khóa.
 - Tauri 2 shell cho Android/Windows, file-image input, native SHA-256, device probe tối thiểu và diagnostics.
 - CI riêng tạo Windows NSIS và Android aarch64 APK nếu toolchain/build qua gate.
 

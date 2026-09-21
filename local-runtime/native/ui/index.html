@@ -11,7 +11,7 @@
     <header><h1>A.I Thiệt Chẩn — Local Runtime V1</h1><p>Android / Windows 11 · local-first · fail-closed</p></header>
     <section class="card"><h2>Thiết bị</h2><pre id="runtime">Đang kiểm tra runtime…</pre></section>
     <section class="card"><h2>Ảnh cục bộ</h2><input id="image" type="file" accept="image/*" capture="environment"><p id="hash">Chưa chọn ảnh.</p><p class="note">Ảnh chỉ được băm cục bộ trong lát cắt này; chưa có model ONNX đã kiểm định nên ứng dụng không sinh quan sát thị giác giả.</p></section>
-    <section class="card"><h2>Hàng đợi server discussion</h2><button id="refresh">Làm mới</button><pre id="queue">[]</pre></section>
+    <section class="card"><h2>Pack cục bộ đã ký</h2><pre id="pack">Đang kiểm tra pack…</pre><button id="recheckPack">Kiểm tra toàn vẹn</button></section>\n    <section class="card"><h2>Inference provider</h2><pre id="provider">Đang probe provider…</pre><button id="benchCpu">Benchmark CPU cục bộ</button><pre id="bench"></pre></section>\n    <section class="card"><h2>Hàng đợi server discussion</h2><button id="refresh">Làm mới</button><pre id="queue">[]</pre></section>
     <section class="card warning"><h2>Trạng thái Vision</h2><p>Native shell và hợp đồng local đã nối. ONNX production model chưa được bundle; GPU/NPU vẫn khóa cho tới khi probe + benchmark + quality validation đạt gate.</p></section>
   </main>
   <script src="./app.js"></script>

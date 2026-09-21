@@ -22,4 +22,4 @@ hex = "0.4"
 base64 = "0.22"
 ed25519-dalek = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
-unicode-normalization = "0.1"
+unicode-normalization = "0.1"\nzip = { version = "2", default-features = false, features = ["deflate"] }\nsemver = "1"\nlibloading = "0.8"\n

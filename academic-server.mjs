@@ -234,16 +234,14 @@ export function applyAcademicFusion(assessment,body={}){
   const atlasLanguage=documentWordingForMatches(matches,fused,body);
   const strongAtlas=atlasLanguage.matches[0]||null;
   if(strongAtlas&&atlasLanguage.wording){
+    // Keep atlas similarity as provenance/support metadata only. It is not a clinical
+    // signal and must not appear as a pseudo-probability in the syndrome list.
     fused.combined=fused.combined||{};
-    fused.combined.generalSignals=Array.isArray(fused.combined.generalSignals)?fused.combined.generalSignals:[];
-    const pct=Math.round(Number(strongAtlas.similarity)*100);
-    const label=`Tham Vấn: tương đồng atlas ${pct}%`;
-    if(!fused.combined.generalSignals.some(x=>String(x?.label||'')===label))fused.combined.generalSignals.push({
-      label,
-      evidence:atlasLanguage.wording,
-      rule:'Khi đối chiếu hình ảnh đạt từ 85% trở lên và ảnh qua QC, hệ thống ưu tiên đúng thuật ngữ/văn phong của mẫu tài liệu tương ứng; độ giống hình ảnh không được tự chuyển thành chẩn đoán xác định.',
-      confidence:Number(strongAtlas.similarity)
-    });
+    fused.combined.atlasSupport={
+      similarity:Number(strongAtlas.similarity),
+      wording:atlasLanguage.wording,
+      usage:'support-only-not-diagnostic-probability'
+    };
   }
   fused.ml=fused.ml||{};
   fused.ml.featureVector=fused.ml.featureVector||{};

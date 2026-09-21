@@ -108,3 +108,138 @@ html[data-aitc-layout="desktop"] #resultCard[hidden]{display:none!important}
 }
 
 /* PR-preview-build: compact-topbar-r2 */
+
+
+/* Desktop workspace balance r4 — equal columns/cards without changing stable features. */
+html[data-aitc-layout="desktop"] .app-shell{
+  max-width:1280px;
+}
+html[data-aitc-layout="desktop"] .content{
+  grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr)!important;
+  gap:18px;
+  align-items:start;
+}
+html[data-aitc-layout="desktop"] .capture-card{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack{
+  display:grid!important;
+  grid-column:2!important;
+  grid-row:1!important;
+  grid-template-columns:minmax(0,1fr);
+  gap:16px;
+  width:100%;
+  min-width:0;
+  align-content:start;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack > .chat-card,
+html[data-aitc-layout="desktop"] .desktop-side-stack > .clinical-feedback-card,
+html[data-aitc-layout="desktop"] .desktop-side-stack > .quality-card{
+  grid-column:1!important;
+  grid-row:auto!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+  align-self:stretch;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .section-head{
+  flex-wrap:wrap;
+  align-items:flex-start;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .section-head > div:first-child{
+  flex:1 1 200px;
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .section-head h2,
+html[data-aitc-layout="desktop"] .desktop-side-stack .section-head p,
+html[data-aitc-layout="desktop"] .desktop-side-stack .bubble,
+html[data-aitc-layout="desktop"] .desktop-side-stack .clinical-learning-note,
+html[data-aitc-layout="desktop"] .desktop-side-stack .clinical-learning-status{
+  word-break:normal;
+  overflow-wrap:break-word;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .clinical-learning-grid.two{
+  grid-template-columns:1fr!important;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .quality-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .quality-metric{
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .chat-form{
+  grid-template-columns:minmax(0,1fr) auto;
+}
+html[data-aitc-layout="desktop"] .desktop-side-stack .chat-form input{
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] #resultCard{
+  grid-column:1/-1!important;
+  grid-row:auto!important;
+}
+
+/* Keep the two capture panels geometrically matched in desktop mode. */
+html[data-aitc-layout="desktop"] .view-capture-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:14px;
+  align-items:stretch;
+}
+html[data-aitc-layout="desktop"] .view-capture-card{
+  display:grid;
+  grid-template-rows:48px auto 58px auto;
+  height:100%;
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] .view-title{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(84px,auto);
+  gap:10px;
+  min-height:48px;
+  margin-bottom:10px;
+  align-items:start;
+}
+html[data-aitc-layout="desktop"] .view-title strong{
+  min-width:0;
+  line-height:1.25;
+}
+html[data-aitc-layout="desktop"] .view-title span{
+  max-width:120px;
+  text-align:right;
+  line-height:1.25;
+  justify-self:end;
+}
+html[data-aitc-layout="desktop"] .slot-actions{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px;
+  align-items:stretch;
+}
+html[data-aitc-layout="desktop"] .slot-actions > *{
+  min-width:0;
+}
+html[data-aitc-layout="desktop"] .slot-actions .btn{
+  min-height:58px;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  white-space:normal;
+  line-height:1.18;
+  padding:8px 6px;
+}
+
+/* On narrower PC-mode viewports keep a usable, non-collapsing right rail. */
+@media(max-width:980px){
+  html[data-aitc-layout="desktop"] .content{
+    grid-template-columns:minmax(0,1.35fr) minmax(300px,.95fr)!important;
+    gap:14px;
+    padding-left:12px;
+    padding-right:12px;
+  }
+  html[data-aitc-layout="desktop"] .card{
+    padding:14px;
+  }
+}

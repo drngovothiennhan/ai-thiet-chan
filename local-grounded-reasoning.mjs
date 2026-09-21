@@ -94,18 +94,29 @@ function limitations(assessment={}){
     ...list(assessment?.top?.theoryAssessment?.cannotConclude)
   ],6);
 }
-function sourceEvidence(assessment={},knowledgeText='',limit=4){
+function sourceEvidence(assessment={},knowledgeText='',limit=4,question=''){
   const out=[];
+  const q=normalize(question);
+  const ventralQuestion=/(mat duoi|tinh mach|mach duoi luoi|sublingual|vein)/.test(q);
+  const knowledgeLines=text(knowledgeText).split(/\r?\n/)
+    .filter(line=>/^\s*-\s*\[[^\]]+\]/.test(line))
+    .map(line=>line.replace(/^\s*-\s*/,'').trim());
+  if(ventralQuestion){
+    for(const line of knowledgeLines){
+      if(!/(mặt dưới|tĩnh mạch dưới lưỡi|mạch dưới lưỡi|sublingual)/iu.test(line))continue;
+      out.push(line);if(out.length>=limit)return uniq(out,limit);
+    }
+  }
   const fusion=assessment?.combined?.academicFusion||{};
   for(const e of list(fusion.evidence)){
     const source=text(e?.source),page=Number(e?.page),body=text(e?.text);
     if(!source||!body)continue;
+    if(ventralQuestion&&!/(mặt dưới|tĩnh mạch dưới lưỡi|mạch dưới lưỡi|sublingual)/iu.test(body))continue;
     out.push(`[${source}${Number.isFinite(page)?`, tr. ${page}`:''}] ${body}`);
-    if(out.length>=limit)return out;
+    if(out.length>=limit)return uniq(out,limit);
   }
-  for(const line of text(knowledgeText).split(/\r?\n/)){
-    if(!/^\s*-\s*\[[^\]]+\]/.test(line))continue;
-    out.push(line.replace(/^\s*-\s*/,'').trim());
+  for(const line of knowledgeLines){
+    out.push(line);
     if(out.length>=limit)break;
   }
   return uniq(out,limit);
@@ -132,7 +143,7 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   const q=normalize(question);
   const signals=acceptedSignals(assessment);
   const limits=limitations(assessment);
-  const sources=sourceEvidence(assessment,knowledgeText,4);
+  const sources=sourceEvidence(assessment,knowledgeText,4,question);
   const reply=[];
 
   if(/\b(?:do am|kho|uot|nhuan|moisture|wet|dry|gloss)\b/.test(q)){

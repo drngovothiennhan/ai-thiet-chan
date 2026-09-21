@@ -593,7 +593,7 @@ app.post('/api/report',aiRateLimit,async(req,res)=>{
     if(!data)return res.status(400).json({error:'ANALYSIS_REQUIRED'});
     const llmData=llmSafeAssessmentContext(data)||data;
     const local=localGroundedReport({assessment:llmData,mode,topQc:topQc||qc||{},bottomQc:bottomQc||{}});
-    const base={ok:true,report:local.report,model:LOCAL_REASONING_HEALTH.engine,provider:'local-grounded',knowledgeVersion:KNOWLEDGE_VERSION,grounding:local.grounding,auxiliaryRequested:body.useAuxiliary===true,auxiliaryProvider:'Gemini'};
+    const base={ok:true,report:local.report,sections:local.sections,modeLabel:local.modeLabel,model:LOCAL_REASONING_HEALTH.engine,provider:'local-grounded',knowledgeVersion:KNOWLEDGE_VERSION,grounding:local.grounding,auxiliaryRequested:body.useAuxiliary===true,auxiliaryProvider:'Gemini'};
     if(body.useAuxiliary!==true)return res.json({...base,auxiliaryStatus:'not-requested'});
 
     const key=apiKey();

@@ -182,24 +182,56 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   });
 }
 
+function reportTopItems(top={}){
+  const out=[];
+  const push=(label,value)=>{const v=text(value);if(v&&!/không xác định|unknown/i.test(v))out.push(`${label}: ${v}`);};
+  push('Màu thân lưỡi',top.tongueColor);push('Hình thể',top.shape);
+  const coat=[text(top.coatingColor),text(top.coatingThickness),text(top.coatingDistribution),text(top.coatingTexture)].filter(v=>v&&!/không xác định|unknown/i.test(v));
+  if(coat.length)out.push('Rêu lưỡi: '+coat.join(' · '));
+  push('Độ ẩm',top.moisture);push('Dấu răng',top.toothmarks);push('Gai/điểm',top.pricklesSpots);push('Ban/điểm ứ',top.stasisMarks);
+  const morph=morphologyText(top);if(morph)out.push('Rãnh/nứt: '+morph);
+  return uniq(out,10);
+}
+function reportBottomItems(bottom={}){
+  const v=bottom.vessels&&typeof bottom.vessels==='object'?bottom.vessels:{},out=[];
+  const push=(label,value)=>{const x=text(value);if(x&&!/không xác định|unknown/i.test(x))out.push(`${label}: ${x}`);};
+  push('Màu mặt dưới',bottom.undersideColor);
+  if(v.visible===true)out.push('Mạch dưới lưỡi: thấy cấu trúc hai bên');
+  push('Màu mạch',v.color);push('Mức nổi',v.prominence);
+  if(text(v.dilation)&&!/không xác định|chưa đánh giá/i.test(text(v.dilation)))push('Giãn',v.dilation);
+  if(text(v.tortuosity)&&!/không xác định|chưa đủ/i.test(text(v.tortuosity)))push('Uốn lượn',v.tortuosity);
+  return uniq(out,8);
+}
+function reportSignalItems(signals=[]){
+  return uniq(signals.map(signalText).filter(Boolean),6);
+}
+function discussionItems(summary=''){
+  return uniq(text(summary).split(/(?<=[.!?])\s+/).map(x=>x.trim()).filter(Boolean),5);
+}
 export function localGroundedReport({assessment,mode='normal',topQc={},bottomQc={}}={}){
   if(!assessment||typeof assessment!=='object')throw new Error('ANALYSIS_REQUIRED');
   const top=assessment.top||{},bottom=assessment.bottom||null,combined=assessment.combined||{};
-  const signals=acceptedSignals(assessment);
-  const limits=limitations(assessment);
-  const lines=[
-    'BÁO CÁO THIỆT CHẨN — QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN',
-    `1. Chất lượng ảnh mặt trên: ${text(top.quality)||text(topQc.grade)||'chưa xác định'}.`,
-    '2. Thiệt tượng mặt trên: '+topObservation(top)+'.'
+  const signals=acceptedSignals(assessment),limits=limitations(assessment);
+  const general=mode==='general'||Boolean(bottom);
+  const sections=[
+    {title:'1. Chất lượng dữ liệu',items:uniq([
+      `Mặt trên: ${text(top.quality)||text(topQc.grade)||'chưa xác định'}`,
+      general?`Mặt dưới: ${text(bottom?.quality)||text(bottomQc.grade)||'chưa xác định'}`:''
+    ],4)},
+    {title:'2. Quan sát mặt trên lưỡi',items:reportTopItems(top)}
   ];
-  if(mode==='general'||bottom){
-    lines.push(`3. Chất lượng ảnh mặt dưới: ${text(bottom?.quality)||text(bottomQc.grade)||'chưa xác định'}.`);
-    lines.push('4. Thiệt tượng mặt dưới: '+(bottom?bottomObservation(bottom):'chưa đủ dữ liệu')+'.');
-    lines.push('5. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
-    lines.push('6. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
-  }else{
-    lines.push('3. Đối chiếu tổng hợp: '+(text(combined.summary)||'Chưa đủ căn cứ để nâng mức kết luận.')+(signals.length?' '+signals.map(signalText).filter(Boolean).join(' | '):''));
-    lines.push('4. Giới hạn: '+(limits.length?limits.join(' '):'Kết quả chỉ dùng cho học tập/tham khảo; không thay thế tứ chẩn và khám trực tiếp.'));
-  }
-  return Object.freeze({ok:true,report:lines.join('\n'),engine:LOCAL_REASONING_HEALTH.engine,grounding:'local-grounded',acceptedSignalCount:signals.length});
+  if(general)sections.push({title:'3. Quan sát mặt dưới lưỡi',items:bottom?reportBottomItems(bottom):['Chưa đủ dữ liệu mặt dưới.']});
+  const baseNo=general?4:3;
+  const signalItems=reportSignalItems(signals);
+  sections.push({title:`${baseNo}. Đối chiếu kiến thức YHCT`,items:signalItems.length?signalItems:['Chưa có tín hiệu y văn đủ mạnh để nâng mức quy nạp.']});
+  const discussion=discussionItems(combined.summary);
+  sections.push({title:`${baseNo+1}. Bàn luận`,items:discussion.length?discussion:['Chưa đủ căn cứ để nâng mức kết luận.']});
+  sections.push({title:`${baseNo+2}. Giới hạn`,items:limits.length?uniq(limits,6):['Kết quả chỉ hỗ trợ học tập/tham khảo; không thay thế Tứ chẩn và khám trực tiếp.']});
+  const lines=['BÁO CÁO THIỆT CHẨN — QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN'];
+  for(const section of sections){lines.push('',section.title);for(const item of section.items)lines.push('• '+item);}
+  return Object.freeze({
+    ok:true,report:lines.join('\n'),sections:Object.freeze(sections.map(s=>Object.freeze({title:s.title,items:Object.freeze([...s.items])}))),
+    modeLabel:general?'Tổng quát · mặt trên + mặt dưới':'Bình thường · mặt trên',
+    engine:LOCAL_REASONING_HEALTH.engine,grounding:'local-grounded',acceptedSignalCount:signals.length
+  });
 }

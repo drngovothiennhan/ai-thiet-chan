@@ -51,6 +51,11 @@ assert.equal(report.ok,true);
 assert.match(report.report,/BÁO CÁO THIỆT CHẨN/);
 assert.match(report.report,/Thiệt tượng mặt trên/);
 assert.match(report.report,/QUAN SÁT VÀ ĐỐI CHIẾU Y VĂN/);
+assert.ok(Array.isArray(report.sections));
+assert.ok(report.sections.some(s=>/Quan sát mặt trên/.test(s.title)));
+assert.ok(report.sections.some(s=>/Đối chiếu kiến thức/.test(s.title)));
+assert.ok(report.sections.some(s=>/Bàn luận/.test(s.title)));
+assert.match(report.modeLabel,/Bình thường/);
 
 assert.equal(OPEN_SOURCE_VISION_POLICY.weightRule.includes('not assumed'),true);
 for(const item of OPEN_SOURCE_VISION_REGISTRY){

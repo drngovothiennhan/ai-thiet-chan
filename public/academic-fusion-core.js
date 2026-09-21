@@ -106,22 +106,21 @@ export function directPatterns(assessment){
 function featureDiscussion(assessment,directPatternsList,agreement){
   const top=assessment?.top||{},bottom=assessment?.bottom||null,v=bottom?.vessels||{};
   const clean=x=>String(x??'').trim();
-  const unknown=x=>!clean(x)||/không xác định|chưa đủ|chưa đánh giá|unknown/i.test(clean(x));
+  const has=(v,re)=>re.test(clean(v).toLocaleLowerCase('vi-VN'));
   const parts=[];
-  if(!unknown(top.tongueColor))parts.push(`Màu thân lưỡi: ${clean(top.tongueColor)}; màu thân được đọc tách khỏi màu rêu để tránh đồng nhất “đỏ nhạt” với “nhợt”.`);
-  const coat=[clean(top.coatingColor),clean(top.coatingThickness),clean(top.coatingDistribution),clean(top.coatingTexture)].filter(x=>x&&!unknown(x));
-  if(coat.length)parts.push(`Rêu lưỡi: ${coat.join(', ')}; độ dày, phân bố và tính chất rêu được đối chiếu như các feature độc lập, không dùng một trường thay cho trường khác.`);
-  if(!unknown(top.moisture))parts.push(`Độ nhuận/khô: ${clean(top.moisture)}; tín hiệu này hỗ trợ đánh giá tân dịch/thấp nhưng không xác định nguyên nhân nếu đứng riêng.`);
-  const morph=[!unknown(top.shape)?`hình thể ${clean(top.shape)}`:'',!unknown(top.toothmarks)?`dấu răng ${clean(top.toothmarks)}`:''].filter(Boolean);
-  if(morph.length)parts.push(`Hình thể và bờ lưỡi: ${morph.join('; ')}; hình thể và dấu răng phải được đọc cùng màu thân và rêu.`);
-  if(bottom&&v.visible===true){
-    const vent=[clean(v.color),clean(v.prominence)].filter(x=>x&&!unknown(x));
-    parts.push(`Mặt dưới: thấy cấu trúc mạch hai bên${vent.length?`, ${vent.join(', ')}`:''}; màu/mức nổi chỉ là mô tả ảnh, không thay thế chuẩn đo kích thước hay mạch chẩn.`);
-  }
+  const lightRed=has(top.tongueColor,/đỏ nhạt|hồng nhạt/u),pale=has(top.tongueColor,/nhợt|trắng nhợt/u);
+  const white=has(top.coatingColor,/trắng/u),thick=has(top.coatingThickness,/dày/u),moist=has(top.moisture,/nhuận|ướt|ẩm/u);
+  const puffy=has(top.shape,/mập|bản rộng|bệu|phì/u),tooth=has(top.toothmarks,/có tín hiệu|hằn răng|dấu răng/u);
+  if(lightRed&&white&&thick&&moist)parts.push('Tổ hợp đỏ nhạt + rêu trắng dày + nhuận hướng nhiều hơn tới trục thấp/hàn-thấp hoặc tích trệ cần đối chiếu; chưa đủ cơ sở gọi hư hàn nếu không có màu nhợt và triệu chứng toàn thân phù hợp.');
+  else if(white&&thick)parts.push('Rêu trắng dày là tín hiệu cần đối chiếu thấp/hàn-thấp hoặc tích trệ, nhưng phải đọc cùng màu thân lưỡi, độ nhuận và triệu chứng tiêu hóa.');
+  else if(lightRed&&white)parts.push('Chất lưỡi đỏ nhạt đi với rêu trắng chưa cho phép quy trực tiếp thành hư hàn; cần phân biệt rêu mỏng/dày, độ nhuận và biểu hiện toàn thân.');
+  if(puffy&&!pale)parts.push('Hình thể bản rộng/mập khi chưa kèm nhợt rõ hoặc dấu răng đủ mạnh chỉ nên xem là dấu hỗ trợ, không tự quy thành Tỳ khí/Tỳ dương hư.');
+  if(tooth)parts.push('Dấu răng nếu đã vượt gate hình học làm tăng giá trị đối chiếu Tỳ hư/thấp; vẫn cần triệu chứng ăn uống, đại tiện và mạch để củng cố.');
+  if(bottom&&v.visible===true&&has(v.color,/tím|xanh tím|ám tím/u))parts.push('Mạch dưới lưỡi tím/xanh tím được giữ như tín hiệu đối chiếu riêng; không tự suy giãn hoặc huyết ứ khi ảnh thiếu chuẩn kích thước và mạch chẩn.');
   const ranked=(directPatternsList||[]).filter(x=>x?.label&&Number(x?.score)>0).slice(0,3);
-  if(ranked.length)parts.push('Các hướng đối chiếu ưu tiên: '+ranked.map(x=>`${x.label} (${Math.round(clamp(x.score)*100)}%)`).join('; ')+'. Đây là mức phù hợp dấu hiệu, không phải xác suất chẩn đoán.');
-  parts.push(agreement==='strong'?'Đối chiếu đa lớp hiện đồng thuận cao, nhưng vẫn cần Tứ chẩn.':agreement==='moderate'?'Đối chiếu đa lớp hiện đồng thuận trung bình; cần Vấn chẩn/Tứ chẩn để phân biệt các hướng gần nhau.':'Đối chiếu đa lớp còn chưa đồng nhất; ưu tiên giữ các feature quan sát thay vì ép thành một thể duy nhất.');
-  return parts.slice(0,6).join(' ');
+  if(ranked.length)parts.push('Hướng đối chiếu ưu tiên: '+ranked.map(x=>`${x.label} (${Math.round(clamp(x.score)*100)}%)`).join('; ')+'. Các tỷ lệ là mức phù hợp dấu hiệu, không phải xác suất chẩn đoán.');
+  parts.push(agreement==='strong'?'Đối chiếu đa lớp hiện đồng thuận cao; vẫn cần Tứ chẩn trước khi kết luận.':agreement==='moderate'?'Đối chiếu đa lớp hiện đồng thuận trung bình; cần Vấn chẩn/Tứ chẩn để phân biệt các hướng gần nhau.':'Đối chiếu đa lớp còn chưa đồng nhất; giữ các hướng phân biệt thay vì ép thành một thể duy nhất.');
+  return parts.slice(0,5).join(' ');
 }
 export function evidenceFor(patterns){
   const hay=patterns.map(p=>String(p?.label||'').toLowerCase()).filter(Boolean).join(' ');

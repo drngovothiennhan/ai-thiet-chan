@@ -10,8 +10,8 @@ const css=fs.readFileSync('public/styles.css','utf8');
 assert.match(home,/<strong>Bàn luận<\/strong><div id="summaryText" class="discussion-content"><\/div>/);
 assert.match(home,/<strong>Giới hạn<\/strong>Kết quả hỗ trợ học tập và đối chiếu YHCT; không thay thế tứ chẩn và khám trực tiếp\./);
 assert.doesNotMatch(home,/<strong>Tóm tắt<\/strong>/);
-assert.match(app,/Kết luận sơ bộ/);
-assert.match(app,/Dữ liệu máy học/);
+assert.match(app,/Tóm tắt nhận diện/);
+assert.match(app,/Quan sát trực tiếp/);
 assert.match(app,/Đối chiếu y văn/);
 assert.doesNotMatch(app,/<div class="theory-title">Chưa thể kết luận<\/div>/);
 assert.doesNotMatch(app,/Gemini\/LLM không được phép tạo quan sát hình ảnh/);
@@ -39,3 +39,9 @@ console.log('RESULT PRESENTATION PASS: preliminary conclusion and Discussion use
 assert.match(app,/roi-qc-fast-best-of-2/);
 assert.match(app,/captureLatencyMs/);
 assert.match(app,/Nét đủ phân tích/);
+
+assert.match(app,/function semanticKey/);
+assert.match(app,/function recognitionSummary/);
+assert.match(app,/function renderCaseReport/);
+assert.match(css,/\.case-report-section/);
+assert.match(css,/\.case-report-head/);

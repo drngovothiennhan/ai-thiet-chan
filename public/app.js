@@ -258,18 +258,51 @@ function cleanMachineLearningSummary(value){
     .trim();
   return text;
 }
+function semanticKey(value){
+  return String(value||'').toLocaleLowerCase('vi-VN').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9\s]/g,' ').replace(/\b(?:mat tren|mat duoi|tong hop|quan sat|doi chieu|hien co|du kien)\b/g,' ').replace(/\s+/g,' ').trim();
+}
+function dedupeBullets(items,max=6){
+  const out=[],keys=[];
+  for(const raw of items){
+    const item=String(raw||'').trim();if(!item)continue;
+    const key=semanticKey(item);if(!key)continue;
+    const duplicate=keys.some(prev=>prev===key||(key.length>28&&prev.includes(key))||(prev.length>28&&key.includes(prev)));
+    if(duplicate)continue;
+    keys.push(key);out.push(item);if(out.length>=max)break;
+  }
+  return out;
+}
 function proseBullets(value,max=4){
   const text=String(value||'').trim();
   if(!text)return [];
-  return text.split(/(?<=[.!?])\s+|\s*[•|]\s*/).map(x=>x.trim()).filter(Boolean).slice(0,max);
+  return dedupeBullets(text.split(/(?<=[.!?])\s+|\s*[•|]\s*/).map(x=>x.trim()).filter(Boolean),max);
 }
 function cleanDiscussionSummary(value){
   let text=String(value||'').replace(/\r/g,' ').replace(/\s+/g,' ').trim();
   if(!text)return '';
   return text.replace(/Giới hạn:\s*.*$/giu,' ').replace(/\s{2,}/g,' ').trim();
 }
+function recognitionSummary(a){
+  const top=a?.top||{},bottom=a?.bottom||null,v=bottom?.vessels||{};
+  const known=v=>{const s=String(v??'').trim();return s&&!/không xác định|chưa đủ|unknown/i.test(s)?s:'';};
+  const topParts=[
+    known(top.tongueColor)&&`chất lưỡi ${known(top.tongueColor)}`,
+    known(top.coatingColor)&&`rêu ${known(top.coatingColor)}`,
+    known(top.coatingThickness)&&`độ dày ${known(top.coatingThickness)}`,
+    known(top.coatingDistribution)&&`phân bố ${known(top.coatingDistribution)}`,
+    known(top.moisture)&&`độ ẩm ${known(top.moisture)}`,
+    known(top.shape)&&`hình thể ${known(top.shape)}`,
+    known(top.toothmarks)&&`dấu răng: ${known(top.toothmarks)}`
+  ].filter(Boolean);
+  const out=[];if(topParts.length)out.push('Mặt trên: '+topParts.join('; ')+'.');
+  if(bottom){
+    const bottomParts=[known(bottom.undersideColor)&&`màu mặt dưới ${known(bottom.undersideColor)}`,v.visible===true?'thấy cấu trúc mạch hai bên':'',known(v.color)&&`màu mạch ${known(v.color)}`,known(v.prominence)&&`mức nổi ${known(v.prominence)}`].filter(Boolean);
+    if(bottomParts.length)out.push('Mặt dưới: '+bottomParts.join('; ')+'.');
+  }
+  return dedupeBullets(out,3).join(' ');
+}
 function renderDiscussion(value){
-  const items=proseBullets(cleanDiscussionSummary(value),6);
+  const items=proseBullets(cleanDiscussionSummary(value),5);
   if(!items.length){els.summary.innerHTML='<p class="discussion-empty">Chưa có nội dung bàn luận.</p>';return;}
   els.summary.innerHTML='<ul class="discussion-list">'+items.map(item=>`<li>${escapeHtml(item)}</li>`).join('')+'</ul>';
 }
@@ -278,7 +311,7 @@ function renderTheoryAssessment(a){
   const general=Array.isArray(combined.generalSignals)?combined.generalSignals:[];
   const stomach=Array.isArray(combined.stomachPatternSignals)?combined.stomachPatternSignals:[];
   const signals=[...general,...stomach].filter(item=>item&&typeof item==='object');
-  const mlText=cleanMachineLearningSummary(combined.summary||top.summary||'');
+  const mlText=cleanMachineLearningSummary(recognitionSummary(a)||top.summary||'');
   const mlItems=proseBullets(mlText,4);
   const literatureItems=signals.slice(0,4).map(item=>({
     label:String(item.label||'').trim(),
@@ -301,7 +334,7 @@ function renderTheoryAssessment(a){
   const stomachHtml=stomach.map(item=>{const pct=Math.round(Math.max(0,Math.min(1,Number(item.confidence)||0))*100);const alert=pct>=80?`<div class="signal-alert high"><strong>Cảnh báo mức cao ${pct}%</strong><span>Cần phối hợp triệu chứng và Tứ chẩn trước khi kết luận.</span></div>`:pct>=70?`<div class="signal-alert watch"><strong>Cần lưu ý ${pct}%</strong><span>Cần phối hợp triệu chứng và Tứ chẩn trước khi kết luận.</span></div>`:'';return `<li><strong>${escapeHtml(item.label||'')}</strong><span>${escapeHtml(item.evidence||'')}</span><small>Mức phù hợp dấu hiệu: ${pct}% · không phải xác suất chẩn đoán.${item.missingForConclusion?` · Còn thiếu: ${escapeHtml(item.missingForConclusion)}`:''}</small>${alert}</li>`;}).join('');
   const mlHtml=(mlItems.length?mlItems:['Chưa đủ dữ liệu cấu trúc để tổng hợp.']).map(item=>`<li>${escapeHtml(item)}</li>`).join('');
   const literatureHtml=(literatureItems.length?literatureItems:[{label:'',evidence:'Chưa có tín hiệu y văn đủ mạnh để quy nạp thêm từ dữ kiện hiện có.'}]).map(item=>`<li>${item.label?`<strong>${escapeHtml(item.label)}</strong>`:''}${item.evidence?`<span>${escapeHtml(item.evidence)}</span>`:''}</li>`).join('');
-  const preliminaryHtml=`<section class="preliminary-conclusion"><div class="theory-title">Kết luận sơ bộ</div><div class="evidence-block"><h4>Dữ liệu máy học</h4><ul class="evidence-list">${mlHtml}</ul></div><div class="evidence-block"><h4>Đối chiếu y văn</h4><ul class="evidence-list">${literatureHtml}</ul></div></section>`;
+  const preliminaryHtml=`<section class="preliminary-conclusion"><div class="theory-title">Tóm tắt nhận diện</div><div class="evidence-block"><h4>Quan sát trực tiếp</h4><ul class="evidence-list">${mlHtml}</ul></div><div class="evidence-block"><h4>Đối chiếu y văn</h4><ul class="evidence-list">${literatureHtml}</ul></div></section>`;
   els.theoryBox.innerHTML=`<strong>Đối chiếu lý thuyết thiệt chẩn</strong>${generalHtml?`<div class="theory-title">Các tín hiệu đối chiếu</div><ul>${generalHtml}</ul>`:''}${stomachHtml?`<div class="theory-title">Tín hiệu Vị quản</div><ul>${stomachHtml}</ul>`:''}${preliminaryHtml}`;els.theoryBox.hidden=false;
 }
 function renderResult(){
@@ -322,9 +355,20 @@ function renderResult(){
   renderTheoryAssessment(a);const combined=a.combined||{};renderDiscussion(combined.summary||top.summary||'');const conf=Math.max(0,Math.min(1,Number(combined.confidence)||0));els.confidence.textContent=`Tin cậy ${Math.round(conf*100)}%`;els.modelLabel.textContent=[a.mode==='general'?'Tổng quát · 2 ảnh':'Bình thường · 1 ảnh',state.model?`Mô hình: ${state.model}`:'',state.knowledgeVersion?`KB: ${state.knowledgeVersion}`:''].filter(Boolean).join(' · ');els.resultCard.hidden=false;els.resultCard.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function renderCaseReport(data){
+  const sections=Array.isArray(data?.sections)?data.sections:[];
+  if(!sections.length){els.reportBox.textContent=data?.report||'Chưa có báo cáo.';els.reportBox.hidden=false;return;}
+  const sectionHtml=sections.map(section=>{
+    const items=Array.isArray(section?.items)?dedupeBullets(section.items,10):[];
+    if(!items.length)return '';
+    return `<section class="case-report-section"><h4>${escapeHtml(section.title||'')}</h4><ul>${items.map(item=>`<li>${escapeHtml(item)}</li>`).join('')}</ul></section>`;
+  }).filter(Boolean).join('');
+  els.reportBox.innerHTML=`<article class="case-report"><header class="case-report-head"><div><strong>BÁO CÁO TỔNG KẾT CA THIỆT CHẨN</strong><span>A.I THIỆT CHẨN · HIU CLB YHCT</span></div><span class="case-report-mode">${escapeHtml(data.modeLabel||'Thiệt chẩn')}</span></header>${sectionHtml}<footer class="case-report-foot">Kết quả hỗ trợ học tập và đối chiếu YHCT; không thay thế Tứ chẩn và khám trực tiếp.</footer></article>`;
+  els.reportBox.hidden=false;
+}
 async function makeReport(){
   if(!state.assessment)return;els.report.disabled=true;const old=els.report.textContent;els.report.textContent='Đang tạo báo cáo…';
-  try{const d=await apiFetch('/api/report',{mode:state.mode,assessment:state.assessment,topQc:state.images.top.qc,bottomQc:state.mode==='general'?state.images.bottom.qc:null});els.reportBox.textContent=d.report;els.reportBox.hidden=false;}catch(err){appendBubble(`Không tạo được báo cáo: ${err.message}`);}finally{els.report.disabled=false;els.report.textContent=old;}
+  try{const d=await apiFetch('/api/report',{mode:state.mode,assessment:state.assessment,topQc:state.images.top.qc,bottomQc:state.mode==='general'?state.images.bottom.qc:null});renderCaseReport(d);}catch(err){appendBubble(`Không tạo được báo cáo: ${err.message}`);}finally{els.report.disabled=false;els.report.textContent=old;}
 }
 async function sendChat(ev){ev.preventDefault();const message=els.chatInput.value.trim();if(!message)return;els.chatInput.value='';appendBubble(message,'user');const submit=els.chatForm.querySelector('button');submit.disabled=true;try{const d=await apiFetch('/api/chat',{assessment:state.assessment,message});appendBubble(normalizeChatReferences(d.reply||'Không có phản hồi.'));}catch(err){appendBubble(`Chatbot chưa trả lời được: ${err.message}`);}finally{submit.disabled=false;}}
 

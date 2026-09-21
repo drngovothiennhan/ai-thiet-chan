@@ -42,7 +42,7 @@ function softUsable(){
   const cx=320,cy=350,rx=150,ry=220;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     const dx=(x-cx)/rx,dy=(y-cy)/ry;if(dx*dx+dy*dy>1)continue;
-    const p=(y*w+x)*4,texture=Math.round(10*Math.sin(x/3.5)+5*Math.sin(y/5.5));
+    const p=(y*w+x)*4,texture=((Math.floor(x/8)+Math.floor(y/8))%2===0)?12:-12;
     d[p]=190+texture;d[p+1]=116+texture;d[p+2]=125+texture;d[p+3]=255;
   }
   return {d,w,h};

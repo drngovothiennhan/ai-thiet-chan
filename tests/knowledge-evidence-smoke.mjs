@@ -12,8 +12,8 @@ import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontol
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv10+morphref1');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,43);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv10+rtbsr3+morphref1');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,44);
 assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
 assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,19);
 assert.equal(OPEN_ACCESS_POLICY.sourceCount,19);

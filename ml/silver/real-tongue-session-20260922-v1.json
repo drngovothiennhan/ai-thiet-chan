@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "aitc-real-tongue-silver-v1",
+  "datasetId": "real-tongue-session-20260922-v1",
+  "createdAt": "2026-09-22",
+  "language": "vi",
+  "purpose": "De-identified silver annotations from owner-provided real tongue photographs for LLM visual-reasoning examples, QC regression and shadow development.",
+  "privacy": {
+    "rawImagesCommittedToGit": false,
+    "reason": "The source photographs include identifiable faces and the repository is public.",
+    "storageRequirement": "Keep raw photographs only in an authorized private store; pair by local/private identifier or sha256.",
+    "containsDirectIdentifiers": false
+  },
+  "safetyPolicy": {
+    "annotationClass": "silver_real_world",
+    "humanExpertRequiredForGold": true,
+    "clinicalDiagnosisFromImageAlone": "forbidden",
+    "automaticProductionPromotion": "forbidden",
+    "note": "Tongue appearance may support TCM pattern hypotheses but cannot by itself establish a disease or syndrome. Symptoms, history, pulse and examination remain required."
+  },
+  "labelSemantics": {
+    "bodyColor": ["pale_pink", "pink", "red", "dusky_purple", "uncertain"],
+    "coatingColor": ["white", "yellow", "mixed", "none_or_peeled", "uncertain"],
+    "coatingThickness": ["thin", "moderate", "thick", "patchy", "uncertain"],
+    "moisture": ["dry", "normal", "moist", "uncertain"],
+    "ventralVeins": ["not_visible", "visible", "prominent_blue_purple", "uncertain"],
+    "patternStatus": "hypothesis_only"
+  },
+  "records": [
+    {
+      "caseId": "RT-20260922-A",
+      "sourceFrames": [
+        {"name": "29519.jpg", "sha256": "b9c9c5876a567ab5fe27462619cddc5ff6d8f1d7034af11c8f1da49bbe746dc0", "view": "dorsal", "qc": "good"},
+        {"name": "29520.jpg", "sha256": "500eec1c634b479775cc425efa27bb358206f9a16b906265c15ea8c06ed0af85", "view": "dorsal_oblique", "qc": "good"},
+        {"name": "29521.jpg", "sha256": "a055afb5d3bb8ffb471430c1b69e55f8c548f49bc99e7ba5bfd456e7acb6450a", "view": "ventral", "qc": "good"}
+      ],
+      "observedFeatures": {
+        "bodyColor": "pink_to_dusky",
+        "shape": "broad",
+        "coatingColor": "white",
+        "coatingThickness": "moderate",
+        "coatingDistribution": "central_and_posterior_greater_than_edges",
+        "moisture": "normal_to_moist",
+        "fissures": "mild_longitudinal_or_uncertain",
+        "teethMarks": "not_prominent",
+        "ventralVeins": "prominent_blue_purple"
+      },
+      "patternHypotheses": [
+        {"pattern": "thap_tre_trung_tieu", "confidence": "low_to_moderate", "rationale": "white central coating with relatively broad tongue; requires symptoms/pulse"},
+        {"pattern": "khi_tre_huyet_u", "confidence": "low", "rationale": "dusky tendency and prominent blue-purple sublingual veins; venous prominence alone is not diagnostic"}
+      ],
+      "trainingNotes": ["Do not equate prominent sublingual veins alone with blood stasis.", "Use dorsal and ventral views jointly."]
+    },
+    {
+      "caseId": "RT-20260922-B",
+      "sourceFrames": [
+        {"name": "29522.jpg", "sha256": "44e5f7def3d7a103cd5b957787eeaad7ff214f96517164fd77d4d8d517a48629", "view": "dorsal", "qc": "good"}
+      ],
+      "observedFeatures": {
+        "bodyColor": "pale_pink_to_dusky",
+        "shape": "broad",
+        "coatingColor": "white",
+        "coatingThickness": "moderate_to_thick",
+        "coatingDistribution": "diffuse_central",
+        "moisture": "normal",
+        "fissures": "none_obvious",
+        "teethMarks": "possible_mild"
+      },
+      "patternHypotheses": [
+        {"pattern": "ty_khi_hu_kiem_thap", "confidence": "low_to_moderate", "rationale": "paler broad tongue with relatively substantial white coating; requires fatigue, appetite/stool and pulse correlation"}
+      ]
+    },
+    {
+      "caseId": "RT-20260922-C",
+      "sourceFrames": [
+        {"name": "29523.jpg", "sha256": "4bfa877f1a4e94183c2e4326aa779b65fd6a66329ef5278eb921093c1c2f2703", "view": "dorsal", "qc": "moderate"}
+      ],
+      "observedFeatures": {
+        "bodyColor": "pale_pink",
+        "shape": "broad",
+        "coatingColor": "white",
+        "coatingThickness": "moderate_to_thick",
+        "coatingDistribution": "diffuse",
+        "moisture": "normal_to_moist",
+        "fissures": "none_obvious",
+        "teethMarks": "possible"
+      },
+      "patternHypotheses": [
+        {"pattern": "ty_khi_hu_kiem_thap", "confidence": "low_to_moderate", "rationale": "pale/broad appearance and white coating; not sufficient without symptoms and pulse"}
+      ]
+    },
+    {
+      "caseId": "RT-20260922-D",
+      "sourceFrames": [
+        {"name": "29527.jpg", "sha256": "1415436b5222d6b45b31f99582ce8765db7d26db95f238d096ef531ca877820d", "view": "oral_context", "qc": "limited_for_tongue"},
+        {"name": "29528.jpg", "sha256": "dd16743331410bc1f1c3b57e421de08f2d1c0face2e26481d875bf8350f1e21c", "view": "dorsal", "qc": "good"}
+      ],
+      "observedFeatures": {
+        "bodyColor": "pale_pink_to_dusky",
+        "shape": "broad",
+        "coatingColor": "white",
+        "coatingThickness": "moderate",
+        "coatingDistribution": "central_greater_than_edges",
+        "moisture": "normal",
+        "fissures": "mild_or_uncertain",
+        "teethMarks": "not_clear"
+      },
+      "patternHypotheses": [
+        {"pattern": "thap_tre", "confidence": "low", "rationale": "white coating with broad tongue; symptoms needed"},
+        {"pattern": "khi_huyet_van_hanh_kem", "confidence": "low", "rationale": "slightly dusky appearance is only a weak visual clue"}
+      ],
+      "trainingNotes": ["29527 should mainly train QC/context rejection, not detailed tongue morphology."]
+    },
+    {
+      "caseId": "RT-20260922-E",
+      "sourceFrames": [
+        {"name": "29529.jpg", "sha256": "ff846cdf1ecec0cd77edb89c4070203b4e2b75850d6eef373f07bdf981676ffb", "view": "dorsal", "qc": "good"},
+        {"name": "29530.jpg", "sha256": "866565ca7c27bfa43b320a8fe0da1ac64fe1174eb4dc9f6e2a59b70521b6adaa", "view": "dorsal_oblique", "qc": "good"},
+        {"name": "29531.jpg", "sha256": "03f1eb545b25088d91876c01d99b025fcfe5b29c08462acee1099ca2ea962528", "view": "ventral", "qc": "poor_blur"}
+      ],
+      "observedFeatures": {
+        "bodyColor": "pink",
+        "shape": "broad",
+        "coatingColor": "white",
+        "coatingThickness": "thick_patchy",
+        "coatingDistribution": "white_coat_with_central_anterior_depapillated_red_island",
+        "moisture": "moist",
+        "fissures": "small_central_extension_from_depapillated_area",
+        "teethMarks": "not_prominent",
+        "ventralVeins": "uncertain_due_blur"
+      },
+      "biomedicalVisualFlag": {
+        "finding": "well-demarcated erythematous depapillated patch with surrounding white-coated tongue",
+        "compatibility": "appearance_compatible_with_geographic_tongue_benign_migratory_glossitis",
+        "status": "visual_compatibility_only_not_diagnosis"
+      },
+      "patternHypotheses": [
+        {"pattern": "vi_am_bat_tuc_or_am_hu_candidate", "confidence": "low", "rationale": "peeled/depapillated areas can overlap with TCM peeled-coat descriptions, but geographic tongue morphology has non-TCM explanations and must not be forced into one syndrome"}
+      ],
+      "trainingNotes": ["Do not label every depapillated patch as Yin deficiency.", "Keep biomedical morphology flag separate from TCM syndrome inference.", "29531 is suitable for blur/QC rejection training."]
+    }
+  ],
+  "supplementalConversationFrames": [
+    {
+      "frameId": "SUP-01",
+      "view": "dorsal",
+      "qc": "good",
+      "observedFeatures": {
+        "bodyColor": "pink_to_dusky",
+        "coatingColor": "white",
+        "coatingThickness": "moderate",
+        "coatingDistribution": "central_posterior_greater_than_edges",
+        "moisture": "normal_to_moist",
+        "fissures": "possible_mild_midline",
+        "teethMarks": "uncertain"
+      },
+      "patternHypotheses": [
+        {"pattern": "thap_tre_candidate", "confidence": "low", "rationale": "white central coating; symptoms/pulse required"}
+      ]
+    },
+    {
+      "frameId": "SUP-02",
+      "view": "ventral",
+      "qc": "good",
+      "observedFeatures": {
+        "ventralVeins": "prominent_blue_purple",
+        "moisture": "moist",
+        "ulcerOrMass": "none_obvious"
+      },
+      "patternHypotheses": [
+        {"pattern": "khi_tre_huyet_u_candidate", "confidence": "low", "rationale": "prominent bluish sublingual veins are a weak supporting sign only"}
+      ]
+    },
+    {
+      "frameId": "SUP-03",
+      "view": "dorsal",
+      "qc": "good",
+      "observedFeatures": {
+        "bodyColor": "pale_pink",
+        "coatingColor": "white",
+        "coatingThickness": "moderate_to_thick",
+        "coatingDistribution": "diffuse_central",
+        "moisture": "normal_to_moist",
+        "fissures": "none_obvious",
+        "teethMarks": "possible_mild"
+      },
+      "patternHypotheses": [
+        {"pattern": "ty_khi_hu_kiem_thap_candidate", "confidence": "low_to_moderate", "rationale": "paler/broad appearance with white coating; requires symptom and pulse confirmation"}
+      ]
+    },
+    {
+      "frameId": "SUP-04",
+      "view": "ventral",
+      "qc": "good",
+      "observedFeatures": {
+        "ventralVeins": "prominent_blue_purple",
+        "moisture": "moist",
+        "ulcerOrMass": "none_obvious"
+      },
+      "patternHypotheses": [
+        {"pattern": "khi_tre_huyet_u_candidate", "confidence": "low", "rationale": "visual clue only; do not diagnose from veins alone"}
+      ]
+    }
+  ],
+  "allowedUses": [
+    "llm_visual_reasoning_examples",
+    "qc_regression",
+    "shadow_candidate_development",
+    "annotation_tool_qa",
+    "private_image_pairing_by_hash"
+  ],
+  "forbiddenUses": [
+    "gold_ground_truth",
+    "clinical_diagnosis_from_image_only",
+    "clinical_accuracy_claim",
+    "automatic_model_promotion",
+    "public_raw_image_commit"
+  ]
+}

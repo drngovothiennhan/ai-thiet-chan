@@ -48,7 +48,7 @@ const spatialBase={
   }
 };
 const calibrated=calibrateRealTongueFeatures({signature:{purple:.21,spot:.071},spatial:spatialBase,qc:{grade:'good'},base:{bodyColor:'đỏ nhạt',coatingColor:'trắng',coatingThickness:'mỏng',coatingTexture:'khá đều',shape:'hình thể trung bình',toothmarks:'Không xác định'}});
-assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v3-dark-coating');
+assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v4-r3-video');
 assert.equal(calibrated.active,true);
 assert.equal(calibrated.bodyColor.label,'tím/xanh tím','purple must require QC + normalized-color gate');
 assert.equal(calibrated.toothmarks.label,'Có tín hiệu dấu răng','toothmarks require repeated bilateral concavity');
@@ -106,6 +106,14 @@ const darkCoat=calibrateRealTongueFeatures({signature:{purple:.08,spot:.01},spat
 assert.equal(darkCoat.coatingColor.label,'nghi xám/đen');
 assert.match(darkCoat.coatingColor.reason,/dedicated-neutral-dark-coating/);
 assert.equal(darkCoat.policy.blackCoatingRequiresNeutralDarkContrast,true);
+const mixedCoatSpatial=structuredClone(spatialBase);
+mixedCoatSpatial.coatingCandidateRatio=.31;mixedCoatSpatial.strictCoatingCandidateRatio=.16;
+mixedCoatSpatial.coatingWhiteLikeRatio=.34;mixedCoatSpatial.coatingYellowLikeRatio=.31;mixedCoatSpatial.coatingColorCandidate='trắng';
+const mixedCoat=calibrateRealTongueFeatures({signature:{purple:.04,spot:.01},spatial:mixedCoatSpatial,qc:{grade:'good'},base:{bodyColor:'đỏ nhạt',coatingColor:'Không xác định',coatingThickness:'mỏng',coatingTexture:'khá đều',shape:'trung bình',toothmarks:'Không xác định'}});
+assert.equal(mixedCoat.coatingColor.label,'trắng-vàng/ngả vàng','balanced white/yellow evidence must not be forced into a pure color label');
+assert.match(mixedCoat.coatingColor.reason,/r3-balanced-white-yellow-mixture/);
+assert.equal(mixedCoat.policy.noDrynessFromLowCoatingAlone,true,'low coating alone must not be interpreted as dryness');
+
 const darkWithoutNormalization=structuredClone(darkSpatial);darkWithoutNormalization.colorNormalization={applied:false,neutralPixels:0,bounded:true};
 const darkBlocked=calibrateRealTongueFeatures({signature:{},spatial:darkWithoutNormalization,qc:{grade:'good'},base:{coatingColor:'Không xác định'}});
 assert.notEqual(darkBlocked.coatingColor.label,'nghi xám/đen');

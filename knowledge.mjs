@@ -7,7 +7,7 @@ import { REAL_TONGUE_VIDEO_20260922_EVIDENCE, REAL_TONGUE_VIDEO_20260922_DOCUMEN
 import { MORPHOLOGY_STANDARD_EVIDENCE, MORPHOLOGY_STANDARD_DOCUMENTS, MORPHOLOGY_STANDARD_POLICY } from './knowledge-morphology-standard-v1.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv6+morphref1';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv10+morphref1';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,

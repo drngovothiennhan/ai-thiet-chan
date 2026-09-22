@@ -1,4 +1,4 @@
-export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v3-dark-coating';
+export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v4-r3-video';
 
 const UNKNOWN='Không xác định';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
@@ -30,7 +30,7 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
       version:REAL_TONGUE_FEATURE_CALIBRATION_VERSION,
       active:false,
       reason:valid?'qc-poor':'spatial-unavailable',
-      sourceDataset:'RTB20260922',
+      sourceDataset:'RTB20260922+RTBV20260922-R3',
       clinicalGold:false,
       productionRuleCalibration:true
     });
@@ -91,6 +91,10 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
     coatColor='ít/không rêu rõ';
     coatColorConfidence=.74;
     coatColorReason='low-coating-coverage-gate';
+  }else if(coat>=.09&&yellow>=.18&&white>=.18&&yellow<=white*1.28&&white<=yellow*1.28){
+    coatColor='trắng-vàng/ngả vàng';
+    coatColorConfidence=qcBase*clamp(.66+Math.min(white,yellow)*.30);
+    coatColorReason='r3-balanced-white-yellow-mixture-gate';
   }else if(coat>=.09&&yellow>=.30&&yellow>white*1.28){
     coatColor='vàng';
     coatColorConfidence=qcBase*clamp(.70+(yellow-.30)*.55);
@@ -217,6 +221,7 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
       noBlackCoatingFromGenericDarkPixels:true,
       blackCoatingRequiresNeutralDarkContrast:true,
       noFissureFromMedianSulcus:true,
+      noDrynessFromLowCoatingAlone:true,
       noMoistureFromFlash:true,
       noPuffyOrThinFromAspectAlone:true
     })

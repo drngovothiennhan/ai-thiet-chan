@@ -66,9 +66,9 @@ function normalizeCurrentShape(value){
 }
 function normalizeCurrentToothmark(value){
   const t=String(value||'').toLocaleLowerCase('vi-VN');
-  if(/có tín hiệu dấu răng|hằn răng|dấu răng rõ/.test(t)&&!/nghi/.test(t))return 'present';
-  if(/nghi dấu răng/.test(t))return 'suspected';
-  if(/không thấy dấu răng/.test(t))return 'absent';
+  if(/không thấy|chưa thấy|không có/.test(t)&&/dấu răng|hằn răng/.test(t))return 'absent';
+  if(/nghi dấu răng|nghi hằn răng/.test(t))return 'suspected';
+  if(/có tín hiệu dấu răng|có hằn răng|dấu răng rõ|hằn răng rõ/.test(t))return 'present';
   return 'unknown';
 }
 function compare(current,reference){

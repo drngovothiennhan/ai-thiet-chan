@@ -1,4 +1,4 @@
-export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v1';
+export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v2-multiscale-toothmark';
 
 const UNKNOWN='Không xác định';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
@@ -48,7 +48,9 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
   const aspect=Number(shape.aspect)||0,areaFill=unit(shape.areaFill),mid=unit(shape.midWidthRatio),edgeCoverage=unit(shape.edgeRowCoverage);
   const tScore=unit(tm.score),bilateral=unit(tm.bilateralScore);
   const leftEvents=Math.max(0,Number(tm.leftEvents)||0),rightEvents=Math.max(0,Number(tm.rightEvents)||0);
-  const totalEvents=leftEvents+rightEvents;
+  const totalEvents=leftEvents+rightEvents,maxSideEvents=Math.max(leftEvents,rightEvents),minSideEvents=Math.min(leftEvents,rightEvents);
+  const toothColor=tm.edgeColorSupport&&typeof tm.edgeColorSupport==='object'?tm.edgeColorSupport:{};
+  const toothColorBilateral=unit(toothColor.bilateralScore),toothColorLeft=unit(toothColor.leftScore),toothColorRight=unit(toothColor.rightScore);
   const flashRisk=moistureFlashRisk(spatial);
   const coatMoist=spatial?.moisture?.coating||{};
   const coatGloss=unit(coatMoist.glossRatio),coatStrictGloss=unit(coatMoist.strictGlossRatio);
@@ -122,17 +124,21 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
 
   let toothLabel=validLabel(base?.toothmarks)||UNKNOWN;
   let toothConfidence=null,toothReason='base-observation';
-  if(edgeCoverage>=.62&&tScore>=.66&&bilateral>=.40&&leftEvents>=2&&rightEvents>=2){
+  const repeatedContour=maxSideEvents>=2;
+  const oppositeSupport=minSideEvents>=1||toothColorBilateral>=.45;
+  const strongToothmark=edgeCoverage>=.60&&tScore>=.60&&repeatedContour&&oppositeSupport;
+  const moderateToothmark=edgeCoverage>=.58&&tScore>=.44&&totalEvents>=2&&(bilateral>=.24||toothColorBilateral>=.30);
+  if(strongToothmark){
     toothLabel='Có tín hiệu dấu răng';
-    toothConfidence=qcBase*clamp(.70+(tScore-.66)*.55+Math.min(.12,totalEvents*.012));
-    toothReason='repeated-bilateral-concavity-gate';
-  }else if(edgeCoverage>=.60&&tScore>=.50&&bilateral>=.28&&totalEvents>=3){
+    toothConfidence=qcBase*clamp(.72+(tScore-.60)*.45+Math.min(.10,totalEvents*.012)+toothColorBilateral*.06);
+    toothReason='multiscale-repeated-concavity-with-bilateral-or-color-support';
+  }else if(moderateToothmark){
     toothLabel='Nghi dấu răng nhẹ';
-    toothConfidence=qcBase*.64;
-    toothReason='weak-bilateral-concavity-gate';
-  }else if(edgeCoverage>=.68&&tScore<.28){
+    toothConfidence=qcBase*clamp(.60+tScore*.12+toothColorBilateral*.06);
+    toothReason='multiscale-concavity-suspicion-gate';
+  }else if(edgeCoverage>=.68&&tScore<.24&&totalEvents===0&&toothColorBilateral<.18){
     toothLabel='Không thấy dấu răng rõ';
-    toothConfidence=qcBase*.70;
+    toothConfidence=qcBase*.68;
     toothReason='adequate-edge-negative-gate';
   }
 
@@ -192,7 +198,7 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
       coatingCoverage:q(coat),strictCoatingCoverage:q(strict),whiteLike:q(white),yellowLike:q(yellow),
       coatingGloss:q(coatGloss),coatingStrictGloss:q(coatStrictGloss),coatingDistributedGloss:q(coatDistributed),
       coatingLargestGlossComponent:q(coatLargest),coatingRoughness:q(coatRough),flashRisk:q(flashRisk),
-      toothmarkScore:q(tScore),toothmarkBilateral:q(bilateral),toothmarkEvents:totalEvents,
+      toothmarkScore:q(tScore),toothmarkBilateral:q(bilateral),toothmarkEvents:totalEvents,toothmarkMaxSideEvents:maxSideEvents,toothmarkMinSideEvents:minSideEvents,toothmarkColorBilateral:q(toothColorBilateral),toothmarkColorLeft:q(toothColorLeft),toothmarkColorRight:q(toothColorRight),
       coatingZoneSpread:q(zoneSpread)
     }),
     fissureGuard,

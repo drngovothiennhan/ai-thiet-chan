@@ -388,7 +388,15 @@ async function storeTrainingCase({mode,storageDirect=false,topImage,topImageHash
     let lastError;
     for(let attempt=0;attempt<3;attempt++){
       try{return await supabaseRpc('ai_thiet_chan_store_case_v3',payload);}
-      catch(err){lastError=err;if(attempt<2) await new Promise(r=>setTimeout(r,350*(attempt+1)));}
+      catch(err){
+        lastError=err;
+        if(/unauthorized/i.test(String(err?.message||''))){
+          caseStoreReady=false;
+          console.error('case_store_auth_invalid','v3');
+          break;
+        }
+        if(attempt<2) await new Promise(r=>setTimeout(r,350*(attempt+1)));
+      }
     }
     throw lastError;
   }
@@ -400,7 +408,16 @@ async function storeTrainingCase({mode,storageDirect=false,topImage,topImageHash
   };
   let lastError;
   for(let attempt=0;attempt<3;attempt++){
-    try{return await supabaseRpc('ai_thiet_chan_store_case_v2',payload);}catch(err){lastError=err;if(attempt<2) await new Promise(r=>setTimeout(r,500*(attempt+1)));}
+    try{return await supabaseRpc('ai_thiet_chan_store_case_v2',payload);}
+    catch(err){
+      lastError=err;
+      if(/unauthorized/i.test(String(err?.message||''))){
+        caseStoreReady=false;
+        console.error('case_store_auth_invalid','v2');
+        break;
+      }
+      if(attempt<2) await new Promise(r=>setTimeout(r,500*(attempt+1)));
+    }
   }
   throw lastError;
 }

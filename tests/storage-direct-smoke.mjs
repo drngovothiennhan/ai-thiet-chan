@@ -20,6 +20,8 @@ assert.match(sw,/claimed===actual&&hasCurrentSpatialSignature\(body\.academicSig
 assert.match(server,/ai_thiet_chan_store_case_v3/);
 assert.match(server,/legacyInlineFallback:true/);
 assert.match(server,/ai_thiet_chan_store_case_v2/);
+assert.match(server,/case_store_auth_invalid/);
+assert.match(server,/caseStoreReady=false/);
 assert.match(academic,/storage-direct-service-worker/);
 assert.match(academic,/top-storage-path-mismatch/);
 assert.match(release,/2026\.09\.21-recognition-prod-r1/);

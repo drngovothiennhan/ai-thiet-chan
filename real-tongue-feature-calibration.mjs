@@ -1,4 +1,4 @@
-export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v1';
+export const REAL_TONGUE_FEATURE_CALIBRATION_VERSION='rtb20260922-feature-rule-calibration-v3-dark-coating';
 
 const UNKNOWN='Không xác định';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
@@ -42,13 +42,17 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
   const bodySat=unit(spatial?.bodySaturation),bodyLuma=unit(spatial?.bodyLuma);
   const coat=unit(spatial?.coatingCandidateRatio),strict=unit(spatial?.strictCoatingCandidateRatio);
   const white=unit(spatial?.coatingWhiteLikeRatio),yellow=unit(spatial?.coatingYellowLikeRatio);
+  const dark=unit(spatial?.darkCoatingLikeRatio),darkNeutral=unit(spatial?.darkCoatingNeutralRatio),darkCentral=unit(spatial?.darkCoatingCentralRatio),darkPosterior=unit(spatial?.darkCoatingPosteriorRatio);
+  const effectiveCoat=Math.max(coat,dark);
   const zones=spatial?.coatingZones||{};
   const central=unit(zones.central),middle=unit(zones.middle),posterior=unit(zones.posterior),anterior=unit(zones.anterior);
   const shape=spatial?.shapeMetrics||{},tm=spatial?.toothmarkMetrics||{};
   const aspect=Number(shape.aspect)||0,areaFill=unit(shape.areaFill),mid=unit(shape.midWidthRatio),edgeCoverage=unit(shape.edgeRowCoverage);
   const tScore=unit(tm.score),bilateral=unit(tm.bilateralScore);
   const leftEvents=Math.max(0,Number(tm.leftEvents)||0),rightEvents=Math.max(0,Number(tm.rightEvents)||0);
-  const totalEvents=leftEvents+rightEvents;
+  const totalEvents=leftEvents+rightEvents,maxSideEvents=Math.max(leftEvents,rightEvents),minSideEvents=Math.min(leftEvents,rightEvents);
+  const toothColor=tm.edgeColorSupport&&typeof tm.edgeColorSupport==='object'?tm.edgeColorSupport:{};
+  const toothColorBilateral=unit(toothColor.bilateralScore),toothColorLeft=unit(toothColor.leftScore),toothColorRight=unit(toothColor.rightScore);
   const flashRisk=moistureFlashRisk(spatial);
   const coatMoist=spatial?.moisture?.coating||{};
   const coatGloss=unit(coatMoist.glossRatio),coatStrictGloss=unit(coatMoist.strictGlossRatio);
@@ -78,7 +82,12 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
 
   let coatColor=validLabel(base?.coatingColor)||validLabel(spatial.coatingColorCandidate)||UNKNOWN;
   let coatColorConfidence=null,coatColorReason='base-observation';
-  if(coat<.055&&strict<.025&&quality==='good'){
+  const darkCoatGate=normReady&&dark>=.10&&darkNeutral>=.55&&Math.max(darkCentral,darkPosterior)>=.14;
+  if(darkCoatGate){
+    coatColor='nghi xám/đen';
+    coatColorConfidence=qcBase*clamp(.66+(dark-.10)*.70+(darkNeutral-.55)*.20);
+    coatColorReason='dedicated-neutral-dark-coating-contrast-gate';
+  }else if(effectiveCoat<.055&&strict<.025&&quality==='good'){
     coatColor='ít/không rêu rõ';
     coatColorConfidence=.74;
     coatColorReason='low-coating-coverage-gate';
@@ -94,18 +103,18 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
 
   let coatThickness=validLabel(base?.coatingThickness)||validLabel(spatial.coatingThicknessCandidate)||UNKNOWN;
   let coatThicknessConfidence=null,coatThicknessReason='base-observation';
-  if(coat<.055&&strict<.025&&quality==='good'){
+  if(effectiveCoat<.055&&strict<.025&&quality==='good'){
     coatThickness='rất mỏng/ít rêu';
     coatThicknessConfidence=.76;
     coatThicknessReason='low-coating-coverage-gate';
-  }else if(coat>=.42&&strict>=.18){
+  }else if((coat>=.42&&strict>=.18)||(darkCoatGate&&dark>=.42)){
     coatThickness='dày';
-    coatThicknessConfidence=qcBase*clamp(.72+(coat-.42)*.45);
-    coatThicknessReason='thick-coating-dual-coverage-gate';
-  }else if(coat>=.10){
+    coatThicknessConfidence=qcBase*clamp(.72+(effectiveCoat-.42)*.45);
+    coatThicknessReason=darkCoatGate?'dark-coating-coverage-gate':'thick-coating-dual-coverage-gate';
+  }else if(effectiveCoat>=.10){
     coatThickness='mỏng';
     coatThicknessConfidence=qcBase*.74;
-    coatThicknessReason='thin-coating-coverage-gate';
+    coatThicknessReason=darkCoatGate?'dark-coating-coverage-gate':'thin-coating-coverage-gate';
   }
 
   let shapeLabel=validLabel(base?.shape)||UNKNOWN;
@@ -122,17 +131,21 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
 
   let toothLabel=validLabel(base?.toothmarks)||UNKNOWN;
   let toothConfidence=null,toothReason='base-observation';
-  if(edgeCoverage>=.62&&tScore>=.66&&bilateral>=.40&&leftEvents>=2&&rightEvents>=2){
+  const repeatedContour=maxSideEvents>=2;
+  const oppositeSupport=minSideEvents>=1||toothColorBilateral>=.45;
+  const strongToothmark=edgeCoverage>=.60&&tScore>=.60&&repeatedContour&&oppositeSupport;
+  const moderateToothmark=edgeCoverage>=.58&&tScore>=.44&&totalEvents>=2&&(bilateral>=.24||toothColorBilateral>=.30);
+  if(strongToothmark){
     toothLabel='Có tín hiệu dấu răng';
-    toothConfidence=qcBase*clamp(.70+(tScore-.66)*.55+Math.min(.12,totalEvents*.012));
-    toothReason='repeated-bilateral-concavity-gate';
-  }else if(edgeCoverage>=.60&&tScore>=.50&&bilateral>=.28&&totalEvents>=3){
+    toothConfidence=qcBase*clamp(.72+(tScore-.60)*.45+Math.min(.10,totalEvents*.012)+toothColorBilateral*.06);
+    toothReason='multiscale-repeated-concavity-with-bilateral-or-color-support';
+  }else if(moderateToothmark){
     toothLabel='Nghi dấu răng nhẹ';
-    toothConfidence=qcBase*.64;
-    toothReason='weak-bilateral-concavity-gate';
-  }else if(edgeCoverage>=.68&&tScore<.28){
+    toothConfidence=qcBase*clamp(.60+tScore*.12+toothColorBilateral*.06);
+    toothReason='multiscale-concavity-suspicion-gate';
+  }else if(edgeCoverage>=.68&&tScore<.24&&totalEvents===0&&toothColorBilateral<.18){
     toothLabel='Không thấy dấu răng rõ';
-    toothConfidence=qcBase*.70;
+    toothConfidence=qcBase*.68;
     toothReason='adequate-edge-negative-gate';
   }
 
@@ -189,18 +202,20 @@ export function calibrateRealTongueFeatures({signature={},spatial={},qc={},base=
     }),
     metrics:Object.freeze({
       purple:q(purple),spot:q(spot),bodySaturation:q(bodySat),bodyLuma:q(bodyLuma),
-      coatingCoverage:q(coat),strictCoatingCoverage:q(strict),whiteLike:q(white),yellowLike:q(yellow),
+      coatingCoverage:q(coat),effectiveCoatingCoverage:q(effectiveCoat),strictCoatingCoverage:q(strict),whiteLike:q(white),yellowLike:q(yellow),
+      darkCoatingLike:q(dark),darkCoatingNeutral:q(darkNeutral),darkCoatingCentral:q(darkCentral),darkCoatingPosterior:q(darkPosterior),
       coatingGloss:q(coatGloss),coatingStrictGloss:q(coatStrictGloss),coatingDistributedGloss:q(coatDistributed),
       coatingLargestGlossComponent:q(coatLargest),coatingRoughness:q(coatRough),flashRisk:q(flashRisk),
-      toothmarkScore:q(tScore),toothmarkBilateral:q(bilateral),toothmarkEvents:totalEvents,
+      toothmarkScore:q(tScore),toothmarkBilateral:q(bilateral),toothmarkEvents:totalEvents,toothmarkMaxSideEvents:maxSideEvents,toothmarkMinSideEvents:minSideEvents,toothmarkColorBilateral:q(toothColorBilateral),toothmarkColorLeft:q(toothColorLeft),toothmarkColorRight:q(toothColorRight),
       coatingZoneSpread:q(zoneSpread)
     }),
     fissureGuard,
-    unsupportedUntilDedicatedExtractor:Object.freeze(['rêu đen','bong tróc xác định','lồi/lõm phân khu tạng phủ']),
+    unsupportedUntilDedicatedExtractor:Object.freeze(['bong tróc xác định','lồi/lõm phân khu tạng phủ']),
     policy:Object.freeze({
       noDiseaseInference:true,
       noSyndromeInference:true,
       noBlackCoatingFromGenericDarkPixels:true,
+      blackCoatingRequiresNeutralDarkContrast:true,
       noFissureFromMedianSulcus:true,
       noMoistureFromFlash:true,
       noPuffyOrThinFromAspectAlone:true

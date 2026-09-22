@@ -40,6 +40,19 @@ function morphologyText(top={}){
   else out.push('nứt: chưa đủ căn cứ');
   return out.join('; ');
 }
+function morphologyReferenceText(top={}){
+  const ref=top.morphologyReference&&typeof top.morphologyReference==='object'?top.morphologyReference:null;
+  if(!ref?.active)return '';
+  const shape=ref.shape&&typeof ref.shape==='object'?ref.shape:{};
+  const tooth=ref.toothmarks&&typeof ref.toothmarks==='object'?ref.toothmarks:{};
+  const cmp=ref.comparison&&typeof ref.comparison==='object'?ref.comparison:{};
+  const parts=[];
+  if(text(shape.label)&&shape.label!=='Không xác định')parts.push('chuẩn hình thể '+shape.label);
+  if(text(tooth.label)&&tooth.label!=='Không xác định')parts.push('chuẩn dấu răng '+tooth.label);
+  if(text(cmp.shapeAgreement))parts.push('khớp hình thể='+cmp.shapeAgreement);
+  if(text(cmp.toothmarkAgreement))parts.push('khớp dấu răng='+cmp.toothmarkAgreement);
+  return parts.length?'đối chiếu shadow: '+parts.join(', ')+'; không ghi đè quan sát hiện hành':'';
+}
 function moistureText(top={}){
   const obs=top.moistureObservation&&typeof top.moistureObservation==='object'?top.moistureObservation:{};
   const surface=obs.surface&&typeof obs.surface==='object'?obs.surface:{};
@@ -61,6 +74,7 @@ function topObservation(top={}){
     moistureText(top),
     morphologyText(top),
     `dấu răng ${text(top.toothmarks)||UNKNOWN}`,
+    morphologyReferenceText(top),
     `điểm/gai ${text(top.pricklesSpots)||UNKNOWN}`,
     `dấu ứ ${text(top.stasisMarks)||UNKNOWN}`
   ].join('; ');

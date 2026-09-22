@@ -25,10 +25,12 @@ export function interpretSpatialObservation(spatial={},qc={}){
   const sulcusVisible=Boolean(s.visibleSignal===true&&score>=.62&&continuity>=.22&&centrality>=.35);
   const distributionCandidate=oneOf(spatial.coatingDistributionCandidate,['trung tâm–sau','lan tỏa','không rõ']);
   const coatRatio=unit(spatial.coatingCandidateRatio);
-  const coatingDistribution=coatRatio>=.09&&['trung tâm–sau','lan tỏa'].includes(distributionCandidate)?distributionCandidate:UNKNOWN;
+  const darkCoatRatio=unit(spatial.darkCoatingLikeRatio);
+  const effectiveCoatRatio=Math.max(coatRatio,darkCoatRatio);
+  const coatingDistribution=effectiveCoatRatio>=.09&&['trung tâm–sau','lan tỏa'].includes(distributionCandidate)?distributionCandidate:UNKNOWN;
   const bodyColorCandidate=oneOf(spatial.bodyColorCandidate,['đỏ nhạt','đỏ','nhợt']);
-  const coatingColorCandidate=oneOf(spatial.coatingColorCandidate,['trắng','vàng']);
-  const coatingThicknessCandidate=coatRatio>=.07?oneOf(spatial.coatingThicknessCandidate,['rất mỏng','mỏng','dày']):'';
+  const coatingColorCandidate=oneOf(spatial.coatingColorCandidate,['trắng','vàng','xám/đen']);
+  const coatingThicknessCandidate=effectiveCoatRatio>=.07?oneOf(spatial.coatingThicknessCandidate,['rất mỏng','mỏng','dày']):'';
   return Object.freeze({
     version:SPATIAL_OBSERVATION_POLICY_VERSION,
     active:true,
@@ -38,6 +40,8 @@ export function interpretSpatialObservation(spatial={},qc={}){
     coatingThicknessCandidate,
     coatingDistribution,
     coatingCandidateRatio:coatRatio,
+    darkCoatingLikeRatio:darkCoatRatio,
+    effectiveCoatingRatio:effectiveCoatRatio,
     colorNormalization:spatial.colorNormalization&&typeof spatial.colorNormalization==='object'?Object.freeze({...spatial.colorNormalization}):null,
     medianSulcus:Object.freeze({
       status:sulcusVisible?'visible-signal':'unknown',

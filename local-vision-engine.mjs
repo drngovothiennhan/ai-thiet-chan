@@ -5,6 +5,7 @@ import {interpretVentralObservation,VENTRAL_OBSERVATION_POLICY_VERSION} from './
 import {interpretMoistureObservation,MOISTURE_OBSERVATION_POLICY_VERSION} from './moisture-observation-policy.mjs';
 import {interpretTongueFeatureKnowledge,TONGUE_FEATURE_KNOWLEDGE_VERSION} from './tongue-feature-knowledge.mjs';
 import {calibrateRealTongueFeatures,REAL_TONGUE_FEATURE_CALIBRATION_VERSION} from './real-tongue-feature-calibration.mjs';
+import {evaluateMorphologyReference,MORPHOLOGY_REFERENCE_MODEL_VERSION} from './tongue-morphology-reference-model.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -16,6 +17,7 @@ export const LOCAL_VISION_HEALTH=Object.freeze({
   moistureObservationPolicy:MOISTURE_OBSERVATION_POLICY_VERSION,
   featureKnowledgePolicy:TONGUE_FEATURE_KNOWLEDGE_VERSION,
   featureRuleCalibration:REAL_TONGUE_FEATURE_CALIBRATION_VERSION,
+  morphologyReferenceModel:MORPHOLOGY_REFERENCE_MODEL_VERSION,
   unsupportedClaims:['disease-diagnosis','pulse-inference','treatment','prescription']
 });
 
@@ -73,7 +75,7 @@ function fissureCompatibilityText(morphology){
   return 'Chưa đủ căn cứ đánh giá nứt lưỡi.';
 }
 function spotText(value){return value?'Có tín hiệu điểm đỏ/gai cần đối chiếu':'Không thấy tín hiệu điểm đỏ/gai nổi bật';}
-function topObservation(signature,qc,matches){
+function topObservation(signature,qc,matches,body={}){
   const c=coarse(signature);
   const confidence=reliability(qc,signature);
   const best=Array.isArray(matches)&&matches.length?matches[0]:null;
@@ -106,6 +108,15 @@ function topObservation(signature,qc,matches){
     morphology.toothmarks={status:toothmarks,confidence:calibrated?featureCalibration.toothmarks?.confidence:featureKnowledge?.toothmarks?.confidence,source:calibrated?REAL_TONGUE_FEATURE_CALIBRATION_VERSION:TONGUE_FEATURE_KNOWLEDGE_VERSION};
     morphology.swellingOrThinness={status:shape,confidence:calibrated?featureCalibration.shape?.confidence:featureKnowledge?.shape?.confidence,source:calibrated?REAL_TONGUE_FEATURE_CALIBRATION_VERSION:TONGUE_FEATURE_KNOWLEDGE_VERSION};
   }
+  const morphologyReference=evaluateMorphologyReference({
+    spatial:signature?.spatial||{},
+    qc,
+    current:{shape,toothmarks},
+    capture:{
+      knownScale:Boolean(body?.morphologyCalibration?.knownScale||body?.captureCalibration?.knownScale),
+      mouthReferenceVisible:Boolean(body?.morphologyCalibration?.mouthReferenceVisible)
+    }
+  });
   const moisture=String(moistureObservation?.surface?.label||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
@@ -148,6 +159,7 @@ function topObservation(signature,qc,matches){
     ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
     featureCalibration,
+    morphologyReference,
     confidence,
     summary:'Thị giác cục bộ ghi nhận chất lưỡi '+tongueColor+', rêu '+coatingColor+' '+coatingThickness+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; độ ẩm '+moisture+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
     limitations
@@ -212,7 +224,7 @@ export function analyzeLocalVision(body={},options={}){
   }
   const signature=verification.signature;
   const matches=matchAtlas(signature);
-  const top=topObservation(signature,topQc,matches);
+  const top=topObservation(signature,topQc,matches,body);
   const bottom=mode==='general'?bottomObservation(verification,bottomQc):null;
   const confidence=mode==='general'?Math.min(top.confidence,bottom?.confidence||top.confidence):top.confidence;
   const rawAssessment={

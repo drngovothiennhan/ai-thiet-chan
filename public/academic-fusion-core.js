@@ -36,7 +36,8 @@ export function directPatterns(assessment){
   const yellowCoat=positive(coatingColor,/vàng/u);
   const thinCoat=positive(coatingThickness,/mỏng/u);
   const thickCoat=positive(coatingThickness,/dày/u);
-  const greasy=positive(coatingTexture,/nhầy|dính|bẩn|nhớt/u);
+  const greasy=positive(coatingTexture,/nhầy|dính|bẩn|nhớt|nhờn|trơn|greasy/u);
+  const darkCoat=positive(coatingColor,/xám|đen|nâu đen/u);
   const purpleTongue=positive(tongueColor,/tím|ám tím|xanh tím/u);
   const visibleStasis=positive(stasisMarks,/ứ|ban|điểm/u);
   const confirmedFissure=positive(fissures,/nứt|confirmed|visible/u);
@@ -84,8 +85,13 @@ export function directPatterns(assessment){
     add('Tín hiệu Tỳ khí/Tỳ dương hư kèm thấp','Nhợt phối hợp dấu răng/hình thể bệu; mức phù hợp tăng khi có rêu ướt hoặc dày.',.66+(moist?.06:0)+(thickCoat?.06:0),{missing:'Cần ăn uống, đại tiện, mệt/nặng người và mạch.'});
   }
   if(thickCoat||greasy){
-    let score=.58+(thickCoat&&greasy?.10:0)+(yellowCoat?.07:0);
-    add(yellowCoat?'Tín hiệu thấp nhiệt / đàm nhiệt cần đối chiếu':'Tín hiệu thấp trọc / đàm hoặc tích trệ',yellowCoat?'Rêu vàng phối hợp dày/nhầy/nhớt.':'Rêu dày/nhầy/dính cần đối chiếu thấp trọc, đàm hoặc tích trệ.',score,{missing:'Cần triệu chứng tiêu hóa, miệng, đại tiểu tiện và mạch.'});
+    let score=.58+(thickCoat&&greasy?.10:0)+(yellowCoat?.07:0)+(darkCoat?.03:0);
+    add(yellowCoat?'Tín hiệu thấp nhiệt / đàm nhiệt cần đối chiếu':'Tín hiệu thấp trọc / đàm hoặc tích trệ',yellowCoat?'Rêu vàng phối hợp dày/nhầy/nhớt.':darkCoat?'Rêu xám/đen phối hợp dày hoặc nhờn/trơn; cần loại trừ nhiễm màu ngoại lai trước khi biện chứng.':'Rêu dày/nhầy/dính cần đối chiếu thấp trọc, đàm hoặc tích trệ.',score,{missing:'Cần triệu chứng tiêu hóa, miệng, đại tiểu tiện, hàn/nhiệt và mạch.'});
+  }
+  if(darkCoat&&moist&&!dry){
+    add('Rêu xám/đen nhuận — cần đối chiếu hàn-thấp/đàm thấp','Rêu xám/đen phối hợp bề mặt nhuận/ẩm; đây là hướng đối chiếu có điều kiện, không phải kết luận thể bệnh.',.64,{warningEligible:false,missing:'Phải loại trừ thức ăn/đồ uống, thuốc, hút thuốc, vệ sinh lưỡi và sai màu ảnh; cần triệu chứng hàn/nhiệt và mạch.'});
+  }else if(darkCoat&&dry){
+    add('Rêu xám/đen khô — cần đối chiếu nhiệt thương tân','Rêu xám/đen phối hợp bề mặt khô; chỉ dùng làm hướng đối chiếu có điều kiện.',.66,{warningEligible:false,missing:'Phải loại trừ nhiễm màu ngoại lai và sai màu ảnh; cần triệu chứng nhiệt, tân dịch và mạch.'});
   }
   if(strongRed&&yellowCoat){
     let score=.70+(dry?.07:0)+(redSpots?.05:0)+(thickCoat?.04:0);

@@ -4,6 +4,7 @@ import {interpretSpatialObservation,SPATIAL_OBSERVATION_POLICY_VERSION} from './
 import {interpretVentralObservation,VENTRAL_OBSERVATION_POLICY_VERSION} from './ventral-observation-policy.mjs';
 import {interpretMoistureObservation,MOISTURE_OBSERVATION_POLICY_VERSION} from './moisture-observation-policy.mjs';
 import {interpretTongueFeatureKnowledge,TONGUE_FEATURE_KNOWLEDGE_VERSION} from './tongue-feature-knowledge.mjs';
+import {calibrateRealTongueFeatures,REAL_TONGUE_FEATURE_CALIBRATION_VERSION} from './real-tongue-feature-calibration.mjs';
 
 export const LOCAL_VISION_HEALTH=Object.freeze({
   engine:'local-vision-engine-v1',
@@ -14,6 +15,7 @@ export const LOCAL_VISION_HEALTH=Object.freeze({
   modelRuntime:'planned-onnx-web-adapter',
   moistureObservationPolicy:MOISTURE_OBSERVATION_POLICY_VERSION,
   featureKnowledgePolicy:TONGUE_FEATURE_KNOWLEDGE_VERSION,
+  featureRuleCalibration:REAL_TONGUE_FEATURE_CALIBRATION_VERSION,
   unsupportedClaims:['disease-diagnosis','pulse-inference','treatment','prescription']
 });
 
@@ -78,18 +80,32 @@ function topObservation(signature,qc,matches){
   const morphology=buildTongueMorphology(signature,qc);
   const spatialPolicy=interpretSpatialObservation(signature?.spatial||{},qc);
   const featureKnowledge=interpretTongueFeatureKnowledge(signature?.spatial||{},qc);
-  if(featureKnowledge?.active){
-    morphology.toothmarks={status:featureKnowledge.toothmarks.label,confidence:featureKnowledge.toothmarks.confidence,source:TONGUE_FEATURE_KNOWLEDGE_VERSION};
-    morphology.swellingOrThinness={status:featureKnowledge.shape.label,confidence:featureKnowledge.shape.confidence,source:TONGUE_FEATURE_KNOWLEDGE_VERSION};
-  }
-  const tongueColor=featureKnowledge?.active&&featureKnowledge?.bodyColor?.label&&featureKnowledge.bodyColor.label!==UNKNOWN?String(featureKnowledge.bodyColor.label):(spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN));
-  const coatingColor=spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN);
-  const coatingThickness=featureKnowledge?.active&&featureKnowledge?.coatingThickness?.label&&featureKnowledge.coatingThickness.label!==UNKNOWN?String(featureKnowledge.coatingThickness.label):(spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN));
-  const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
-  const coatingTexture=featureKnowledge?.active?String(featureKnowledge?.coatingTexture?.label||UNKNOWN):UNKNOWN;
-  const shape=featureKnowledge?.active?String(featureKnowledge?.shape?.label||UNKNOWN):UNKNOWN;
-  const toothmarks=featureKnowledge?.active?String(featureKnowledge?.toothmarks?.label||UNKNOWN):UNKNOWN;
   const moistureObservation=interpretMoistureObservation(signature?.spatial?.moisture||{},qc);
+  const featureCalibration=calibrateRealTongueFeatures({
+    signature,
+    spatial:signature?.spatial||{},
+    qc,
+    base:{
+      bodyColor:featureKnowledge?.active&&featureKnowledge?.bodyColor?.label&&featureKnowledge.bodyColor.label!==UNKNOWN?String(featureKnowledge.bodyColor.label):(spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN)),
+      coatingColor:spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN),
+      coatingThickness:featureKnowledge?.active&&featureKnowledge?.coatingThickness?.label&&featureKnowledge.coatingThickness.label!==UNKNOWN?String(featureKnowledge.coatingThickness.label):(spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN)),
+      coatingTexture:featureKnowledge?.active?String(featureKnowledge?.coatingTexture?.label||UNKNOWN):UNKNOWN,
+      shape:featureKnowledge?.active?String(featureKnowledge?.shape?.label||UNKNOWN):UNKNOWN,
+      toothmarks:featureKnowledge?.active?String(featureKnowledge?.toothmarks?.label||UNKNOWN):UNKNOWN
+    }
+  });
+  const calibrated=featureCalibration?.active===true;
+  const tongueColor=calibrated?String(featureCalibration.bodyColor?.label||UNKNOWN):(featureKnowledge?.active&&featureKnowledge?.bodyColor?.label&&featureKnowledge.bodyColor.label!==UNKNOWN?String(featureKnowledge.bodyColor.label):(spatialPolicy?.active&&spatialPolicy?.bodyColorCandidate?String(spatialPolicy.bodyColorCandidate):(c.tongue||UNKNOWN)));
+  const coatingColor=calibrated?String(featureCalibration.coatingColor?.label||UNKNOWN):(spatialPolicy?.active&&spatialPolicy?.coatingColorCandidate?String(spatialPolicy.coatingColorCandidate):(c.coat||UNKNOWN));
+  const coatingThickness=calibrated?String(featureCalibration.coatingThickness?.label||UNKNOWN):(featureKnowledge?.active&&featureKnowledge?.coatingThickness?.label&&featureKnowledge.coatingThickness.label!==UNKNOWN?String(featureKnowledge.coatingThickness.label):(spatialPolicy?.active&&spatialPolicy?.coatingThicknessCandidate?String(spatialPolicy.coatingThicknessCandidate):(c.thick||UNKNOWN)));
+  const coatingDistribution=String(spatialPolicy?.coatingDistribution||UNKNOWN);
+  const coatingTexture=calibrated?String(featureCalibration.coatingTexture?.label||UNKNOWN):(featureKnowledge?.active?String(featureKnowledge?.coatingTexture?.label||UNKNOWN):UNKNOWN);
+  const shape=calibrated?String(featureCalibration.shape?.label||UNKNOWN):(featureKnowledge?.active?String(featureKnowledge?.shape?.label||UNKNOWN):UNKNOWN);
+  const toothmarks=calibrated?String(featureCalibration.toothmarks?.label||UNKNOWN):(featureKnowledge?.active?String(featureKnowledge?.toothmarks?.label||UNKNOWN):UNKNOWN);
+  if(featureKnowledge?.active||calibrated){
+    morphology.toothmarks={status:toothmarks,confidence:calibrated?featureCalibration.toothmarks?.confidence:featureKnowledge?.toothmarks?.confidence,source:calibrated?REAL_TONGUE_FEATURE_CALIBRATION_VERSION:TONGUE_FEATURE_KNOWLEDGE_VERSION};
+    morphology.swellingOrThinness={status:shape,confidence:calibrated?featureCalibration.shape?.confidence:featureKnowledge?.shape?.confidence,source:calibrated?REAL_TONGUE_FEATURE_CALIBRATION_VERSION:TONGUE_FEATURE_KNOWLEDGE_VERSION};
+  }
   const moisture=String(moistureObservation?.surface?.label||UNKNOWN);
   const limitations=[
     'Tầng thị giác hiện tại chỉ khẳng định các đặc trưng đã được trích xuất trực tiếp; các trường chưa có mô hình chuyên biệt được để Không xác định.',
@@ -119,16 +135,19 @@ function topObservation(signature,qc,matches){
     morphology,
     fissures:fissureCompatibilityText(morphology),
     toothmarks,
-    pricklesSpots:spotText(Boolean(c.spots)),
+    pricklesSpots:calibrated?String(featureCalibration.pricklesSpots?.label||UNKNOWN):spotText(Boolean(c.spots)),
     stasisMarks:UNKNOWN,
     otherVisibleFeatures:[
       ...(morphology?.medianSulcus?.status==='visible-signal'?['Có tín hiệu rãnh dọc giữa theo trục đối xứng của lưỡi; không đồng nhất với nứt bệnh lý.']:[]),
       ...(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?['Phân bố rêu: '+coatingDistribution+'.']:[]),
       ...(moistureObservation?.surface?.status&&moistureObservation.surface.status!=='unknown'?['Độ ẩm bề mặt: '+moisture+'; thân lưỡi '+String(moistureObservation?.body?.label||UNKNOWN)+'; rêu '+String(moistureObservation?.coating?.label||UNKNOWN)+'.']:[]),
-      ...(featureKnowledge?.active?['Hình thể: '+shape+'; dấu răng: '+toothmarks+'; kết cấu rêu: '+coatingTexture+'.']:[]),
+      ...((featureKnowledge?.active||calibrated)?['Hình thể: '+shape+'; dấu răng: '+toothmarks+'; kết cấu rêu: '+coatingTexture+'.']:[]),
+      ...(calibrated&&featureCalibration?.candidates?.patchyOrPeeling?['Phân bố rêu không đồng đều rõ; chỉ ghi nhận nghi bong/tróc, chưa xác định bong rêu.']:[]),
+      ...(calibrated&&featureCalibration?.candidates?.lowCoating?['Rêu rất ít/không rõ trên ảnh đạt QC; không tự đồng nhất với lưỡi gương.']:[]),
       ...(best?['Đối chiếu atlas gần nhất '+Math.round(Number(best.similarity||0)*100)+'% (chỉ tham khảo hình ảnh).']:[])
     ],
     theoryAssessment:{generalSignals:[],stomachPatternSignals:[],cannotConclude:['Tầng thị giác không tự suy luận thể bệnh YHCT.']},
+    featureCalibration,
     confidence,
     summary:'Thị giác cục bộ ghi nhận chất lưỡi '+tongueColor+', rêu '+coatingColor+' '+coatingThickness+(coatingDistribution&&coatingDistribution!==UNKNOWN&&coatingDistribution!=='không rõ'?', phân bố '+coatingDistribution:'')+'; độ ẩm '+moisture+'; '+(morphology?.medianSulcus?.status==='visible-signal'?'có tín hiệu rãnh dọc giữa nhưng chưa đủ căn cứ gọi là nứt bệnh lý.':'hình thái rãnh/nứt chưa đủ căn cứ kết luận.'),
     limitations

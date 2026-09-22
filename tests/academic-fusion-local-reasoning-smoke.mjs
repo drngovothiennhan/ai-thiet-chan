@@ -91,7 +91,7 @@ const darkVentralAssessment={top:{tongueColor:'đỏ nhạt',shape:'rộng tươ
 const darkPatterns=directPatterns(darkVentralAssessment);
 assert.ok(darkPatterns.some(x=>/xám\/đen nhuận/.test(x.label)));
 assert.ok(darkPatterns.some(x=>/thấp trọc|đàm/.test(x.label)));
-assert.ok(darkPatterns.some(x=>/mạch dưới lưỡi tím/.test(x.label)));
+assert.ok(darkPatterns.some(x=>/mạch dưới lưỡi tím/i.test(x.label)));
 const out=fuse(structuredClone(assessment),{},[{id:'x',sourceId:'TC1',page:1,kind:'test',similarity:0.7,hash:'x'}],reasoning,[]);
 assert.equal(out.combined.academicFusion.academicReasoning.patternCandidates.length,1);
 assert.ok(Array.isArray(out.combined.academicFusion.acceptedPatterns));

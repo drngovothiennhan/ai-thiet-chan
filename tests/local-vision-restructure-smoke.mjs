@@ -48,7 +48,7 @@ const spatialBase={
   }
 };
 const calibrated=calibrateRealTongueFeatures({signature:{purple:.21,spot:.071},spatial:spatialBase,qc:{grade:'good'},base:{bodyColor:'đỏ nhạt',coatingColor:'trắng',coatingThickness:'mỏng',coatingTexture:'khá đều',shape:'hình thể trung bình',toothmarks:'Không xác định'}});
-assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v1');
+assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v2-multiscale-toothmark');
 assert.equal(calibrated.active,true);
 assert.equal(calibrated.bodyColor.label,'tím/xanh tím','purple must require QC + normalized-color gate');
 assert.equal(calibrated.toothmarks.label,'Có tín hiệu dấu răng','toothmarks require repeated bilateral concavity');
@@ -70,6 +70,34 @@ const unnormalized=structuredClone(spatialBase);
 unnormalized.colorNormalization={applied:false,neutralPixels:0,bounded:true};
 const noPurple=calibrateRealTongueFeatures({signature:{purple:.30,spot:.01},spatial:unnormalized,qc:{grade:'fair'},base:{bodyColor:'đỏ nhạt'}});
 assert.notEqual(noPurple.bodyColor.label,'tím/xanh tím','purple must fail closed without usable color normalization');
+
+const missedToothmarkCase=structuredClone(spatialBase);
+missedToothmarkCase.shapeMetrics={
+  aspect:1.045,areaFill:.649,rootWidthRatio:.913,shoulderWidthRatio:.913,midWidthRatio:.855,tipWidthRatio:.565,
+  meanWidthRatio:.722,widthStdRatio:.236,tipTaperRatio:.661,rootToMidRatio:1.068,contourSmoothness:.044,centerlineDeviation:.022,
+  roiWidthRatio:.333,roiHeightRatio:.147,topMargin:.400,bottomMargin:.453,edgeRowCoverage:.985
+};
+missedToothmarkCase.morphologyRoi={
+  method:'dark-oral-aperture-anchor-plus-adaptive-blue-green-separation-v1',
+  mouthWidthRatio:.295,tongueWidthRatio:.333,tongueHeightRatio:.147,
+  skinBlueGreenRatio:.851,coreBlueGreenRatio:.976,blueGreenThreshold:.929,
+  sourceResolution:{width:207,height:448}
+};
+missedToothmarkCase.toothmarkMetrics={
+  score:.828,leftScore:.851,rightScore:.816,bilateralScore:.816,leftEvents:2,rightEvents:2,
+  leftMaxDepthRatio:.055,rightMaxDepthRatio:.043,
+  edgeColorSupport:{leftScore:1,rightScore:1,bilateralScore:1,leftMeanDarkContrast:.047,rightMeanDarkContrast:.048,leftDarkRowFraction:.572,rightDarkRowFraction:.524}
+};
+const correctedToothmark=calibrateRealTongueFeatures({
+  signature:{purple:.05,spot:.01},spatial:missedToothmarkCase,qc:{grade:'good'},
+  base:{bodyColor:'đỏ nhạt',coatingColor:'trắng',coatingThickness:'mỏng',coatingTexture:'khá đều',shape:'trung bình',toothmarks:'Không thấy dấu răng rõ'}
+});
+assert.equal(correctedToothmark.toothmarks.label,'Có tín hiệu dấu răng','uploaded false-negative morphology fixture must be corrected by multiscale contour evidence');
+assert.match(correctedToothmark.toothmarks.reason,/multiscale-repeated-concavity/);
+assert.match(fs.readFileSync('public/academic-vision.js','utf8'),/mouth-anchored-multiscale-concavity-v1/);
+assert.match(fs.readFileSync('public/academic-vision.js','utf8'),/dark-oral-aperture-anchor-plus-adaptive-blue-green-separation-v1/);
+assert.match(academic,/leftMaxDepthRatio/);
+assert.match(academic,/edgeColorSupport/);
 
 assert.match(academic,/export function verifyClientVisualPayload/);
 assert.doesNotMatch(academic,/function geminiLayer/);

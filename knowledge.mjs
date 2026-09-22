@@ -7,7 +7,7 @@ import { REAL_TONGUE_VIDEO_20260922_EVIDENCE, REAL_TONGUE_VIDEO_20260922_DOCUMEN
 import { MORPHOLOGY_STANDARD_EVIDENCE, MORPHOLOGY_STANDARD_DOCUMENTS, MORPHOLOGY_STANDARD_POLICY } from './knowledge-morphology-standard-v1.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv1+morphref1';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv6+morphref1';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
@@ -133,12 +133,13 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
     .map(e=>{
       const applicability=atlasApplicability(e,profile);
       let domainBonus=0;
-      if(allowPsych&&e.source==='PSY1')domainBonus+=6;
-      if(wantMoisture&&['TCATLAS1','OA17','OA18'].includes(e.source))domainBonus+=4;
+      if(allowPsych&&e.source==='PSY1')domainBonus+=12;
+      if(wantMoisture&&e.source==='TCATLAS1')domainBonus+=16;
+      if(wantMoisture&&['OA17','OA18'].includes(e.source))domainBonus+=4;
       if(wantRegions&&e.source==='OA19')domainBonus+=6;
       if(wantMorphology&&String(e.source||'').startsWith('MR'))domainBonus+=7;
-      if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=12;
-      if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=8;
+      if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=30;
+      if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=14;
       return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus+domainBonus};
     })
     .filter(item=>!item.blocked&&item.score>0)

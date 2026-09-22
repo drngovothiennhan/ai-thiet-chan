@@ -11,8 +11,8 @@ import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontol
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv1+morphref1');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,34);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv6+morphref1');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,39);
 assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
 assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,19);
 assert.equal(OPEN_ACCESS_POLICY.sourceCount,19);
@@ -22,8 +22,12 @@ assert.equal(REAL_TONGUE_20260922_EVIDENCE.length,22);
 assert.equal(REAL_TONGUE_20260922_POLICY.recordCount,64);
 assert.equal(REAL_TONGUE_20260922_POLICY.clinicalGold,false);
 assert.equal(REAL_TONGUE_20260922_POLICY.modelWeightTrainingReady,false);
-assert.equal(REAL_TONGUE_VIDEO_20260922_DOCUMENTS.length,1);
-assert.equal(REAL_TONGUE_VIDEO_20260922_EVIDENCE.length,3);
+assert.equal(REAL_TONGUE_VIDEO_20260922_DOCUMENTS.length,6);
+assert.equal(REAL_TONGUE_VIDEO_20260922_EVIDENCE.length,18);
+assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.recordCount,6);
+assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.videoRecordCount,4);
+assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.stillRecordCount,2);
+assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.independentCaseCountKnown,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.clinicalGold,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.modelWeightTrainingReady,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.expertVerificationRequired,true);
@@ -68,6 +72,9 @@ assert.ok(morphology.includes('[MR07, nguồn học thuật]'),'morphology retri
 const videoSilver=knowledgeForQuery('rêu xám đen dày nhuận tĩnh mạch dưới lưỡi tím xanh huyết ứ thấp trọc',{limit:18});
 assert.ok(videoSilver.includes('[RTBV1, user-supplied video 2026-09-22]'),'user video silver evidence should be retrievable for matching features');
 assert.ok(videoSilver.includes('không kết luận')||videoSilver.includes('không phân biệt chắc')||videoSilver.includes('chỉ làm tăng tín hiệu'),'video teaching evidence must remain conditional');
+const videoR2=knowledgeForQuery('lưỡi rộng rêu trắng xám nhuận dấu răng hai bên tĩnh mạch dưới lưỡi tím xanh nứt giữa',{limit:24});
+for(const marker of ['[RTBV2, user-supplied video batch R2 asset 1]','[RTBV3, user-supplied video batch R2 asset 2]','[RTBS1, user-supplied still 29795]']) assert.ok(videoR2.includes(marker),`R2 silver retrieval missing marker: ${marker}`);
+assert.ok(videoR2.includes('không được chốt')||videoR2.includes('không đủ')||videoR2.includes('không xác nhận'),'R2 silver teaching must fail closed on syndrome/absolute vessel claims');
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
 console.log('KNOWLEDGE EVIDENCE SMOKE PASS: five user PDFs are grounded, psych context is gated, and citations are chatbot-only');

@@ -3,15 +3,17 @@ import { TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS as BASE_KNOWLEDGE_DOCUMENTS, citat
 import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } from './knowledge-extended.mjs';
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from './knowledge-open-access.mjs';
 import { REAL_TONGUE_20260922_EVIDENCE, REAL_TONGUE_20260922_DOCUMENTS } from './knowledge-real-tongue-20260922.mjs';
+import { MORPHOLOGY_STANDARD_EVIDENCE, MORPHOLOGY_STANDARD_DOCUMENTS, MORPHOLOGY_STANDARD_POLICY } from './knowledge-morphology-standard-v1.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.7doc+oa19+rtb1';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+morphref1';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
   ...EXTENDED_KNOWLEDGE_DOCUMENTS,
   ...OPEN_ACCESS_KNOWLEDGE_DOCUMENTS,
-  ...REAL_TONGUE_20260922_DOCUMENTS
+  ...REAL_TONGUE_20260922_DOCUMENTS,
+  ...MORPHOLOGY_STANDARD_DOCUMENTS
 ];
 
 export const KNOWLEDGE_SOURCES = [
@@ -21,7 +23,7 @@ export const KNOWLEDGE_SOURCES = [
 ];
 
 const USER_EVIDENCE=[...TONGUE_EVIDENCE,...EXTENDED_EVIDENCE];
-const ALL_EVIDENCE=[...USER_EVIDENCE,...OPEN_ACCESS_EVIDENCE,...REAL_TONGUE_20260922_EVIDENCE];
+const ALL_EVIDENCE=[...USER_EVIDENCE,...OPEN_ACCESS_EVIDENCE,...REAL_TONGUE_20260922_EVIDENCE,...MORPHOLOGY_STANDARD_EVIDENCE];
 const documentById=new Map(KNOWLEDGE_DOCUMENTS.map(d=>[d.id,d]));
 
 function analysisEvidence(){
@@ -143,7 +145,7 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
     selected.push(item.e);seen.add(item.e.id);
     if(selected.length>=effectiveLimit)break;
   }
-  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${selected.length?renderCitedEvidence(selected):'- Chưa có dẫn chứng đủ khớp với quan sát cấu trúc hiện tại; không ghép nguồn cho đủ số lượng.'}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}.
+  return `HỆ TRI THỨC TRUY XUẤT ${KNOWLEDGE_VERSION}:\n${selected.length?renderCitedEvidence(selected):'- Chưa có dẫn chứng đủ khớp với quan sát cấu trúc hiện tại; không ghép nguồn cho đủ số lượng.'}\n\n${PSYCH_CONTEXT_RULES}\n${citationInstruction()}\n- Với nguồn OAxx, dẫn nguồn theo PMID/PMCID xuất hiện trong khối bằng chứng; không bịa số trang bài báo.\n- Nguồn open-access chỉ bổ sung RAG/đối chiếu học thuật; nghiên cứu liên hệ bệnh không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi.\n- Ontology: ${TONGUE_ONTOLOGY_MANIFEST.id}; corpus OA: ${OPEN_ACCESS_POLICY.corpusId}; chuẩn hình thể: ${MORPHOLOGY_STANDARD_POLICY.version}.
 - Phân khu Tâm-Phế/Can-Đởm/Tỳ-Vị/Thận là bản đồ lý luận YHCT dùng cho đối chiếu, không phải bản đồ giải phẫu và không được tự chuyển thành chẩn đoán bệnh cơ quan.\n- Chỉ chatbot sau khi đã có kết quả thiệt chẩn mới được hiển thị mục “Nguồn đối chiếu”.\n- Không hiển thị mã nguồn/trang trong màn hình kết quả thiệt chẩn, dashboard, lịch sử hoặc báo cáo tổng kết ca.\n- Dẫn chứng atlas phải cùng mặt lưỡi và không được mâu thuẫn với màu/rêu/hình thể đã quan sát; nếu không khớp phải loại, không chỉ hạ điểm.\n- Nếu nguồn không trực tiếp hỗ trợ một kết luận thì phải nói chưa đủ căn cứ, không ghép nguồn cho đủ số lượng.`;
 }
 

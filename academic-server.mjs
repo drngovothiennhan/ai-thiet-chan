@@ -76,9 +76,10 @@ function saneSpatialObservation(raw){
   }
   if(raw.shapeMetrics&&typeof raw.shapeMetrics==='object'){
     const m=raw.shapeMetrics,outShape={};
-    for(const key of ['aspect','areaFill','rootWidthRatio','midWidthRatio','tipWidthRatio','roiWidthRatio','roiHeightRatio','topMargin','bottomMargin','edgeRowCoverage']){
+    for(const key of ['aspect','areaFill','rootWidthRatio','shoulderWidthRatio','midWidthRatio','tipWidthRatio','meanWidthRatio','widthStdRatio','tipTaperRatio','rootToMidRatio','contourSmoothness','centerlineDeviation','roiWidthRatio','roiHeightRatio','topMargin','bottomMargin','edgeRowCoverage']){
       const n=Number(m[key]);if(!Number.isFinite(n)||n<0||n>5)return null;outShape[key]=n;
     }
+    if(m.method)outShape.method=String(m.method).slice(0,100);
     out.shapeMetrics=outShape;
   }
   if(raw.toothmarkMetrics&&typeof raw.toothmarkMetrics==='object'){
@@ -88,6 +89,17 @@ function saneSpatialObservation(raw){
     }
     outTooth.leftEvents=Math.max(0,Math.min(20,Math.round(Number(m.leftEvents)||0)));
     outTooth.rightEvents=Math.max(0,Math.min(20,Math.round(Number(m.rightEvents)||0)));
+    for(const key of ['leftMaxDepthRatio','rightMaxDepthRatio']){
+      if(m[key]===undefined)continue;
+      const n=Number(m[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;outTooth[key]=n;
+    }
+    if(m.edgeColorSupport&&typeof m.edgeColorSupport==='object'){
+      const ec=m.edgeColorSupport,outColor={method:String(ec.method||'').slice(0,80),role:String(ec.role||'').slice(0,80)};
+      for(const key of ['leftScore','rightScore','bilateralScore','leftMeanDarkContrast','rightMeanDarkContrast','leftDarkRowFraction','rightDarkRowFraction']){
+        const n=Number(ec[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;outColor[key]=n;
+      }
+      outTooth.edgeColorSupport=outColor;
+    }
     out.toothmarkMetrics=outTooth;
   }
   const bodyColor=String(raw.bodyColorCandidate||''),coatColor=String(raw.coatingColorCandidate||'');
@@ -122,6 +134,17 @@ function saneSpatialObservation(raw){
       method:String(m.method||'').slice(0,100),
       calibration:String(m.calibration||'').slice(0,120)
     };
+  }
+  if(raw.morphologyRoi&&typeof raw.morphologyRoi==='object'){
+    const mr=raw.morphologyRoi,outRoi={method:String(mr.method||'').slice(0,120)};
+    for(const key of ['mouthWidthRatio','tongueWidthRatio','tongueHeightRatio','skinBlueGreenRatio','coreBlueGreenRatio','blueGreenThreshold']){
+      const n=Number(mr[key]);if(!Number.isFinite(n)||n<0||n>5)return null;outRoi[key]=n;
+    }
+    if(mr.sourceResolution&&typeof mr.sourceResolution==='object')outRoi.sourceResolution={
+      width:Math.max(1,Math.min(4096,Math.round(Number(mr.sourceResolution.width)||1))),
+      height:Math.max(1,Math.min(4096,Math.round(Number(mr.sourceResolution.height)||1)))
+    };
+    out.morphologyRoi=outRoi;
   }
   if(raw.colorNormalization&&typeof raw.colorNormalization==='object'){
     const n=raw.colorNormalization;

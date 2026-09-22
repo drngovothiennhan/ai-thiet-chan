@@ -94,10 +94,21 @@ function shapeAndToothmarkMetrics(mask,w,h,box){
       if(!mask[y*w+x])continue;
       area++;if(first<0)first=x;last=x;count++;
     }
-    if(count>=4)rows.push({y,first,last,width:last-first+1,ny:(y-minY)/Math.max(1,bh)});
+    if(count>=4)rows.push({y,first,last,width:last-first+1,center:(first+last)/2,ny:(y-minY)/Math.max(1,bh)});
   }
   const widths=(a,b)=>rows.filter(r=>r.ny>=a&&r.ny<=b).map(r=>r.width/Math.max(1,bw));
   const med=(a,b)=>{const v=widths(a,b);return v.length?median(v):0;};
+  const allWidths=rows.map(r=>r.width/Math.max(1,bw));
+  const meanWidth=allWidths.length?allWidths.reduce((a,b)=>a+b,0)/allWidths.length:0;
+  const widthStd=allWidths.length?Math.sqrt(allWidths.reduce((s,x)=>s+(x-meanWidth)**2,0)/allWidths.length):0;
+  let contourDelta=0,deltaN=0;
+  for(let i=1;i<rows.length;i++){
+    contourDelta+=Math.abs(rows[i].width-rows[i-1].width)/Math.max(1,bw);deltaN++;
+  }
+  const contourSmoothness=deltaN?contourDelta/deltaN:0;
+  const centerMedian=rows.length?median(rows.map(r=>r.center)):minX+bw/2;
+  const centerlineDeviation=rows.length?rows.reduce((s,r)=>s+Math.abs(r.center-centerMedian)/Math.max(1,bw),0)/rows.length:0;
+  const root=med(.05,.28),shoulder=med(.18,.42),mid=med(.32,.68),tip=med(.72,.94);
   const side=rows.filter(r=>r.ny>=.22&&r.ny<=.84);
   let leftIndent=0,rightIndent=0,leftEvents=0,rightEvents=0,leftN=0,rightN=0;
   for(let i=2;i<side.length-2;i++){
@@ -118,14 +129,22 @@ function shapeAndToothmarkMetrics(mask,w,h,box){
     shape:Object.freeze({
       aspect:q(bw/Math.max(1,bh)),
       areaFill:q(area/Math.max(1,bw*bh)),
-      rootWidthRatio:q(med(.05,.28)),
-      midWidthRatio:q(med(.32,.68)),
-      tipWidthRatio:q(med(.72,.94)),
+      rootWidthRatio:q(root),
+      shoulderWidthRatio:q(shoulder),
+      midWidthRatio:q(mid),
+      tipWidthRatio:q(tip),
+      meanWidthRatio:q(meanWidth),
+      widthStdRatio:q(widthStd),
+      tipTaperRatio:q(mid>0?tip/mid:0),
+      rootToMidRatio:q(mid>0?root/mid:0),
+      contourSmoothness:q(contourSmoothness),
+      centerlineDeviation:q(centerlineDeviation),
       roiWidthRatio:q(bw/w),
       roiHeightRatio:q(bh/h),
       topMargin:q(minY/h),
       bottomMargin:q((h-1-maxY)/h),
-      edgeRowCoverage:q(rows.length/Math.max(1,bh))
+      edgeRowCoverage:q(rows.length/Math.max(1,bh)),
+      method:'multi-profile-tongue-geometry-v2'
     }),
     toothmarks:Object.freeze({
       score:q(toothmarkScore),
@@ -134,8 +153,41 @@ function shapeAndToothmarkMetrics(mask,w,h,box){
       bilateralScore:q(bilateral),
       leftEvents,
       rightEvents,
-      method:'bilateral-smoothed-edge-concavity-v1'
+      method:'bilateral-smoothed-edge-concavity-v2'
     })
+  });
+}
+function toothmarkEdgeColorSupport(mask,gray,w,h,box){
+  const {minX,minY,maxX,maxY,width:bw,height:bh}=box;
+  const band=Math.max(1,Math.round(bw*.028));
+  const gap=Math.max(2,Math.round(bw*.050));
+  let lSum=0,rSum=0,lRows=0,rRows=0,lDark=0,rDark=0;
+  const meanBand=(y,a,b)=>{
+    let sum=0,n=0;
+    for(let x=Math.max(minX,a);x<=Math.min(maxX,b);x++){
+      const p=y*w+x;if(!mask[p])continue;sum+=gray[p];n++;
+    }
+    return n?sum/n:null;
+  };
+  for(let y=Math.max(minY,Math.floor(minY+.22*bh));y<=Math.min(maxY,Math.ceil(minY+.84*bh));y++){
+    let first=-1,last=-1,count=0;
+    for(let x=minX;x<=maxX;x++)if(mask[y*w+x]){if(first<0)first=x;last=x;count++;}
+    if(count<10)continue;
+    const le=meanBand(y,first,first+band),li=meanBand(y,first+gap,first+gap+band);
+    const re=meanBand(y,last-band,last),ri=meanBand(y,last-gap-band,last-gap);
+    if(le!==null&&li!==null){const d=Math.max(0,(li-le)/255);lSum+=d;lRows++;if(d>=.018)lDark++;}
+    if(re!==null&&ri!==null){const d=Math.max(0,(ri-re)/255);rSum+=d;rRows++;if(d>=.018)rDark++;}
+  }
+  const lMean=lRows?lSum/lRows:0,rMean=rRows?rSum/rRows:0;
+  const lFrac=lRows?lDark/lRows:0,rFrac=rRows?rDark/rRows:0;
+  const leftScore=clamp((lMean/.045)*.58+(lFrac/.35)*.42);
+  const rightScore=clamp((rMean/.045)*.58+(rFrac/.35)*.42);
+  return Object.freeze({
+    leftScore:q(leftScore),rightScore:q(rightScore),bilateralScore:q(Math.min(leftScore,rightScore)),
+    leftMeanDarkContrast:q(lMean),rightMeanDarkContrast:q(rMean),
+    leftDarkRowFraction:q(lFrac),rightDarkRowFraction:q(rFrac),
+    method:'lateral-edge-relative-darkening-v1',
+    role:'secondary-support-only'
   });
 }
 function spatialObservation(px,w,h){
@@ -293,6 +345,7 @@ function spatialObservation(px,w,h){
   const sulcusScore=clamp((bestMean/7)*.45+(continuity/.42)*.35+centrality*.20);
   const visibleSignal=sulcusScore>=.62&&centrality>=.35&&continuity>=.22;
   const morphologyMetrics=shapeAndToothmarkMetrics(comp.mask,w,h,box);
+  const edgeColorSupport=toothmarkEdgeColorSupport(comp.mask,gray,w,h,box);
   return {
     schemaVersion:'tongue-spatial-observation-v3',
     roiCoverage:q(comp.area/(w*h)),
@@ -308,7 +361,7 @@ function spatialObservation(px,w,h){
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),
     shapeMetrics:morphologyMetrics.shape,
-    toothmarkMetrics:morphologyMetrics.toothmarks,
+    toothmarkMetrics:Object.freeze({...morphologyMetrics.toothmarks,edgeColorSupport}),
     moisture:moistureObservation,
     colorNormalization:Object.freeze({applied:normalizationApplied,neutralPixels:neutralN,gainR:q(gainR),gainG:q(gainG),gainB:q(gainB),bounded:true}),
     medianSulcus:Object.freeze({

@@ -61,6 +61,30 @@ const tooth=evaluateMorphologyReference({
 assert.equal(tooth.toothmarks.class,'present');
 assert.equal(tooth.comparison.toothmarkAgreement,'aligned');
 
+const uploadedFalseNegative=evaluateMorphologyReference({
+  spatial:spatial({
+    shapeMetrics:{
+      aspect:1.045,areaFill:.649,rootWidthRatio:.913,shoulderWidthRatio:.913,midWidthRatio:.855,tipWidthRatio:.565,
+      meanWidthRatio:.722,widthStdRatio:.236,tipTaperRatio:.661,rootToMidRatio:1.068,contourSmoothness:.044,centerlineDeviation:.022,
+      roiWidthRatio:.333,roiHeightRatio:.147,topMargin:.400,bottomMargin:.453,edgeRowCoverage:.985
+    },
+    toothmarkMetrics:{
+      score:.828,leftScore:.851,rightScore:.816,bilateralScore:.816,leftEvents:2,rightEvents:2,leftMaxDepthRatio:.055,rightMaxDepthRatio:.043,
+      edgeColorSupport:{leftScore:1,rightScore:1,bilateralScore:1,leftMeanDarkContrast:.047,rightMeanDarkContrast:.048,leftDarkRowFraction:.572,rightDarkRowFraction:.524}
+    },
+    morphologyRoi:{
+      method:'dark-oral-aperture-anchor-plus-adaptive-blue-green-separation-v1',
+      mouthWidthRatio:.295,tongueWidthRatio:.333,tongueHeightRatio:.147,
+      skinBlueGreenRatio:.851,coreBlueGreenRatio:.976,blueGreenThreshold:.929,
+      sourceResolution:{width:207,height:448}
+    }
+  }),
+  qc:{grade:'good'},current:{shape:'rộng/mập tương đối theo ảnh 2D',toothmarks:'Không thấy dấu răng rõ'}
+});
+assert.equal(uploadedFalseNegative.toothmarks.class,'present','uploaded false-negative derived fixture must be positive in reference model');
+assert.equal(uploadedFalseNegative.comparison.toothmarkAgreement,'conflict','reference model must surface conflict with the previous negative app result');
+assert.equal(uploadedFalseNegative.shape.visibility.anchored,true,'mouth-anchored high-resolution ROI must be accepted even when tongue occupies a small fraction of a full-face image');
+
 const colorOnly=evaluateMorphologyReference({
   spatial:spatial({toothmarkMetrics:{
     score:.20,leftScore:.18,rightScore:.16,bilateralScore:.16,leftEvents:0,rightEvents:0,

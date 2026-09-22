@@ -72,7 +72,12 @@
     const dashboard=$('adminDashboard');if(!dashboard||$('studentAdminBlock'))return;
     const section=document.createElement('section');section.id='studentAdminBlock';section.className='admin-block';
     section.innerHTML=`
-      <div class="admin-block-head"><div><h3>Quản lý sinh viên</h3><p>Excel tối thiểu: STT · Họ tên · Năm sinh · MSSV · Khoa · Lớp. MSSV trùng nhau được tự loại; MSSV là tên đăng nhập và mật khẩu lần đầu.</p></div><button id="studentRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div>
+      <div class="admin-block-head"><div><h3>Quản lý sinh viên</h3><p>Có thể tạo nhanh user chỉ bằng MSSV hoặc nạp danh sách Excel. MSSV là tên đăng nhập và mật khẩu lần đầu; người dùng bắt buộc đổi mật khẩu sau khi đăng nhập.</p></div><button id="studentRefreshBtn" class="btn ghost compact" type="button">Làm mới</button></div>
+      <div class="student-create-toolbar">
+        <input id="studentCreateMssv" class="student-search" inputmode="text" autocomplete="off" maxlength="40" placeholder="Nhập MSSV để tạo user" aria-label="MSSV cần tạo" />
+        <button id="studentCreateBtn" class="btn primary compact" type="button">Tạo user bằng MSSV</button>
+      </div>
+      <p class="settings-note">Tạo nhanh: mật khẩu tạm thời = MSSV, tài khoản hoạt động ngay và bắt buộc đổi mật khẩu. Họ tên/Khoa/Lớp chưa có sẽ hiển thị “Chưa cập nhật” cho tới khi admin nạp Excel.</p>
       <div class="student-admin-toolbar">
         <label class="btn primary compact">Nạp file Excel<input id="studentExcelFile" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden /></label>
         <a class="btn ghost compact" href="${DRIVE_USER_URL}" target="_blank" rel="noopener">Drive A.I Thiệt Chẩn/user</a>
@@ -85,12 +90,33 @@
       <div id="studentAdminList" class="admin-list"></div>`;
     dashboard.appendChild(section);
     $('studentExcelFile')?.addEventListener('change',importExcel);
+    $('studentCreateBtn')?.addEventListener('click',createStudentFromMssv);
+    $('studentCreateMssv')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();createStudentFromMssv();}});
     $('studentRefreshBtn')?.addEventListener('click',()=>loadStudents());
     $('studentSearchBtn')?.addEventListener('click',()=>loadStudents($('studentSearchInput')?.value||''));
     $('studentSearchInput')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();loadStudents(event.currentTarget.value);}});
     $('studentAdminList')?.addEventListener('click',handleListAction);
     $('adminRefreshBtn')?.addEventListener('click',()=>setTimeout(()=>loadStudents(),0));
-    const style=document.createElement('style');style.textContent=`.student-admin-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.student-search{flex:1;min-width:180px;border:1px solid #cfdad8;border-radius:10px;padding:9px 11px}.student-row .admin-meta{display:flex;flex-wrap:wrap;gap:6px}.student-row .admin-actions{flex-wrap:wrap}`;document.head.appendChild(style);
+    const style=document.createElement('style');style.textContent=`.student-create-toolbar,.student-admin-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.student-create-toolbar{margin-bottom:4px}.student-search{flex:1;min-width:180px;border:1px solid #cfdad8;border-radius:10px;padding:9px 11px}.student-row .admin-meta{display:flex;flex-wrap:wrap;gap:6px}.student-row .admin-actions{flex-wrap:wrap}`;document.head.appendChild(style);
+  }
+
+  async function createStudentFromMssv(){
+    const input=$('studentCreateMssv'),button=$('studentCreateBtn');
+    const mssv=String(input?.value||'').trim().toUpperCase();
+    if(!mssv){status('Nhập MSSV cần tạo.','warn');input?.focus();return;}
+    if(mssv.length<3||mssv.length>40||!/^[A-Z0-9._-]+$/.test(mssv)){status('MSSV chỉ dùng chữ cái, số, dấu chấm, gạch dưới hoặc gạch ngang (3–40 ký tự).','warn');input?.focus();return;}
+    if(!adminToken()){status('Phiên Admin Center chưa đăng nhập.','warn');return;}
+    if(button)button.disabled=true;
+    status(`Đang tạo user ${mssv}…`);
+    try{
+      const result=await rpc('ai_thiet_chan_admin_create_student_v1',{p_admin_token:adminToken(),p_mssv:mssv});
+      status(`Đã tạo user ${result?.mssv||mssv}. Mật khẩu tạm thời = MSSV; người dùng phải đổi mật khẩu sau lần đăng nhập đầu.`,'good');
+      if(input)input.value='';
+      await loadStudents();
+    }catch(err){
+      const message=/student_exists/i.test(String(err?.message||''))?'MSSV này đã có tài khoản.':/invalid_mssv/i.test(String(err?.message||''))?'MSSV không hợp lệ.':err.message;
+      status(`Không tạo được user ${mssv}: ${message}`,'warn');
+    }finally{if(button)button.disabled=false;}
   }
 
   async function importExcel(event){

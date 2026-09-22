@@ -43,6 +43,7 @@ function evidenceScore(e,queryTokens){
 function psychRelevant(query){return /(tam ly|tam than|stress|lo au|tram cam|cam xuc|buon|hoang|mat ngu|tu hai|hanh vi|cang thang)/.test(normalizeSearchText(query));}
 function moistureRelevant(query){return /(do am|kho|uot|nhuan|tron|gloss|bong be mat|nuoc bot|moisture|wet|dry)/.test(normalizeSearchText(query));}
 function regionalTopographyRelevant(query){return /(phan khu|dau luoi|ria luoi|hai ben luoi|giua luoi|goc luoi|tam phe|can dom|ty vi|than|bang quang|tongue region|topograph)/.test(normalizeSearchText(query));}
+function morphologyRelevant(query){return /(hinh the|kich thuoc|map|beu|gay|mong|thon|dau rang|han rang|tooth|shape|morpholog)/.test(normalizeSearchText(query));}
 function evidenceText(entry){return normalizeSearchText(`${entry?.topics?.join(' ')||''} ${entry?.text||''}`);}
 function positiveValue(value,pattern){
   const v=normalizeSearchText(value);
@@ -123,6 +124,7 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
   const allowPsych=psychRelevant(query);
   const wantMoisture=moistureRelevant(query);
   const wantRegions=regionalTopographyRelevant(query);
+  const wantMorphology=morphologyRelevant(`${query||''} ${structured}`);
   const wantVentral=/(mat duoi|tinh mach|mach duoi luoi|sublingual|vein)/.test(normalizeSearchText(`${query||''} ${structured}`));
   const ranked=ALL_EVIDENCE
     .filter(e=>allowPsych||e.source!=='PSY1')
@@ -132,6 +134,7 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
       if(allowPsych&&e.source==='PSY1')domainBonus+=6;
       if(wantMoisture&&['TCATLAS1','OA17','OA18'].includes(e.source))domainBonus+=4;
       if(wantRegions&&e.source==='OA19')domainBonus+=6;
+      if(wantMorphology&&String(e.source||'').startsWith('MR'))domainBonus+=7;
       if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=12;
       if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=8;
       return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus+domainBonus};

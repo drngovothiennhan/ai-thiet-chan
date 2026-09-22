@@ -138,8 +138,8 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
       if(wantMoisture&&['OA17','OA18'].includes(e.source))domainBonus+=4;
       if(wantRegions&&e.source==='OA19')domainBonus+=6;
       if(wantMorphology&&String(e.source||'').startsWith('MR'))domainBonus+=7;
-      if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=12;
-      if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=8;
+      if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=30;
+      if(wantVentral&&e.source==='TC1'&&[47,48].includes(Number(e.page)))domainBonus+=14;
       return {e,blocked:applicability.blocked,score:evidenceScore(e,qTokens)+applicability.bonus+domainBonus};
     })
     .filter(item=>!item.blocked&&item.score>0)

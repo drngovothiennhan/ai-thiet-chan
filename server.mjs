@@ -175,7 +175,8 @@ function llmSafeAssessmentContext(context){
       moistureObservationOnly:true,
       flashGlareCannotEqualWetness:true,
       fissureAloneCannotEqualDryness:true,
-      bodyAndCoatingMoistureAreSeparate:true
+      bodyAndCoatingMoistureAreSeparate:true,
+      morphologyReferenceIsComparatorOnly:true
     },
     mode:context.mode==='general'?'general':'normal',
     top:{
@@ -190,6 +191,7 @@ function llmSafeAssessmentContext(context){
       moisture:String(top.moisture||'Không xác định'),
       moistureObservation:normalizeMoistureObservation(top.moistureObservation),
       morphology:normalizeTongueMorphology(top.morphology,top.fissures),
+      morphologyReference:top.morphologyReference&&typeof top.morphologyReference==='object'?top.morphologyReference:null,
       toothmarks:String(top.toothmarks||'Không xác định'),
       pricklesSpots:String(top.pricklesSpots||'Không xác định'),
       stasisMarks:String(top.stasisMarks||'Không xác định'),
@@ -324,7 +326,7 @@ function normalizeAssessment(raw,{mode,topQc,bottomQc}){
     pipeline:['capture-qc','view-validity','top-feature-extraction','sublingual-vessel-description','knowledge-mapping','combined-assessment'],
     featureVector:{
       schemaVersion:'tongue-dual-view-feature-vector-v3',mode:selectedMode,knowledgeVersion:KNOWLEDGE_VERSION,
-      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
+      top:{visual:{tongueColor:top.tongueColor||'',shape:top.shape||'',coatingColor:top.coatingColor||'',coatingThickness:top.coatingThickness||'',coatingTexture:top.coatingTexture||'',moisture:top.moisture||'',moistureObservation:normalizeMoistureObservation(top.moistureObservation),morphology:top.morphology||normalizeTongueMorphology(null,top.fissures),morphologyReference:top.morphologyReference||null,fissures:top.fissures||'',toothmarks:top.toothmarks||'',pricklesSpots:top.pricklesSpots||'',stasisMarks:top.stasisMarks||''},validity:top.visualValidity,qc:topQc||{},confidence:top.confidence},
       bottom:bottom?{visual:{undersideColor:bottom.undersideColor||'',vessels:bottom.vessels||{},otherVisibleFeatures:bottom.otherVisibleFeatures||[]},validity:bottom.visualValidity,qc:bottomQc||{},confidence:bottom.confidence}:null,
       combined:{confidence:combined.confidence,generalSignals:combined.generalSignals,stomachPatternSignals:combined.stomachPatternSignals}
     },

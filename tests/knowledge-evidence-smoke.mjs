@@ -79,7 +79,9 @@ const videoR3Coat=knowledgeForQuery('rêu trắng vàng ngả vàng dày lưỡi
 for(const marker of ['[RTBV5, user-supplied video batch R3 asset 1]','[RTBV6, user-supplied video batch R3 asset 2]']) assert.ok(videoR3Coat.includes(marker),`R3 coating/toothmark retrieval missing marker: ${marker}`);
 const videoR3Red=knowledgeForQuery('lưỡi đỏ hồng ít rêu rất mỏng còn ẩm tĩnh mạch dưới lưỡi tím xanh âm hư huyết ứ',{limit:24});
 assert.ok(videoR3Red.includes('[RTBV8, user-supplied video batch R3 asset 4]'),'R3 red/scant-coating/ventral retrieval must include RTBV8');
-assert.ok(videoR3Red.includes('chỉ ở mức điều kiện')||videoR3Red.includes('không phải chẩn đoán')||videoR3Red.includes('không được suy'),'R3 silver teaching must remain conditional');
+const videoR3Conditional=knowledgeForQuery('âm hư hư nhiệt huyết ứ ứ trệ biện chứng lưỡi đỏ ít rêu',{limit:24});
+assert.ok(videoR3Conditional.includes('[RTBV8, user-supplied video batch R3 asset 4]'),'R3 conditional-pattern retrieval must include RTBV8');
+assert.ok(videoR3Conditional.includes('chỉ ở mức điều kiện')||videoR3Conditional.includes('không phải chẩn đoán xác định')||videoR3Conditional.includes('không được chốt thể'),'R3 silver teaching must remain conditional');
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
 console.log('KNOWLEDGE EVIDENCE SMOKE PASS: five user PDFs are grounded, psych context is gated, and citations are chatbot-only');

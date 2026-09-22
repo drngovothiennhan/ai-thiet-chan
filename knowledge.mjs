@@ -134,7 +134,8 @@ export function knowledgeForQuery(query,{limit=18,assessment=null}={}){
       const applicability=atlasApplicability(e,profile);
       let domainBonus=0;
       if(allowPsych&&e.source==='PSY1')domainBonus+=12;
-      if(wantMoisture&&['TCATLAS1','OA17','OA18'].includes(e.source))domainBonus+=4;
+      if(wantMoisture&&e.source==='TCATLAS1')domainBonus+=8;
+      if(wantMoisture&&['OA17','OA18'].includes(e.source))domainBonus+=4;
       if(wantRegions&&e.source==='OA19')domainBonus+=6;
       if(wantMorphology&&String(e.source||'').startsWith('MR'))domainBonus+=7;
       if(wantVentral&&e.source==='AT1'&&Number(e.page)===22)domainBonus+=12;

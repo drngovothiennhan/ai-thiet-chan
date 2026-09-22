@@ -6,13 +6,14 @@ import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } 
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from '../knowledge-open-access.mjs';
 import { REAL_TONGUE_20260922_EVIDENCE, REAL_TONGUE_20260922_DOCUMENTS, REAL_TONGUE_20260922_POLICY } from '../knowledge-real-tongue-20260922.mjs';
 import { REAL_TONGUE_VIDEO_20260922_EVIDENCE, REAL_TONGUE_VIDEO_20260922_DOCUMENTS, REAL_TONGUE_VIDEO_20260922_POLICY } from '../knowledge-real-tongue-video-20260922.mjs';
+import { REAL_TONGUE_STILL_R3_20260922_EVIDENCE, REAL_TONGUE_STILL_R3_20260922_DOCUMENTS, REAL_TONGUE_STILL_R3_20260922_POLICY } from '../knowledge-real-tongue-still-r3-20260922.mjs';
 import { MORPHOLOGY_STANDARD_EVIDENCE, MORPHOLOGY_STANDARD_DOCUMENTS, MORPHOLOGY_STANDARD_POLICY } from '../knowledge-morphology-standard-v1.mjs';
 import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontology.mjs';
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv10+morphref1');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,43);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.8doc+oa19+rtb1+rtbv10+rtbsr3+morphref1');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,44);
 assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
 assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,19);
 assert.equal(OPEN_ACCESS_POLICY.sourceCount,19);
@@ -31,6 +32,15 @@ assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.independentCaseCountKnown,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.clinicalGold,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.modelWeightTrainingReady,false);
 assert.equal(REAL_TONGUE_VIDEO_20260922_POLICY.expertVerificationRequired,true);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_DOCUMENTS.length,1);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_EVIDENCE.length,18);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.assetCount,10);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.correlatedViewGroupCount,6);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.independentCaseCountKnown,false);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.rawImagesVendored,false);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.clinicalGold,false);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.modelWeightTrainingReady,false);
+assert.equal(REAL_TONGUE_STILL_R3_20260922_POLICY.expertVerificationRequired,true);
 assert.equal(MORPHOLOGY_STANDARD_DOCUMENTS.length,7);
 assert.ok(MORPHOLOGY_STANDARD_EVIDENCE.length>=10);
 assert.equal(MORPHOLOGY_STANDARD_POLICY.productionAuthority,false);
@@ -82,6 +92,12 @@ assert.ok(videoR3Red.includes('[RTBV8, user-supplied video batch R3 asset 4]'),'
 const videoR3Conditional=knowledgeForQuery('âm hư hư nhiệt huyết ứ ứ trệ biện chứng lưỡi đỏ ít rêu',{limit:24});
 assert.ok(videoR3Conditional.includes('[RTBV8, user-supplied video batch R3 asset 4]'),'R3 conditional-pattern retrieval must include RTBV8');
 assert.ok(videoR3Conditional.includes('chỉ ở mức điều kiện')||videoR3Conditional.includes('không phải chẩn đoán xác định')||videoR3Conditional.includes('không được chốt thể'),'R3 silver teaching must remain conditional');
+const stillR3=knowledgeForQuery('lưỡi ám tím rêu trắng xám dày nứt giữa thấp trọc đàm thấp huyết ứ flash đỏ nhạt',{limit:24});
+assert.ok(stillR3.includes('[RTBSR3, group 3 · assets 29812/29811]'),'R3 still retrieval should surface the thick gray-white coating + central fissure teaching group');
+assert.ok(stillR3.includes('[RTBSR3, group 5 · assets 29808/29809]')||stillR3.includes('[RTBSR3, group 1 · assets 29816/29815]'),'R3 still retrieval should also surface a near-normal/flash guard group');
+assert.ok(stillR3.includes('không được tự chốt')||stillR3.includes('không đủ xếp thể')||stillR3.includes('chỉ là nhãn thể bệnh ứng viên'),'R3 candidate syndrome labels must remain conditional');
+assert.ok(!REAL_TONGUE_STILL_R3_20260922_POLICY.promotionEligible,'R3 stills must not auto-promote to Gold/weights');
+
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
 console.log('KNOWLEDGE EVIDENCE SMOKE PASS: five user PDFs are grounded, psych context is gated, and citations are chatbot-only');

@@ -244,8 +244,9 @@ function spatialObservation(px,w,h){
     for(let p=0;p<comp.mask.length;p++)if(comp.mask[p]){lateralLuma.push(gray[p]);lateralSat.push(sat[p]);}
   }
   const bodyLuma=median(lateralLuma),bodySaturation=median(lateralSat);
-  let validN=0,strictN=0,looseN=0,whiteLike=0,yellowLike=0;
+  let validN=0,strictN=0,looseN=0,whiteLike=0,yellowLike=0,darkLike=0,darkNeutral=0;
   let centralN=0,centralCoat=0,middleN=0,middleCoat=0,posteriorN=0,posteriorCoat=0,anteriorN=0,anteriorCoat=0;
+  let darkCentralN=0,darkCentral=0,darkPosteriorN=0,darkPosterior=0;
   const coatMask=new Uint8Array(w*h);
   for(let y=minY;y<=box.maxY;y++)for(let x=minX;x<=box.maxX;x++){
     const p=y*w+x;if(!comp.mask[p])continue;
@@ -254,23 +255,31 @@ function spatialObservation(px,w,h){
     validN++;
     const strict=gray[p]>bodyLuma+10&&sat[p]<bodySaturation-.045&&ny>.06&&ny<.80&&nx>.14&&nx<.86;
     const loose=gray[p]>bodyLuma+5&&sat[p]<bodySaturation-.015&&ny>.06&&ny<.82&&nx>.12&&nx<.88;
+    const darkInterior=ny>.06&&ny<.82&&nx>.12&&nx<.88;
+    const darkContrast=bodyLuma-gray[p];
+    const dark=darkInterior&&darkContrast>=14&&sat[p]<=Math.min(.42,bodySaturation+.08)&&val[p]>=.12&&val[p]<=.62;
     if(strict)strictN++;
     if(loose){
-      looseN++;coatMask[p]=1;
+      looseN++;
       if(sat[p]<.28&&val[p]>.40)whiteLike++;
       if(hue[p]>=32&&hue[p]<=70&&sat[p]>.18&&val[p]>.40)yellowLike++;
     }
-    if(nx>.34&&nx<.66&&ny>.10&&ny<.82){centralN++;if(loose)centralCoat++;}
+    if(dark){darkLike++;if(sat[p]<=.32)darkNeutral++;}
+    if(loose||dark)coatMask[p]=1;
+    if(nx>.34&&nx<.66&&ny>.10&&ny<.82){centralN++;if(loose)centralCoat++;darkCentralN++;if(dark)darkCentral++;}
     if(ny>.30&&ny<.62){middleN++;if(loose)middleCoat++;}
-    if(ny>.04&&ny<.36){posteriorN++;if(loose)posteriorCoat++;}
+    if(ny>.04&&ny<.36){posteriorN++;if(loose)posteriorCoat++;darkPosteriorN++;if(dark)darkPosterior++;}
     if(ny>.62&&ny<.95){anteriorN++;if(loose)anteriorCoat++;}
   }
-  const strictRatio=validN?strictN/validN:0,coatRatio=validN?looseN/validN:0;
+  const strictRatio=validN?strictN/validN:0,coatRatio=validN?looseN/validN:0,darkRatio=validN?darkLike/validN:0;
   const centralRatio=centralN?centralCoat/centralN:0,middleRatio=middleN?middleCoat/middleN:0,posteriorRatio=posteriorN?posteriorCoat/posteriorN:0,anteriorRatio=anteriorN?anteriorCoat/anteriorN:0;
+  const darkNeutralRatio=darkLike?darkNeutral/darkLike:0,darkCentralRatio=darkCentralN?darkCentral/darkCentralN:0,darkPosteriorRatio=darkPosteriorN?darkPosterior/darkPosteriorN:0;
   const whiteRatio=looseN?whiteLike/looseN:0,yellowRatio=looseN?yellowLike/looseN:0;
-  const coatingThicknessCandidate=coatRatio>.42?'dày':coatRatio>.09?'mỏng':'rất mỏng';
-  const coatingDistributionCandidate=centralRatio>=.22&&Math.max(middleRatio,posteriorRatio)>=anteriorRatio+.035?'trung tâm–sau':coatRatio>.12?'lan tỏa':'không rõ';
-  const coatingColorCandidate=coatRatio>=.09&&yellowRatio>=.28&&yellowRatio>whiteRatio*1.25?'vàng':coatRatio>=.07&&(whiteRatio>=.12||yellowRatio<.18)?'trắng':'';
+  const darkCoatingCandidate=normalizationApplied&&darkRatio>=.10&&darkNeutralRatio>=.55&&Math.max(darkCentralRatio,darkPosteriorRatio)>=.14;
+  const effectiveCoatRatio=Math.max(coatRatio,darkRatio);
+  const coatingThicknessCandidate=effectiveCoatRatio>.42?'dày':effectiveCoatRatio>.09?'mỏng':'rất mỏng';
+  const coatingDistributionCandidate=darkCoatingCandidate&&Math.max(darkCentralRatio,darkPosteriorRatio)>=.14?'trung tâm–sau':centralRatio>=.22&&Math.max(middleRatio,posteriorRatio)>=anteriorRatio+.035?'trung tâm–sau':effectiveCoatRatio>.12?'lan tỏa':'không rõ';
+  const coatingColorCandidate=darkCoatingCandidate?'xám/đen':coatRatio>=.09&&yellowRatio>=.28&&yellowRatio>whiteRatio*1.25?'vàng':coatRatio>=.07&&(whiteRatio>=.12||yellowRatio<.18)?'trắng':'';
   const bodyColorCandidate=bodySaturation>.44?'đỏ':bodySaturation<.18&&bodyLuma>150?'nhợt':'đỏ nhạt';
 
   function moistureRegion(kind){
@@ -358,6 +367,10 @@ function spatialObservation(px,w,h){
     coatingColorCandidate,
     coatingWhiteLikeRatio:q(whiteRatio),
     coatingYellowLikeRatio:q(yellowRatio),
+    darkCoatingLikeRatio:q(darkRatio),
+    darkCoatingNeutralRatio:q(darkNeutralRatio),
+    darkCoatingCentralRatio:q(darkCentralRatio),
+    darkCoatingPosteriorRatio:q(darkPosteriorRatio),
     coatingThicknessCandidate,
     coatingDistributionCandidate,
     coatingZones:Object.freeze({central:q(centralRatio),middle:q(middleRatio),posterior:q(posteriorRatio),anterior:q(anteriorRatio)}),

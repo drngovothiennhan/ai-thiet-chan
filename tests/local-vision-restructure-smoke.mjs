@@ -48,7 +48,7 @@ const spatialBase={
   }
 };
 const calibrated=calibrateRealTongueFeatures({signature:{purple:.21,spot:.071},spatial:spatialBase,qc:{grade:'good'},base:{bodyColor:'đỏ nhạt',coatingColor:'trắng',coatingThickness:'mỏng',coatingTexture:'khá đều',shape:'hình thể trung bình',toothmarks:'Không xác định'}});
-assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v2-multiscale-toothmark');
+assert.equal(REAL_TONGUE_FEATURE_CALIBRATION_VERSION,'rtb20260922-feature-rule-calibration-v3-dark-coating');
 assert.equal(calibrated.active,true);
 assert.equal(calibrated.bodyColor.label,'tím/xanh tím','purple must require QC + normalized-color gate');
 assert.equal(calibrated.toothmarks.label,'Có tín hiệu dấu răng','toothmarks require repeated bilateral concavity');
@@ -57,7 +57,7 @@ assert.equal(calibrated.shape.label,'rộng/mập tương đối theo ảnh 2D',
 assert.equal(calibrated.pricklesSpots.label,'Có tín hiệu điểm đỏ/gai');
 assert.match(calibrated.fissureGuard,/median-sulcus-visible-do-not-promote-to-fissure/);
 assert.equal(calibrated.policy.noBlackCoatingFromGenericDarkPixels,true);
-assert.ok(calibrated.unsupportedUntilDedicatedExtractor.includes('rêu đen'));
+assert.equal(calibrated.unsupportedUntilDedicatedExtractor.includes('rêu đen'),false,'dark coating now has a dedicated QC-gated extractor');
 
 const flashSpatial=structuredClone(spatialBase);
 flashSpatial.moisture.coating={...flashSpatial.moisture.coating,glossRatio:.12,strictGlossRatio:.08,distributedGlossRatio:.05,largestGlossComponentRatio:.94};
@@ -98,6 +98,17 @@ assert.match(fs.readFileSync('public/academic-vision.js','utf8'),/mouth-anchored
 assert.match(fs.readFileSync('public/academic-vision.js','utf8'),/dark-oral-aperture-anchor-plus-adaptive-blue-green-separation-v1/);
 assert.match(academic,/leftMaxDepthRatio/);
 assert.match(academic,/edgeColorSupport/);
+assert.match(academic,/darkCoatingLikeRatio/);
+const darkSpatial=structuredClone(spatialBase);
+darkSpatial.coatingCandidateRatio=.035;darkSpatial.strictCoatingCandidateRatio=.010;darkSpatial.coatingColorCandidate='xám/đen';
+darkSpatial.darkCoatingLikeRatio=.28;darkSpatial.darkCoatingNeutralRatio=.82;darkSpatial.darkCoatingCentralRatio=.36;darkSpatial.darkCoatingPosteriorRatio=.42;
+const darkCoat=calibrateRealTongueFeatures({signature:{purple:.08,spot:.01},spatial:darkSpatial,qc:{grade:'good'},base:{bodyColor:'đỏ nhạt',coatingColor:'Không xác định',coatingThickness:'Không xác định',coatingTexture:'nghi nhờn/trơn',shape:'trung bình',toothmarks:'Không xác định'}});
+assert.equal(darkCoat.coatingColor.label,'nghi xám/đen');
+assert.match(darkCoat.coatingColor.reason,/dedicated-neutral-dark-coating/);
+assert.equal(darkCoat.policy.blackCoatingRequiresNeutralDarkContrast,true);
+const darkWithoutNormalization=structuredClone(darkSpatial);darkWithoutNormalization.colorNormalization={applied:false,neutralPixels:0,bounded:true};
+const darkBlocked=calibrateRealTongueFeatures({signature:{},spatial:darkWithoutNormalization,qc:{grade:'good'},base:{coatingColor:'Không xác định'}});
+assert.notEqual(darkBlocked.coatingColor.label,'nghi xám/đen');
 
 assert.match(academic,/export function verifyClientVisualPayload/);
 assert.doesNotMatch(academic,/function geminiLayer/);

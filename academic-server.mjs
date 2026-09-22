@@ -58,7 +58,7 @@ function saneSpatialObservation(raw){
   for(const key of unitKeys){
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
   }
-  for(const key of ['strictCoatingCandidateRatio','coatingWhiteLikeRatio','coatingYellowLikeRatio']){
+  for(const key of ['strictCoatingCandidateRatio','coatingWhiteLikeRatio','coatingYellowLikeRatio','darkCoatingLikeRatio','darkCoatingNeutralRatio','darkCoatingCentralRatio','darkCoatingPosteriorRatio']){
     if(raw[key]===undefined)continue;
     const n=Number(raw[key]);if(!Number.isFinite(n)||n<0||n>1.05)return null;out[key]=n;
   }
@@ -105,7 +105,7 @@ function saneSpatialObservation(raw){
   const bodyColor=String(raw.bodyColorCandidate||''),coatColor=String(raw.coatingColorCandidate||'');
   const thickness=String(raw.coatingThicknessCandidate||''),distribution=String(raw.coatingDistributionCandidate||'');
   out.bodyColorCandidate=['đỏ nhạt','đỏ','nhợt'].includes(bodyColor)?bodyColor:'';
-  out.coatingColorCandidate=['trắng','vàng'].includes(coatColor)?coatColor:'';
+  out.coatingColorCandidate=['trắng','vàng','xám/đen'].includes(coatColor)?coatColor:'';
   out.coatingThicknessCandidate=['rất mỏng','mỏng','dày'].includes(thickness)?thickness:'';
   out.coatingDistributionCandidate=['trung tâm–sau','lan tỏa','không rõ'].includes(distribution)?distribution:'';
   if(raw.moisture&&typeof raw.moisture==='object'){

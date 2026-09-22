@@ -55,6 +55,15 @@ assert.equal(warm.coatingColorCandidate,'trắng');
 assert.equal(warm.coatingThicknessCandidate,'mỏng');
 assert.equal(warm.coatingDistribution,'Không xác định');
 assert.equal(warm.medianSulcus.status,'unknown');
+const darkCoatFixture=structuredClone(mentorFixture);
+darkCoatFixture.coatingCandidateRatio=.03;darkCoatFixture.strictCoatingCandidateRatio=.01;darkCoatFixture.coatingColorCandidate='xám/đen';
+darkCoatFixture.darkCoatingLikeRatio=.26;darkCoatFixture.darkCoatingNeutralRatio=.78;darkCoatFixture.darkCoatingCentralRatio=.31;darkCoatFixture.darkCoatingPosteriorRatio=.38;
+darkCoatFixture.coatingThicknessCandidate='mỏng';darkCoatFixture.coatingDistributionCandidate='trung tâm–sau';
+const darkCoat=interpretSpatialObservation(darkCoatFixture,{grade:'good'});
+assert.equal(darkCoat.coatingColorCandidate,'xám/đen');
+assert.equal(darkCoat.coatingThicknessCandidate,'mỏng');
+assert.equal(darkCoat.coatingDistribution,'trung tâm–sau');
+assert.ok(darkCoat.effectiveCoatingRatio>=.26);
 
 const below=structuredClone(mentorFixture);
 below.medianSulcus={...below.medianSulcus,visibleSignal:false,score:.45,continuity:.12};

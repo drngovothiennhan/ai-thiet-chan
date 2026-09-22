@@ -87,6 +87,11 @@ const positivePatterns=directPatterns(positiveMorphologyAssessment).map(x=>x.lab
 assert.ok(positivePatterns.includes('Tín hiệu nhiệt / thực nhiệt'));
 assert.ok(positivePatterns.includes('Tín hiệu âm dịch hao tổn / nhiệt thương tân'));
 
+const darkVentralAssessment={top:{tongueColor:'đỏ nhạt',shape:'rộng tương đối',coatingColor:'nghi xám/đen',coatingThickness:'dày',coatingTexture:'nghi nhờn/trơn',moisture:'nhuận',fissures:'Chưa đủ căn cứ',toothmarks:'Không xác định',pricklesSpots:'Không xác định',stasisMarks:'Không xác định'},bottom:{undersideColor:'hồng/đỏ nhạt',vessels:{visible:true,color:'Tím/xanh tím',dilation:'Chưa đánh giá định lượng vì ảnh không có chuẩn kích thước tuyệt đối'}}};
+const darkPatterns=directPatterns(darkVentralAssessment);
+assert.ok(darkPatterns.some(x=>/xám\/đen nhuận/.test(x.label)));
+assert.ok(darkPatterns.some(x=>/thấp trọc|đàm/.test(x.label)));
+assert.ok(darkPatterns.some(x=>/mạch dưới lưỡi tím/.test(x.label)));
 const out=fuse(structuredClone(assessment),{},[{id:'x',sourceId:'TC1',page:1,kind:'test',similarity:0.7,hash:'x'}],reasoning,[]);
 assert.equal(out.combined.academicFusion.academicReasoning.patternCandidates.length,1);
 assert.ok(Array.isArray(out.combined.academicFusion.acceptedPatterns));

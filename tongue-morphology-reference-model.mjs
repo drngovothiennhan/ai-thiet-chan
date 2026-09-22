@@ -36,11 +36,14 @@ export const MORPHOLOGY_REFERENCE_MODEL=Object.freeze({
 });
 
 function usableShape(spatial,qc){
-  const s=spatial?.shapeMetrics||{};
+  const s=spatial?.shapeMetrics||{},mr=spatial?.morphologyRoi||{};
   const edge=unit(s.edgeRowCoverage),roiH=unit(s.roiHeightRatio),roiW=unit(s.roiWidthRatio);
   const margins=unit(s.topMargin)>.012&&unit(s.bottomMargin)>.012;
-  const enough=edge>=.60&&roiH>=.28&&roiW>=.18&&margins;
-  return {enough,edge,roiH,roiW,margins};
+  const anchored=/mouth|oral-aperture/i.test(String(mr.method||''))&&Number(mr?.sourceResolution?.height)>=320;
+  const enough=anchored
+    ?edge>=.60&&roiH>=.08&&roiW>=.12&&margins
+    :edge>=.60&&roiH>=.28&&roiW>=.18&&margins;
+  return {enough,edge,roiH,roiW,margins,anchored};
 }
 function scoreAbove(v,soft,hard){
   if(!Number.isFinite(Number(v)))return 0;

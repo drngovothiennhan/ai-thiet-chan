@@ -2,14 +2,16 @@ import './runtime-guard.mjs';
 import { TONGUE_EVIDENCE, KNOWLEDGE_DOCUMENTS as BASE_KNOWLEDGE_DOCUMENTS, citationInstruction } from './knowledge-evidence.mjs';
 import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } from './knowledge-extended.mjs';
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from './knowledge-open-access.mjs';
+import { REAL_TONGUE_20260922_EVIDENCE, REAL_TONGUE_20260922_DOCUMENTS } from './knowledge-real-tongue-20260922.mjs';
 import { ontologyTokensForQuery, TONGUE_ONTOLOGY_MANIFEST } from './knowledge-ontology.mjs';
 
-export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-19.6doc+oa19-moisture-region-v2';
+export const KNOWLEDGE_VERSION = 'thiet-chan-kb-2026-09-22.7doc+oa19+rtb1';
 
 export const KNOWLEDGE_DOCUMENTS = [
   ...BASE_KNOWLEDGE_DOCUMENTS,
   ...EXTENDED_KNOWLEDGE_DOCUMENTS,
-  ...OPEN_ACCESS_KNOWLEDGE_DOCUMENTS
+  ...OPEN_ACCESS_KNOWLEDGE_DOCUMENTS,
+  ...REAL_TONGUE_20260922_DOCUMENTS
 ];
 
 export const KNOWLEDGE_SOURCES = [
@@ -19,7 +21,7 @@ export const KNOWLEDGE_SOURCES = [
 ];
 
 const USER_EVIDENCE=[...TONGUE_EVIDENCE,...EXTENDED_EVIDENCE];
-const ALL_EVIDENCE=[...USER_EVIDENCE,...OPEN_ACCESS_EVIDENCE];
+const ALL_EVIDENCE=[...USER_EVIDENCE,...OPEN_ACCESS_EVIDENCE,...REAL_TONGUE_20260922_EVIDENCE];
 const documentById=new Map(KNOWLEDGE_DOCUMENTS.map(d=>[d.id,d]));
 
 function analysisEvidence(){

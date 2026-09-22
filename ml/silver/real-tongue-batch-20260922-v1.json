@@ -1,0 +1,705 @@
+{
+  "schemaVersion": "aitc-real-tongue-reference-batch-v1",
+  "datasetId": "RTB20260922",
+  "createdAt": "2026-09-22",
+  "sourceType": "user-uploaded screenshots containing real tongue photographs",
+  "sourceUi": "Kinh Lạc Trương Gia / Xem Lưỡi (as visible in screenshots)",
+  "uploadedArchive": "123.zip",
+  "archiveSha256": "794864ed1782afdf590a50077e2c2e6cb42cc2f4fb13fce807d83c24307db5de",
+  "recordCount": 64,
+  "categoryCounts": {
+    "Vùng Thận lõm": 4,
+    "Lưỡi nhợt": 1,
+    "Lưỡi teo nhỏ": 3,
+    "Rêu trơn/nhờn": 4,
+    "Lưỡi răng cưa": 4,
+    "Lưỡi nứt nẻ": 2,
+    "Rêu trắng": 2,
+    "Vùng Tỳ Vị lõm": 4,
+    "Không rêu/Lưỡi gương": 2,
+    "Vùng Can Đảm lõm": 5,
+    "Rêu đen": 4,
+    "Vùng Tâm Phế lồi/đỏ": 4,
+    "Lưỡi điểm đỏ/chấm hồng": 4,
+    "Rêu bong tróc": 5,
+    "Vùng Tâm Phế lõm": 2,
+    "Vùng Thận lồi": 2,
+    "Lưỡi tím/xanh tím": 2,
+    "Lưỡi đỏ": 1,
+    "Rêu vàng": 3,
+    "Lưỡi phì đại": 2,
+    "Vùng Can Đảm lồi": 1,
+    "Lưỡi hồng bình": 3
+  },
+  "probableDuplicateGroups": [
+    [
+      "RTB20260922-028",
+      "RTB20260922-049"
+    ],
+    [
+      "RTB20260922-029",
+      "RTB20260922-063"
+    ],
+    [
+      "RTB20260922-052",
+      "RTB20260922-064"
+    ]
+  ],
+  "rightsVerified": false,
+  "rawImagesCommittedToGit": false,
+  "clinicalGold": false,
+  "goldEligible": false,
+  "holdoutEligible": false,
+  "promotionEligible": false,
+  "trainingReady": false,
+  "policy": {
+    "role": "silver/real-image reference + LLM reasoning teacher only",
+    "sourceLabelRule": "Screenshot heading is preserved as a weak/silver source label, not independent clinician annotation.",
+    "syndromeRule": "Syndrome labels are conditional YHCT hypotheses and never definitive diagnosis from image alone.",
+    "duplicateRule": "Probable duplicates must share a group and must not be split across train/evaluation as independent cases.",
+    "goldRule": "Clinical gold still requires the existing verified-clinician independent annotation and adjudication workflow.",
+    "rightsRule": "Raw screenshots are not redistributed or committed because source-image rights were not independently verified."
+  },
+  "records": [
+    {
+      "id": "RTB20260922-001",
+      "sha256": "a86b091d2cfcc5cc263da1ec8bd1451eab7373e1941d156030f02c7ef5080be3",
+      "sourceScreenshotLabel": "Vùng Thận lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-002",
+      "sha256": "22c376087665c067a8e243a7cf9e333f5cdfcc09bb6faba1437d8ed4296ca534",
+      "sourceScreenshotLabel": "Lưỡi nhợt",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-003",
+      "sha256": "2a86d7c4bb528b053af11542cc4549fabdda98a87419024b84fc1bf9fac55eeb",
+      "sourceScreenshotLabel": "Lưỡi teo nhỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-004",
+      "sha256": "f3250729899aa21aabf975b7936b73db8b4bda411b13dcc049f9729f52ff957e",
+      "sourceScreenshotLabel": "Rêu trơn/nhờn",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-005",
+      "sha256": "fdee369047685b48f8972ca3500f7c835c4cd58052c0960ed6c317ea0f3c5aea",
+      "sourceScreenshotLabel": "Lưỡi răng cưa",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-006",
+      "sha256": "44aa638ea011b77b280e01d00f2e6fb89ce684bd7ee32182d43e882700c59770",
+      "sourceScreenshotLabel": "Rêu trơn/nhờn",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-007",
+      "sha256": "b14995ffc6f24909dd17337c32cd53746bda699bcbde548c6212d298d042c2bc",
+      "sourceScreenshotLabel": "Vùng Thận lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-008",
+      "sha256": "e3d3730e98a72144ead9eb94dfc18916972492f1b3c50d1c9869e5e79cbae5dc",
+      "sourceScreenshotLabel": "Lưỡi nứt nẻ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-009",
+      "sha256": "a4bf5f16ba6ae7f1468c55bb94331f5921176850821401d768d948ef37d925a8",
+      "sourceScreenshotLabel": "Rêu trắng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-010",
+      "sha256": "9742f10e5251f5ea77038a042a5764a3b7955323f88e15ee4cac212991349b6f",
+      "sourceScreenshotLabel": "Vùng Tỳ Vị lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-011",
+      "sha256": "e115ffa71a82bc5ddd23239df63d8cfaf86e4d79fc16f32d15008fe7d58cccf2",
+      "sourceScreenshotLabel": "Lưỡi teo nhỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-012",
+      "sha256": "bda901503027d1d3a605a7c5ff00bc1126b756852f53d3a2a9002df14952d728",
+      "sourceScreenshotLabel": "Không rêu/Lưỡi gương",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-013",
+      "sha256": "a599242e46e089c88b2785b67a5cb973a42b9da5fd050509851f663b5a9d0537",
+      "sourceScreenshotLabel": "Vùng Can Đảm lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-014",
+      "sha256": "beefab9ae1cde58e60a903ee87060e1d457f64d97aba348938913e00ec67a59b",
+      "sourceScreenshotLabel": "Không rêu/Lưỡi gương",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-015",
+      "sha256": "436d84f63e54b754c9286d75f61cfcfca4121434a55bb6459c1ec413a0d15f1a",
+      "sourceScreenshotLabel": "Lưỡi teo nhỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-016",
+      "sha256": "99a57bcbc1dc75493126737915cd5ec04747af7fbb38336697778ff382b84436",
+      "sourceScreenshotLabel": "Vùng Can Đảm lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-017",
+      "sha256": "d22eaadaff584b29fe4a6a0a36d86d09cca59889f96357372236858c64d22089",
+      "sourceScreenshotLabel": "Vùng Can Đảm lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-018",
+      "sha256": "66e17ac55656445fb0abf5699083d944a29222c3f25f671657e56f8c8f3bb535",
+      "sourceScreenshotLabel": "Vùng Thận lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-019",
+      "sha256": "13c35a0eaccb91522e999b26d7c57a6fcbf098e05368038eb5c2ff2123f9ae1b",
+      "sourceScreenshotLabel": "Rêu trơn/nhờn",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-020",
+      "sha256": "4b19c35403eb5eeb2425f7c2bf9b2e8ff601b34c02651ac8d84dab370b45b68b",
+      "sourceScreenshotLabel": "Rêu đen",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-021",
+      "sha256": "c24b857d0a627933ec82772fdec0638dd3b41ae8f6cf7fefa1bfd4e3bf07facf",
+      "sourceScreenshotLabel": "Rêu trắng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-022",
+      "sha256": "4fddd708f5fde9aa27d3f7b96b18d76571eacf4baa5e9862919951a66d41641e",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lồi/đỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-023",
+      "sha256": "80dce786aef4136528ff5f808c21ee9894c9706ff1931c251c41d164a57bffd9",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lồi/đỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-024",
+      "sha256": "34f55c2f6afa5b8f139217f25d57726be4d4fa7aac24d6f293ad3256af7e537c",
+      "sourceScreenshotLabel": "Rêu đen",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-025",
+      "sha256": "3a9c3801c6dff4b7d6cfa39bd1cb01fe875875fdf0a01c256fc234a6c036a900",
+      "sourceScreenshotLabel": "Lưỡi điểm đỏ/chấm hồng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-026",
+      "sha256": "5237aa86195f31f7cf3e9ee58cb23dd5e9d1484685d3ec86484ee900bfe435ca",
+      "sourceScreenshotLabel": "Lưỡi nứt nẻ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-027",
+      "sha256": "8be80ad7e7d462a7b5864088f3a15b952bbd3c1adc3768747b636497bf7512d4",
+      "sourceScreenshotLabel": "Rêu bong tróc",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-028",
+      "sha256": "e226de4b9bc820cc3e4772801c3b106c3da4095c8acef9c983469fc45ae549b2",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-029",
+      "sha256": "2d27ff7a4f7d151cd3420dd7839ee00eebd4c1edce36a6822e8bac17f70715be",
+      "sourceScreenshotLabel": "Vùng Thận lồi",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-030",
+      "sha256": "29f44f6eee769dbea387409d25a742604747212d797f68ab1c5fa723bb398b40",
+      "sourceScreenshotLabel": "Lưỡi tím/xanh tím",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-031",
+      "sha256": "7f7e5a95811200cbc61a1e4fd69f1532cf80a5ce7509276b5d3be308b35de547",
+      "sourceScreenshotLabel": "Lưỡi đỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-032",
+      "sha256": "11c1c412a86114221774fdcfddc0751ca0daaeca360cd976bfa2dfc59b178b3e",
+      "sourceScreenshotLabel": "Rêu đen",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-033",
+      "sha256": "d55cb951c8028d91292abf7b99bd5637c734303bfd04aa33c3b4f0d66046a5cd",
+      "sourceScreenshotLabel": "Vùng Tỳ Vị lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-034",
+      "sha256": "3c034411527b94725d5f41ad4d909904761a2753db1cb8b7919fb7233d0af8bc",
+      "sourceScreenshotLabel": "Rêu vàng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-035",
+      "sha256": "806ab47868fa9f8c7d47791ced05cb6df530f0c2f4c8e3c9cd7d47dc0fb804a4",
+      "sourceScreenshotLabel": "Rêu đen",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-036",
+      "sha256": "cb2215ed2edaab504aec21c6cc4c76eafbc67818598483de4fb265d13fd5cd4f",
+      "sourceScreenshotLabel": "Lưỡi tím/xanh tím",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-037",
+      "sha256": "9b182dd3a00663991a5ab13ee07f2f5ef656d512a0f1126d31c8bee64376cce2",
+      "sourceScreenshotLabel": "Vùng Can Đảm lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-038",
+      "sha256": "20d86c70c6689ae520978759fcc5862f8aba698c9a1108b099350dfc951d3e9f",
+      "sourceScreenshotLabel": "Vùng Tỳ Vị lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-039",
+      "sha256": "a09758e7118ba3a577c35b30fcb0add181159e118777625487d341a17724944d",
+      "sourceScreenshotLabel": "Vùng Can Đảm lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-040",
+      "sha256": "7949930528f371336c5af257c810cf707b7d57001dd870206ea343382a4510da",
+      "sourceScreenshotLabel": "Lưỡi điểm đỏ/chấm hồng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-041",
+      "sha256": "8553669ba1a729e6a2c754e2d38f15912105b00e7b7e0b5be589f19da7c19882",
+      "sourceScreenshotLabel": "Lưỡi điểm đỏ/chấm hồng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-042",
+      "sha256": "84bede15a338d9bab17058b5715cbef1481397b39f06dfaf7ce8e75061473fb0",
+      "sourceScreenshotLabel": "Lưỡi phì đại",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-043",
+      "sha256": "98ca57b762f00c0dc21a4a41f25f19e359de09bc3caa275731bc031e1b606e84",
+      "sourceScreenshotLabel": "Vùng Can Đảm lồi",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-044",
+      "sha256": "0f323196f998aac210fd1a64df92d582e18e2e514dfb6318f74dc2712f66bb70",
+      "sourceScreenshotLabel": "Rêu bong tróc",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-045",
+      "sha256": "6e7b433885febaa7512a2ad7be8e037c10698640af28f8c8335a0b67f3aff55d",
+      "sourceScreenshotLabel": "Vùng Tỳ Vị lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-046",
+      "sha256": "329fc9ba3ac2af790efc207da703ee3d3e73327aff108acd5b9f17047f85f712",
+      "sourceScreenshotLabel": "Rêu vàng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-047",
+      "sha256": "6b16b81dd08a6a418861f5f6eb0f02f23cd78a1aecb383eb4cf5285d0b27b6ab",
+      "sourceScreenshotLabel": "Lưỡi phì đại",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-048",
+      "sha256": "269cc490bc5098133aca4bd47fcef94bee6ee470c89903fbe1bdc8181d4accdd",
+      "sourceScreenshotLabel": "Rêu bong tróc",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-049",
+      "sha256": "5009349f284e817acefeef2c22f64b3f131ab531f780cf1aaf466a07555cfef9",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lõm",
+      "probableDuplicateOf": "RTB20260922-028",
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-050",
+      "sha256": "537db6afcae66ba2e7bed69e8758a8eeb95446fbe52b44b422eaee6961bf79cb",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lồi/đỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-051",
+      "sha256": "f70f5e6d79319b7a53dc883c57d1c1bd60dc79fa95057b3df83baa93b6f7565b",
+      "sourceScreenshotLabel": "Lưỡi hồng bình",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-052",
+      "sha256": "2758a62b90d32d1fe67ed2afbc169b4799a83c6dee718754fcf43ab951b7cdde",
+      "sourceScreenshotLabel": "Lưỡi hồng bình",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-053",
+      "sha256": "1f64e4dbe9beaaf0e80db22f15960d6d759b8b1eca2cef90213b150959603d2e",
+      "sourceScreenshotLabel": "Vùng Tâm Phế lồi/đỏ",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-054",
+      "sha256": "d0b0d5b2e9cc4f3993600fdd3becb276e9e6bfdca7dfa0b18b0bf979173618c4",
+      "sourceScreenshotLabel": "Rêu bong tróc",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-055",
+      "sha256": "96bae041c5751da567823f3f53c326ba59fff2948294a7504f82f504a90d1e9d",
+      "sourceScreenshotLabel": "Lưỡi răng cưa",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-056",
+      "sha256": "01cecbe208dda81b54718a28d702b1fee83ac572db6700a451ef988403f56a01",
+      "sourceScreenshotLabel": "Rêu trơn/nhờn",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-057",
+      "sha256": "56fbf5b2e7b009325f9492e70f557b957635e45248ea604f831e554da85e6198",
+      "sourceScreenshotLabel": "Lưỡi răng cưa",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-058",
+      "sha256": "54f1cf4b16523cc0228f2087143a937fdef506ca3110d56d0448d93af9efecd7",
+      "sourceScreenshotLabel": "Vùng Thận lõm",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-059",
+      "sha256": "e6d419c5f4a063358475e8dca81d133c2aaaf649504f69c3c9088063daf998c0",
+      "sourceScreenshotLabel": "Lưỡi răng cưa",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-060",
+      "sha256": "2a770b95eda63fb3fbf23d8b6e1e2e918cc16f700b6f6cf68ae3013c1a462135",
+      "sourceScreenshotLabel": "Lưỡi điểm đỏ/chấm hồng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-061",
+      "sha256": "b736e3a67e9c963c46bab5378ba0213f9dceffc3157f9151856dd68c7b94bfee",
+      "sourceScreenshotLabel": "Rêu vàng",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-062",
+      "sha256": "c6a7ac6dc057cc5b111897a3dc2f93260570dbf57090e6715e600f3aad4f9a54",
+      "sourceScreenshotLabel": "Rêu bong tróc",
+      "probableDuplicateOf": null,
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-063",
+      "sha256": "545abccbff84b9a7b4cac1ea30cb0800ed349288be2154a88f96e139e3c541e8",
+      "sourceScreenshotLabel": "Vùng Thận lồi",
+      "probableDuplicateOf": "RTB20260922-029",
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    },
+    {
+      "id": "RTB20260922-064",
+      "sha256": "e7734819b2bee7c3a15a823d26ac4dbcc99184c0c2f87b5883ecd5edd77bd693",
+      "sourceScreenshotLabel": "Lưỡi hồng bình",
+      "probableDuplicateOf": "RTB20260922-052",
+      "sourceLabelType": "weak/silver screenshot label",
+      "imageQualityForFeatureReview": "fair",
+      "goldEligible": false,
+      "trainingReady": false
+    }
+  ]
+}

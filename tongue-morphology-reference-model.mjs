@@ -143,10 +143,13 @@ export function evaluateMorphologyReference({spatial={},qc={},current={},capture
   const color=tm.edgeColorSupport&&typeof tm.edgeColorSupport==='object'?tm.edgeColorSupport:{};
   const colorBilateral=unit(color.bilateralScore),leftColor=unit(color.leftScore),rightColor=unit(color.rightScore);
   const colorSupport=Math.max(colorBilateral,Math.min(leftColor,rightColor)*.9);
-  const strongContour=visibility.edge>=.62&&tScore>=.62&&bilateral>=.34&&leftEvents>=2&&rightEvents>=2;
-  const moderateContour=visibility.edge>=.58&&tScore>=.46&&eventTotal>=3&&(leftEvents>=1||rightEvents>=1);
+  const maxSideEvents=Math.max(leftEvents,rightEvents),minSideEvents=Math.min(leftEvents,rightEvents);
+  const repeatedContour=maxSideEvents>=2;
+  const oppositeSupport=minSideEvents>=1||colorSupport>=.45;
+  const strongContour=visibility.edge>=.60&&tScore>=.60&&repeatedContour&&oppositeSupport;
+  const moderateContour=visibility.edge>=.58&&tScore>=.44&&eventTotal>=2&&(bilateral>=.24||colorSupport>=.30);
   const colorAssisted=visibility.edge>=.58&&moderateContour&&colorSupport>=.24;
-  const negativeContour=grade==='good'&&visibility.edge>=.68&&tScore<.28&&eventTotal<=1&&colorSupport<.18;
+  const negativeContour=grade==='good'&&visibility.edge>=.68&&tScore<.24&&eventTotal===0&&colorSupport<.18;
 
   let toothClass='unknown',toothLabel=UNKNOWN,toothConfidence=null;
   if(strongContour){

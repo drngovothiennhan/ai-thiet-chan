@@ -4,16 +4,22 @@ import { KNOWLEDGE_VERSION, KNOWLEDGE_SOURCES, KNOWLEDGE_DOCUMENTS, TONGUE_KNOWL
 import { TONGUE_EVIDENCE } from '../knowledge-evidence.mjs';
 import { EXTENDED_EVIDENCE, EXTENDED_KNOWLEDGE_DOCUMENTS, PSYCH_CONTEXT_RULES } from '../knowledge-extended.mjs';
 import { OPEN_ACCESS_EVIDENCE, OPEN_ACCESS_KNOWLEDGE_DOCUMENTS, OPEN_ACCESS_POLICY } from '../knowledge-open-access.mjs';
+import { REAL_TONGUE_20260922_EVIDENCE, REAL_TONGUE_20260922_DOCUMENTS, REAL_TONGUE_20260922_POLICY } from '../knowledge-real-tongue-20260922.mjs';
 import { TONGUE_ONTOLOGY_MANIFEST, TONGUE_ONTOLOGY_V1 } from '../knowledge-ontology.mjs';
 
 const extendedSource=fs.readFileSync(new URL('../knowledge-extended.mjs',import.meta.url),'utf8');
 
-assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-19.6doc+oa19-moisture-region-v2');
-assert.equal(KNOWLEDGE_DOCUMENTS.length,25);
+assert.equal(KNOWLEDGE_VERSION,'thiet-chan-kb-2026-09-22.7doc+oa19+rtb1');
+assert.equal(KNOWLEDGE_DOCUMENTS.length,26);
 assert.equal(EXTENDED_KNOWLEDGE_DOCUMENTS.length,4);
 assert.equal(OPEN_ACCESS_KNOWLEDGE_DOCUMENTS.length,19);
 assert.equal(OPEN_ACCESS_POLICY.sourceCount,19);
 assert.equal(OPEN_ACCESS_POLICY.fullTextVendored,false);
+assert.equal(REAL_TONGUE_20260922_DOCUMENTS.length,1);
+assert.equal(REAL_TONGUE_20260922_EVIDENCE.length,22);
+assert.equal(REAL_TONGUE_20260922_POLICY.recordCount,64);
+assert.equal(REAL_TONGUE_20260922_POLICY.clinicalGold,false);
+assert.equal(REAL_TONGUE_20260922_POLICY.modelWeightTrainingReady,false);
 assert.ok(TONGUE_ONTOLOGY_V1.length>=25);
 assert.equal(TONGUE_ONTOLOGY_MANIFEST.id,'aitc-tongue-ontology-v2');
 for(const id of ['OA01-E01','OA05-E01','OA08-E01','OA12-E01','OA16-E04','OA17-E02','OA18-E02','OA19-E01']) assert.ok(OPEN_ACCESS_EVIDENCE.some(e=>e.id===id),`open-access evidence missing id: ${id}`);
@@ -41,6 +47,9 @@ assert.ok(moisture.includes('[TCATLAS1, tr.'),'moisture retrieval should surface
 const regions=knowledgeForQuery('phân khu đầu lưỡi tâm phế hai bên can đởm giữa tỳ vị gốc thận bàng quang',{limit:14});
 assert.ok(regions.includes('[OA19, PMID 22693533]'),'regional-topography retrieval should surface TCM region evidence');
 assert.ok(regions.includes('không phải bản đồ giải phẫu')||regions.includes('không được tự chuyển thành chẩn đoán bệnh cơ quan'),'regional topography must carry non-anatomical/non-diagnostic guardrail');
+const realTongue=knowledgeForQuery('lưỡi răng cưa dấu răng Tỳ khí hư thấp',{limit:14});
+assert.ok(realTongue.includes('[RTB1, user-supplied batch 2026-09-22]'),'real-image silver batch should be retrievable by matching tongue features');
+assert.ok(realTongue.includes('không đủ xếp thể')||realTongue.includes('không tự xếp thể')||realTongue.includes('không kết luận từ ảnh đơn độc')||realTongue.includes('Có thể hỗ trợ'),'real-image evidence must remain conditional rather than definitive');
 const disease=knowledgeForQuery('ảnh lưỡi và ung thư dạ dày có chẩn đoán được không',{limit:12});
 assert.ok(disease.includes('không được chuyển thành chẩn đoán bệnh từ ảnh lưỡi'),'disease-association evidence must carry a non-diagnostic rule');
 console.log('KNOWLEDGE EVIDENCE SMOKE PASS: five user PDFs are grounded, psych context is gated, and citations are chatbot-only');

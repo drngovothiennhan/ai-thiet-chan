@@ -177,13 +177,14 @@ export function localGroundedChat({assessment,message,knowledgeText='',caseRetri
   if(signals.length){
     reply.push('Đối chiếu y văn YHCT theo dữ kiện hiện có: '+signals.map(signalText).filter(Boolean).join(' | ')+'.');
   }else{
-    reply.push('Đối chiếu y văn hiện chưa đủ căn cứ để quy nạp thành nhận định thể/chứng YHCT.');
+    reply.push('Đối chiếu y văn hiện chưa đủ căn cứ để biện chứng thành thể/chứng YHCT cụ thể; cần phối hợp thêm vọng, văn, vấn, thiết.');
   }
 
   if(text(combined.summary))reply.push('Tổng hợp theo dữ kiện hiện có: '+text(combined.summary));
   const cs=caseSummary(caseRetrieval);if(cs)reply.push(cs);
   if(limits.length)reply.push('Giới hạn: '+limits.join(' '));
-  if(/nguon|tai lieu|tham khao|citation/.test(q)&&sources.length)reply.push('Nguồn đối chiếu: '+sources.join(' | '));
+  if(sources.length)reply.push('Căn cứ tài liệu đã truy hồi: '+sources.join(' | ')+'.');
+  reply.push('Cách đọc kết quả: “chất lưỡi/thân lưỡi” là phần thân lưỡi; “rêu lưỡi” là lớp phủ bề mặt. Các thuật ngữ biện chứng YHCT chỉ là nhận định tham khảo khi được dữ kiện hỗ trợ; kết quả này không xác lập bệnh danh hiện đại.');
 
   return Object.freeze({
     ok:true,

@@ -63,7 +63,7 @@ const SYMPTOM_QUESTION_CONCEPTS = Object.freeze([
   Object.freeze({id:'belching',patterns:[/嗳气/u,/belch/i,/ợ hơi/iu],question:'Sau ăn, bạn có ợ hơi nhiều hoặc cảm giác đầy tức bụng không?'}),
   Object.freeze({id:'reflux',patterns:[/反酸/u,/reflux|acid regurgitation/i,/trào ngược|ợ chua/iu],question:'Bạn có ợ chua hoặc cảm giác dịch trào ngược lên họng không? Thường xuất hiện sau ăn hay khi nằm?'}),
   Object.freeze({id:'fever-chills',patterns:[/发热/u,/恶寒/u,/fever|chills?/i,/sốt|ớn lạnh|sợ lạnh|lạnh người/iu],question:'Gần đây bạn có sốt, cảm giác nóng hoặc ớn lạnh/sợ lạnh không? Nếu có, các cảm giác này xuất hiện cùng lúc hay luân phiên?'}),
-  Object.freeze({id:'sweating',patterns:[/汗出/u,/sweat/i,/ra mồ hôi|đổ mồ hôi|tự hãn/iu],question:'Bạn có ra mồ hôi nhiều bất thường, kể cả khi nghỉ ngơi hoặc lúc ngủ không?'}),
+  Object.freeze({id:'sweating',patterns:[/汗出/u,/自汗/u,/sweat/i,/ra mồ hôi|đổ mồ hôi|tự hãn/iu],question:'Bạn có ra mồ hôi nhiều bất thường, kể cả khi nghỉ ngơi hoặc lúc ngủ không?'}),
   Object.freeze({id:'thirst',patterns:[/口渴/u,/thirst|dry mouth/i,/khát|khô miệng/iu],question:'Bạn có khát hoặc khô miệng không? Bạn thường muốn uống nước ấm hay mát?'}),
   Object.freeze({id:'sleep',patterns:[/失眠/u,/insomnia|sleep disturbance/i,/mất ngủ|khó ngủ|ngủ không ngon/iu],question:'Giấc ngủ gần đây có thay đổi không, chẳng hạn khó vào giấc, dễ tỉnh giấc hoặc ngủ không sâu?'}),
   Object.freeze({id:'constipation',patterns:[/便秘/u,/constipation/i,/táo bón|đại tiện khó/iu],question:'Bạn có táo bón hoặc đại tiện khó hơn thường ngày không? Tần suất đại tiện có thay đổi không?'}),

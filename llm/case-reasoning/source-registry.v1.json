@@ -76,6 +76,28 @@
       "operationalRequirement": false,
       "trainingDefault": "off",
       "notes": "Optional quality signal. It must not block application operation, source ingestion, retrieval or educational case-reasoning work."
+    },
+    {
+      "sourceId": "aitc-real-tongue-silver-20260922-v1",
+      "kind": "internal_real_world_tongue_silver_annotations",
+      "provider": "A.I Thiet Chan owner-provided",
+      "dataset": "real-tongue-session-20260922-v2",
+      "language": [
+        "vi"
+      ],
+      "use": [
+        "case_reasoning_retrieval",
+        "visual_feature_reasoning",
+        "qc_regression",
+        "shadow_learning"
+      ],
+      "trustTier": "owner_real_world_silver",
+      "clinicalGold": false,
+      "operationalRequirement": false,
+      "trainingDefault": "shadow_only",
+      "ingestMode": "deidentified_text_annotations_only",
+      "rawImagesInPublicRepo": false,
+      "notes": "Real-world tongue photographs are represented in the public repository only by de-identified observations and SHA-256 fingerprints. Syndrome labels are hypotheses only; no diagnosis from image alone and no automatic production promotion."
     }
   ]
 }

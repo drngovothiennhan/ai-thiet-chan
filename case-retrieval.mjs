@@ -53,7 +53,7 @@ const BILINGUAL_HINTS = [
 
 const SYMPTOM_QUESTION_CONCEPTS = Object.freeze([
   Object.freeze({id:'headache',patterns:[/头痛/u,/headache/i,/đau đầu/iu],question:'Để đối chiếu chứng trạng, bạn có đau đầu không? Nếu có, đau ở vị trí nào, tính chất ra sao và điều gì làm tăng hoặc giảm đau?'}),
-  Object.freeze({id:'dizziness',patterns:[/头晕/u,/dizziness/i,/chóng mặt|hoa mắt/iu],question:'Bạn có chóng mặt hoặc hoa mắt không? Nếu có, thường xuất hiện khi nào và kéo dài bao lâu?'}),
+  Object.freeze({id:'dizziness',patterns:[/头晕/u,/dizziness/i,/chóng mặt|hoa mắt/iu],question:'Để đối chiếu chứng trạng, bạn có chóng mặt hoặc hoa mắt không? Nếu có, thường xuất hiện khi nào và kéo dài bao lâu?'}),
   Object.freeze({id:'nausea',patterns:[/恶心/u,/nausea/i,/buồn nôn/iu],question:'Bạn có buồn nôn hoặc cảm giác muốn nôn không? Tình trạng có liên quan đến bữa ăn không?'}),
   Object.freeze({id:'vomiting',patterns:[/呕吐/u,/vomit/i,/\bnôn\b/iu],question:'Bạn có nôn không? Nếu có, xin mô tả thời điểm xuất hiện và số lần gần đây.'}),
   Object.freeze({id:'poor-appetite',patterns:[/食欲不振/u,/poor appetite|appetite loss/i,/ăn kém|chán ăn/iu],question:'Gần đây bạn có ăn kém, chán ăn hoặc nhanh no hơn thường ngày không?'}),

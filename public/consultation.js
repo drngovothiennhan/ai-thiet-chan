@@ -80,7 +80,7 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
       || /^(toi )?khong (con |co )?(trieu chung|kho chiu)/.test(n);
   }
   function openingQuestion(){
-    return 'Bạn có triệu chứng hoặc khó chịu nào muốn bổ sung để đối chiếu cùng kết quả thiệt chẩn không? Có thể mô tả tự nhiên; nếu không có thêm, hãy trả lời “không”.';
+    return 'Ngoài dấu hiệu trên lưỡi, điều gì đang làm bạn khó chịu nhất? Xin cho biết khi nào bắt đầu và diễn biến đến nay; bạn có thể bổ sung triệu chứng liên quan nếu có. Hệ thống sẽ hỏi thêm tối đa 3 ý để đối chiếu chứng trạng; nếu không có gì thêm, hãy trả lời “không”.';
   }
   function transcriptText(){
     if(!flow.interactions.length)return '';
@@ -96,10 +96,9 @@ import('/session-persistence.js?v=2.9.4').catch(()=>{});
     return '[DUAL_CONSULT_FINAL]\n'
       +'Dữ kiện người dùng đã xác nhận trong phiên:\n'+transcript+'\n\n'
       +'NHIỆM VỤ: Dùng kết quả thiệt chẩn hiện tại, hệ tri thức YHCT và các CA TƯƠNG TỰ được truy hồi từ CSDL để kết thúc tư vấn. '
-      +'Trình bày ngắn gọn: (1) dữ kiện thiệt chẩn quan sát được; (2) triệu chứng người dùng đã xác nhận nếu có; '
-      +'(3) điểm tương đồng/khác biệt có căn cứ với ca truy hồi; (4) nhận định YHCT chỉ ở mức tham khảo khi đủ căn cứ; '
-      +'(5) dữ kiện còn thiếu hoặc mâu thuẫn. Không tự thêm triệu chứng, không chạy bộ Thập vấn cố định, '
-      +'không biến ca lịch sử thành chẩn đoán, không kê đơn và không sao chép phương thuốc từ corpus.';
+      +'Trình bày bằng tiếng Việt chuyên môn, rõ và dễ hiểu; dùng nhất quán các thuật ngữ chất lưỡi/thân lưỡi, rêu lưỡi, hình thể, độ nhuận/khô, dấu răng, rãnh giữa và nứt. Khi dùng thuật ngữ YHCT như hàn-nhiệt, hư-thực hoặc biểu-lý, giải thích ngắn bằng lời phổ thông. '
+      +'Sắp xếp ngắn gọn: (1) thiệt tượng đã quan sát; (2) vấn chứng người dùng đã xác nhận; (3) điểm phù hợp/khác biệt với ca truy hồi và dẫn chứng tri thức được cung cấp; (4) biện chứng YHCT có điều kiện nếu đủ căn cứ; (5) dữ kiện còn thiếu/mâu thuẫn; (6) gợi ý bước tiếp theo an toàn, không kê đơn. '
+      +'Không tự thêm triệu chứng, không biến ca lịch sử thành chẩn đoán cho người hiện tại, không suy bệnh danh hiện đại chỉ từ ảnh, không kê đơn và không sao chép phương thuốc từ corpus.';
   }
   function lastBotQuestion(){
     const nodes=[...log.querySelectorAll('.bubble.bot')];

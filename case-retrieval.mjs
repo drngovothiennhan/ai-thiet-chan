@@ -39,21 +39,36 @@ const BILINGUAL_HINTS = [
   [/buồn nôn|nausea/iu,['恶心','nausea']],
   [/nôn|vomit/iu,['呕吐','vomit']],
   [/ợ hơi|belch/iu,['嗳气','belching']],
-  [/trào ngược|reflux/iu,['反酸','reflux']]
+  [/trào ngược|reflux/iu,['反酸','reflux']],
+  [/ớn lạnh|sợ lạnh|lạnh người|chills|chill/iu,['恶寒','chills']],
+  [/sốt|nóng sốt|fever/iu,['发热','fever']],
+  [/ra mồ hôi|đổ mồ hôi|tự hãn|sweat/iu,['汗出','sweating']],
+  [/khát|khô miệng|dry mouth|thirst/iu,['口渴','thirst']],
+  [/mất ngủ|khó ngủ|ngủ không ngon|insomnia|sleep disturbance/iu,['失眠','insomnia']],
+  [/táo bón|đại tiện khó|constipation/iu,['便秘','constipation']],
+  [/tiểu tiện|nước tiểu|tiểu ít|tiểu nhiều|urination|urinary/iu,['小便','urination']],
+  [/hồi hộp|đánh trống ngực|palpitation/iu,['心悸','palpitations']]
 ];
 
 
 const SYMPTOM_QUESTION_CONCEPTS = Object.freeze([
-  Object.freeze({id:'headache',patterns:[/头痛/u,/headache/i,/đau đầu/iu],question:'Để đối chiếu chứng trạng, bạn có đau đầu không? Nếu có, xin mô tả vị trí và tính chất đau.'}),
-  Object.freeze({id:'dizziness',patterns:[/头晕/u,/dizziness/i,/chóng mặt|hoa mắt/iu],question:'Để đối chiếu chứng trạng, bạn có chóng mặt hoặc hoa mắt không?'}),
-  Object.freeze({id:'nausea',patterns:[/恶心/u,/nausea/i,/buồn nôn/iu],question:'Để đối chiếu chứng trạng, bạn có buồn nôn hoặc cảm giác muốn nôn không?'}),
-  Object.freeze({id:'vomiting',patterns:[/呕吐/u,/vomit/i,/\bnôn\b/iu],question:'Để đối chiếu chứng trạng, bạn có nôn không? Nếu có, xin cho biết thường xuất hiện vào thời điểm nào.'}),
-  Object.freeze({id:'poor-appetite',patterns:[/食欲不振/u,/poor appetite|appetite loss/i,/ăn kém|chán ăn/iu],question:'Về ăn uống, gần đây bạn có ăn kém hoặc chán ăn không?'}),
-  Object.freeze({id:'fatigue',patterns:[/乏力/u,/fatigue/i,/mệt|mệt mỏi/iu],question:'Về toàn trạng, bạn có cảm thấy mệt hoặc thiếu sức hơn bình thường không?'}),
-  Object.freeze({id:'abdominal-pain',patterns:[/腹痛/u,/abdominal pain/i,/đau bụng/iu],question:'Về trung tiêu, bạn có đau hoặc khó chịu ở bụng không?'}),
-  Object.freeze({id:'diarrhea',patterns:[/腹泻/u,/diarrh/i,/tiêu chảy|đi ngoài lỏng/iu],question:'Về đại tiện, gần đây bạn có đi ngoài lỏng hoặc tiêu chảy không?'}),
-  Object.freeze({id:'belching',patterns:[/嗳气/u,/belch/i,/ợ hơi/iu],question:'Sau ăn, bạn có ợ hơi nhiều hoặc cảm giác đầy tức không?'}),
-  Object.freeze({id:'reflux',patterns:[/反酸/u,/reflux|acid regurgitation/i,/trào ngược|ợ chua/iu],question:'Bạn có ợ chua hoặc cảm giác dịch trào ngược lên họng không?'})
+  Object.freeze({id:'headache',patterns:[/头痛/u,/headache/i,/đau đầu/iu],question:'Để đối chiếu chứng trạng, bạn có đau đầu không? Nếu có, đau ở vị trí nào, tính chất ra sao và điều gì làm tăng hoặc giảm đau?'}),
+  Object.freeze({id:'dizziness',patterns:[/头晕/u,/dizziness/i,/chóng mặt|hoa mắt/iu],question:'Để đối chiếu chứng trạng, bạn có chóng mặt hoặc hoa mắt không? Nếu có, thường xuất hiện khi nào và kéo dài bao lâu?'}),
+  Object.freeze({id:'nausea',patterns:[/恶心/u,/nausea/i,/buồn nôn/iu],question:'Bạn có buồn nôn hoặc cảm giác muốn nôn không? Tình trạng có liên quan đến bữa ăn không?'}),
+  Object.freeze({id:'vomiting',patterns:[/呕吐/u,/vomit/i,/\bnôn\b/iu],question:'Bạn có nôn không? Nếu có, xin mô tả thời điểm xuất hiện và số lần gần đây.'}),
+  Object.freeze({id:'poor-appetite',patterns:[/食欲不振/u,/poor appetite|appetite loss/i,/ăn kém|chán ăn/iu],question:'Gần đây bạn có ăn kém, chán ăn hoặc nhanh no hơn thường ngày không?'}),
+  Object.freeze({id:'fatigue',patterns:[/乏力/u,/fatigue/i,/mệt|mệt mỏi/iu],question:'Bạn có cảm thấy mệt hoặc giảm sức hơn thường ngày không? Tình trạng ảnh hưởng sinh hoạt thế nào?'}),
+  Object.freeze({id:'abdominal-pain',patterns:[/腹痛/u,/abdominal pain/i,/đau bụng/iu],question:'Bạn có đau hoặc khó chịu ở bụng không? Nếu có, ở vùng nào và liên quan thế nào với ăn uống hoặc đại tiện?'}),
+  Object.freeze({id:'diarrhea',patterns:[/腹泻/u,/diarrh/i,/tiêu chảy|đi ngoài lỏng/iu],question:'Gần đây bạn có đi ngoài phân lỏng hoặc tiêu chảy không? Tần suất có thay đổi so với thường ngày không?'}),
+  Object.freeze({id:'belching',patterns:[/嗳气/u,/belch/i,/ợ hơi/iu],question:'Sau ăn, bạn có ợ hơi nhiều hoặc cảm giác đầy tức bụng không?'}),
+  Object.freeze({id:'reflux',patterns:[/反酸/u,/reflux|acid regurgitation/i,/trào ngược|ợ chua/iu],question:'Bạn có ợ chua hoặc cảm giác dịch trào ngược lên họng không? Thường xuất hiện sau ăn hay khi nằm?'}),
+  Object.freeze({id:'fever-chills',patterns:[/发热/u,/恶寒/u,/fever|chills?/i,/sốt|ớn lạnh|sợ lạnh|lạnh người/iu],question:'Gần đây bạn có sốt, cảm giác nóng hoặc ớn lạnh/sợ lạnh không? Nếu có, các cảm giác này xuất hiện cùng lúc hay luân phiên?'}),
+  Object.freeze({id:'sweating',patterns:[/汗出/u,/自汗/u,/sweat/i,/ra mồ hôi|đổ mồ hôi|tự hãn/iu],question:'Bạn có ra mồ hôi nhiều bất thường, kể cả khi nghỉ ngơi hoặc lúc ngủ không?'}),
+  Object.freeze({id:'thirst',patterns:[/口渴/u,/thirst|dry mouth/i,/khát|khô miệng/iu],question:'Bạn có khát hoặc khô miệng không? Bạn thường muốn uống nước ấm hay mát?'}),
+  Object.freeze({id:'sleep',patterns:[/失眠/u,/insomnia|sleep disturbance/i,/mất ngủ|khó ngủ|ngủ không ngon/iu],question:'Giấc ngủ gần đây có thay đổi không, chẳng hạn khó vào giấc, dễ tỉnh giấc hoặc ngủ không sâu?'}),
+  Object.freeze({id:'constipation',patterns:[/便秘/u,/constipation/i,/táo bón|đại tiện khó/iu],question:'Bạn có táo bón hoặc đại tiện khó hơn thường ngày không? Tần suất đại tiện có thay đổi không?'}),
+  Object.freeze({id:'urination',patterns:[/小便/u,/urination|urinary/i,/tiểu tiện|nước tiểu|tiểu ít|tiểu nhiều/iu],question:'Bạn có nhận thấy thay đổi về tiểu tiện, như số lần, lượng nước tiểu hoặc cảm giác khó chịu khi tiểu không?'}),
+  Object.freeze({id:'palpitations',patterns:[/心悸/u,/palpitation/i,/hồi hộp|đánh trống ngực/iu],question:'Bạn có cảm giác hồi hộp hoặc tim đập nhanh bất thường không? Nếu có, thường xảy ra lúc nghỉ hay khi gắng sức?'})
 ]);
 const SYMPTOM_CONCEPT_IDS=new Set(SYMPTOM_QUESTION_CONCEPTS.map(x=>x.id));
 function conceptPresent(concept,text){return concept.patterns.some(pattern=>pattern.test(String(text||'')));}

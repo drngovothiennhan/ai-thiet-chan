@@ -54,7 +54,9 @@ assert.match(consultation,/Sẵn sàng đối chiếu/);
 assert.match(consultation,/\/api\/symptom-next/);
 assert.match(consultation,/askedConceptIds/);
 assert.match(consultation,/rememberAskedConcept/);
-assert.match(consultation,/DUAL_CONSULT_FINAL/);\nassert.match(consultation,/chất lưỡi\\/thân lưỡi/);\nassert.match(consultation,/dẫn chứng tri thức được cung cấp/);
+assert.match(consultation,/DUAL_CONSULT_FINAL/);
+assert.match(consultation,/chất lưỡi\\/thân lưỡi/);
+assert.match(consultation,/dẫn chứng tri thức được cung cấp/);
 assert.doesNotMatch(consultation,/const questions=\[/);
 assert.doesNotMatch(consultation,/\[THAP_VAN_CONTEXT\]/);
 
